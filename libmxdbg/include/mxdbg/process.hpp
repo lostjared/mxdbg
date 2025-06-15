@@ -16,6 +16,8 @@ namespace mx {
         void wait_for_stop();
         pid_t get_pid() const { return m_pid; }
         bool is_running() const;
+        void detach();
+        int get_exit_status();
     private:
         Process(pid_t pid) : m_pid(pid) {}    
         pid_t m_pid;
