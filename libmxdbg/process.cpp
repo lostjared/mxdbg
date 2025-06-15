@@ -6,6 +6,18 @@
 #include <cstring>
 
 namespace mx {
+    
+    Process::Process(Process&& proc) : m_pid(proc.m_pid) {
+        proc.m_pid = -1; 
+    }
+   
+    Process &Process::operator=(Process&& other) {
+        if (this != &other) {
+            m_pid = other.m_pid;
+            other.m_pid = -1; 
+        }
+        return *this;
+    }
 
     std::unique_ptr<Process> Process::launch(const std::filesystem::path& program, const std::vector<std::string> &args) {
         pid_t pid = fork();

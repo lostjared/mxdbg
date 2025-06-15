@@ -10,6 +10,12 @@
 namespace mx {
     class Process {
     public:
+        Process(const Process&) = delete;
+        ~Process() = default; 
+        Process& operator=(const Process&) = delete;
+        Process(Process&&);
+        Process& operator=(Process&&);
+
         static std::unique_ptr<Process> launch(const std::filesystem::path &exe, const std::vector<std::string>& args = {});
         static std::unique_ptr<Process> attach(pid_t pid);
         void continue_execution();
