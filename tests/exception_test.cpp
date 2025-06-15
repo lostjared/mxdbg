@@ -27,7 +27,7 @@ void test_basic_exception_construction() {
         assert(message == "C-style error");
     }
     
-    std::cout << "╬ô┬ú├┤ Basic exception construction test passed" << std::endl;
+    std::cout << " Basic exception construction test passed" << std::endl;
 }
 
 void test_errno_based_exception() {
@@ -53,7 +53,7 @@ void test_errno_based_exception() {
         assert(message.find("Permission denied") != std::string::npos);
     }
     
-    std::cout << "╬ô┬ú├┤ Errno-based exception test passed" << std::endl;
+    std::cout << " Errno-based exception test passed" << std::endl;
 }
 
 void test_exception_inheritance() {
@@ -73,7 +73,7 @@ void test_exception_inheritance() {
         assert(message == "Base exception test");
     }
     
-    std::cout << "╬ô┬ú├┤ Exception inheritance test passed" << std::endl;
+    std::cout << " Exception inheritance test passed" << std::endl;
 }
 
 std::string serialize_exception(const mx::Exception& e) {
@@ -103,7 +103,7 @@ void test_exception_through_pipe_same_process() {
     
     assert(std::string(deserialized.what()) == std::string(original_exception.what()));
     
-    std::cout << "╬ô┬ú├┤ Exception through pipe (same process) test passed" << std::endl;
+    std::cout << " Exception through pipe (same process) test passed" << std::endl;
 }
 
 void test_exception_through_pipe_different_processes() {
@@ -147,7 +147,7 @@ void test_exception_through_pipe_different_processes() {
         throw std::runtime_error("Failed to fork");
     }
     
-    std::cout << "╬ô┬ú├┤ Exception through pipe (different processes) test passed" << std::endl;
+    std::cout << " Exception through pipe (different processes) test passed" << std::endl;
 }
 
 void test_multiple_exceptions_through_pipe() {
@@ -180,7 +180,7 @@ void test_multiple_exceptions_through_pipe() {
     
     assert(count == exceptions.size());
     
-    std::cout << "╬ô┬ú├┤ Multiple exceptions through pipe test passed" << std::endl;
+    std::cout << " Multiple exceptions through pipe test passed" << std::endl;
 }
 
 void test_exception_with_pipe_errors() {
@@ -203,7 +203,7 @@ void test_exception_with_pipe_errors() {
         std::cout << "  Caught expected runtime_error: " << message << std::endl;
     }
     
-    std::cout << "╬ô┬ú├┤ Exception handling with pipe errors test passed" << std::endl;
+    std::cout << " Exception handling with pipe errors test passed" << std::endl;
 }
 
 void test_exception_error_context() {
@@ -228,7 +228,7 @@ void test_exception_error_context() {
         }
     }
     
-    std::cout << "╬ô┬ú├┤ Exception error context test passed" << std::endl;
+    std::cout << " Exception error context test passed" << std::endl;
 }
 
 void test_threaded_exception_communication() {
@@ -277,8 +277,8 @@ void test_threaded_exception_communication() {
     std::string message = received_exception.what();
     assert(message.find("Thread operation timed out") != std::string::npos);
     
-    std::cout << "  Received threaded exception: " << message << std::endl;
-    std::cout << "Γ£ô Threaded exception communication test passed" << std::endl;
+    std::cout << " Received threaded exception: " << message << std::endl;
+    std::cout << " Threaded exception communication test passed" << std::endl;
 }
 
 int main() {
@@ -295,11 +295,11 @@ int main() {
         test_exception_error_context();
         test_threaded_exception_communication();
         
-        std::cout << "\nΓëí╞Æ├ä├½ All exception tests passed!" << std::endl;
+        std::cout << "\n All exception tests passed!" << std::endl;
         return 0;
         
     } catch (const std::exception& e) {
-        std::cerr << "\n╬ô┬Ñ├« Test failed: " << e.what() << std::endl;
+        std::cerr << "\nTest failed: " << e.what() << std::endl;
         return 1;
     }
 }
