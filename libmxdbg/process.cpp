@@ -42,8 +42,8 @@ namespace mx {
             if (!WIFSTOPPED(status)) {
                 throw std::runtime_error("Child process did not stop as expected");
             }
-            std::unique_ptr<Process>  p(new Process(pid));
-            return p;
+            return std::unique_ptr<Process>(new Process(pid));
+            
         } else {
             throw std::runtime_error("Failed to fork: " + std::string(strerror(errno)));
         }
