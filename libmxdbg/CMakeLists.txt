@@ -1,6 +1,7 @@
 add_library(libmxdbg SHARED
     process.cpp 
     pipe.cpp
+    debugger.cpp
 )
 
 set_target_properties(libmxdbg PROPERTIES

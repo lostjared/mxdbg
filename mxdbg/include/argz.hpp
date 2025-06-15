@@ -207,7 +207,7 @@ namespace mx {
                             } else {
                                 a = pos->second;
                                 a.arg_name = name;
-                                if(++index < static_cast<int>(arg_data.args.size()) && arg_data.args[index][0] != '-') {
+                                if(++index < static_cast<int>(arg_data.args.size()) /*&& arg_data.args[index][0] != '-'*/) {
                                     a.arg_name = name;
                                     a.arg_value = arg_data.args[index];
                                     index++;

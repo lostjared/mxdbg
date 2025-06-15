@@ -16,7 +16,7 @@ namespace mx {
         Process(Process&&);
         Process& operator=(Process&&);
 
-        static std::unique_ptr<Process> launch(const std::filesystem::path &exe, const std::vector<std::string>& args = {});
+        static std::unique_ptr<Process> launch(const std::filesystem::path &exe, const std::vector<std::string> &args = {});
         static std::unique_ptr<Process> attach(pid_t pid);
         void continue_execution();
         void wait_for_stop();

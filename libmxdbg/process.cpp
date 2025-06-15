@@ -1,10 +1,12 @@
-#include "mxdbg/process.hpp"
-#include <sys/ptrace.h>
-#include <sys/wait.h>
-#include <unistd.h>
-#include <stdexcept>
-#include <cstring>
-
+#include"mxdbg/process.hpp"
+#include<sys/ptrace.h>
+#include<sys/wait.h>
+#include<unistd.h>
+#include<stdexcept>
+#include<cstring>
+#include<sstream>
+#include<iostream>
+#include<vector>
 namespace mx {
     
     Process::Process(Process&& proc) : m_pid(proc.m_pid) {
@@ -21,18 +23,22 @@ namespace mx {
 
     std::unique_ptr<Process> Process::launch(const std::filesystem::path& program, const std::vector<std::string> &args) {
         pid_t pid = fork();
-        
         if (pid == 0) {
             if (ptrace(PTRACE_TRACEME, 0, nullptr, nullptr) == -1) {
-                throw std::runtime_error("Failed to enable tracing: " + std::string(strerror(errno)));
+                perror("ptrace");
             }
-            std::vector<char*> argv;
-            argv.push_back(program.string().data());
-            for (const auto& arg : args) {
-                argv.push_back(const_cast<char*>(arg.c_str()));
+            if (!args.empty()) {
+                std::vector<char*> args_vec;
+                args_vec.push_back(const_cast<char*>(program.filename().c_str()));
+                for (auto& arg_str : args) {
+                    args_vec.push_back(const_cast<char*>(arg_str.data()));
+                }
+                args_vec.push_back(nullptr);
+                execvp(program.string().c_str(), args_vec.data());
+            } else {
+                std::cout << "Executing: " << program.string() << "\n";
+                execl(program.string().c_str(), program.filename().string().c_str(), nullptr);
             }
-            argv.push_back(nullptr);
-            execv(program.c_str(), argv.data());
             throw std::runtime_error("Failed to execute program: " + std::string(strerror(errno)));
         } else if (pid > 0) {
             int status;
