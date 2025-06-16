@@ -84,7 +84,7 @@ mx::Exception deserialize_exception(const std::string& data) {
     if (data.substr(0, 10) == "EXCEPTION:") {
         return mx::Exception(data.substr(10));
     }
-    throw std::runtime_error("Invalid exception data");
+    throw mx::Exception("Invalid exception data");
 }
 
 void test_exception_through_pipe_same_process() {
@@ -144,7 +144,7 @@ void test_exception_through_pipe_different_processes() {
         std::cout << "  Child sent exception: " << message << std::endl;
         
     } else {
-        throw std::runtime_error("Failed to fork");
+        throw mx::Exception("Failed to fork");
     }
     
     std::cout << " Exception through pipe (different processes) test passed" << std::endl;
@@ -260,16 +260,16 @@ void test_threaded_exception_communication() {
     producer.join();
     
     if (!thread_completed) {
-        throw std::runtime_error("Thread did not complete properly");
+        throw mx::Exception("Thread did not complete properly");
     }
     
     if (!error_message.empty()) {
-        throw std::runtime_error("Thread failed with error: " + error_message);
+        throw mx::Exception("Thread failed with error: " + error_message);
     }
     
     std::string received = pipe.read();
     if (received.empty()) {
-        throw std::runtime_error("No data received from thread");
+        throw mx::Exception("No data received from thread");
     }
     
     mx::Exception received_exception = deserialize_exception(received);

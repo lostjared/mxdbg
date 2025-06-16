@@ -44,7 +44,7 @@ namespace mx {
         if (pid == 0) {
             error_pipe.close_read();          
             if (ptrace(PTRACE_TRACEME, 0, nullptr, nullptr) == -1) {
-                std::string error_msg = "PTRACE_FAILED:" + std::string(strerror(errno));
+                std::string error_msg = "PTRACE_FAILED: " + std::string(strerror(errno));
                 error_pipe.write(error_msg);
                 error_pipe.close_write();
                 exit(1);
@@ -80,13 +80,13 @@ namespace mx {
             }
             return std::unique_ptr<Process>(new Process(pid));
         } else {
-            throw std::runtime_error("Failed to fork: " + std::string(strerror(errno)));
+            throw mx::Exception::error("Failed to fork");
         }
     }
 
     std::unique_ptr<Process> Process::attach(pid_t pid) {
         if (ptrace(PTRACE_ATTACH, pid, nullptr, nullptr) == -1) {
-            throw mx::Exception::error("Failed to attach to process ");
+            throw mx::Exception::error("Failed to attach to process");
         }
         int status;
         if (waitpid(pid, &status, 0) == -1) {

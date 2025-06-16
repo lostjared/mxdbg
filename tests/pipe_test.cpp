@@ -1,4 +1,5 @@
-#include "mxdbg/pipe.hpp"
+#include <mxdbg/pipe.hpp>
+#include <mxdbg/exception.hpp>
 #include <iostream>
 #include <thread>
 #include <chrono>
@@ -342,7 +343,7 @@ void test_interprocess_communication() {
         
         std::cout << " Interprocess communication test passed" << std::endl;
     } else {
-        throw std::runtime_error("Failed to fork");
+        throw mx::Exception("Failed to fork");
     }
 }
 

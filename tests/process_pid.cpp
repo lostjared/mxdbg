@@ -1,4 +1,5 @@
-#include "mxdbg/process.hpp"
+#include<mxdbg/process.hpp>
+#include<mxdbg/exception.hpp> 
 #include <iostream>
 #include <unistd.h>
 #include <sys/wait.h>
@@ -18,7 +19,7 @@ pid_t launch_target_process() {
         std::cout << "Parent: launched child with PID " << pid << std::endl;
         return pid;
     } else {
-        throw std::runtime_error("Failed to fork target process");
+        throw mx::Exception("Failed to fork target process");
     }
 }
 
@@ -49,7 +50,7 @@ int main(int argc, char* argv[]) {
         }
         
         if (!process_exists(target_pid)) {
-            throw std::runtime_error("Target process died before we could attach");
+            throw mx::Exception("Target process died before we could attach");
         }
         
         std::cout << "Attaching debugger to process " << target_pid << "..." << std::endl;
