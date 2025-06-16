@@ -1,13 +1,16 @@
 #ifndef _PIPE_H__ 
 #define _PIPE_H__
 
-#include <cstdint>
-#include <string>
-#include <vector>
-#include <memory>                                   
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/types.h>
+#include<cstdint>
+#include<string>
+#include<vector>
+#include<memory>                                   
+#include<fcntl.h>
+#include<unistd.h>
+#include<sys/types.h>
+#include<cstddef>
+
+
 namespace mx {
 
     class Pipe {    
@@ -19,9 +22,13 @@ namespace mx {
         Pipe(Pipe &&proc);
         Pipe &operator=(Pipe &&proc);
 
-        void write(const std::string& data);
+        std::size_t write(const std::string& data);
+        std::size_t write(const std::byte *data, std::size_t size);
+        std::size_t write(const std::vector<std::byte> &data);
         std::string read();
+        std::vector<std::byte> read_bytes();
         std::string read_nonblocking();
+        std::vector<std::byte> read_bytes_nonblocking();
         bool is_open() const;
         bool is_readable() const;
         bool is_writable() const;
