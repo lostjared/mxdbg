@@ -13,3 +13,17 @@ target_include_directories(libmxdbg PUBLIC
 )
 
 target_compile_features(libmxdbg PUBLIC cxx_std_20)
+
+include(GNUInstallDirs)
+
+install(TARGETS libmxdbg
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+install(DIRECTORY include/mxdbg
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    FILES_MATCHING PATTERN "*.hpp"
+)
+

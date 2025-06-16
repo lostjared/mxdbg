@@ -1,0 +1,35 @@
+if(NOT EXISTS "@CMAKE_CURRENT_BINARY_DIR@/install_manifest.txt")
+  message(FATAL_ERROR "Cannot find install manifest: @CMAKE_CURRENT_BINARY_DIR@/install_manifest.txt")
+endif()
+
+file(READ "@CMAKE_CURRENT_BINARY_DIR@/install_manifest.txt" files)
+string(REGEX REPLACE "\n" ";" files "${files}")
+foreach(file ${files})
+  message(STATUS "Uninstalling $ENV{DESTDIR}${file}")
+  if(IS_SYMLINK "$ENV{DESTDIR}${file}" OR EXISTS "$ENV{DESTDIR}${file}")
+    execute_process(
+      COMMAND "@CMAKE_COMMAND@" -E remove "$ENV{DESTDIR}${file}"
+      OUTPUT_VARIABLE rm_out
+      ERROR_VARIABLE rm_err
+      RESULT_VARIABLE rm_retval
+    )
+    if(NOT "${rm_retval}" STREQUAL "0")
+      message(FATAL_ERROR "Problem when removing $ENV{DESTDIR}${file}: ${rm_err}")
+    endif()
+  else()
+    message(STATUS "File $ENV{DESTDIR}${file} does not exist.")
+  endif()
+endforeach()
+
+# Remove empty directories
+message(STATUS "Removing empty directories...")
+execute_process(
+  COMMAND find "@CMAKE_INSTALL_PREFIX@/include/mxdbg" -type d -empty -delete 
+  ERROR_QUIET
+)
+execute_process(
+  COMMAND rmdir "@CMAKE_INSTALL_PREFIX@/include/mxdbg" 
+  ERROR_QUIET
+)
+
+message(STATUS "Uninstall completed successfully!")
