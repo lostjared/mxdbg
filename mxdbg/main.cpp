@@ -57,7 +57,6 @@ Arguments parse_args(int argc, char **argv) {
 
 int main(int argc, char **argv) {
     Arguments args = parse_args(argc, argv);
-    std::cout << args.args_str << std::endl;
     mx::Debugger debugger;
     std::string history_filename;
     try {
