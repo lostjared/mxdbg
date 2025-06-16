@@ -51,16 +51,182 @@ void test_basic_read_write() {
     std::cout << " Basic read/write test passed" << std::endl;
 }
 
+void test_write_functions() {
+    std::cout << "Testing all write functions..." << std::endl;
+    
+    {
+        mx::Pipe pipe;
+        std::string test_string = "Hello, World!";
+        size_t bytes_written = pipe.write(test_string);
+        assert(bytes_written == test_string.size());
+        
+        std::string result = pipe.read();
+        assert(result == test_string);
+        std::cout << "  String write test passed" << std::endl;
+    }
+    
+    {
+        mx::Pipe pipe;
+        std::string original = "Binary data test";
+        const std::byte* byte_data = reinterpret_cast<const std::byte*>(original.c_str());
+        size_t bytes_written = pipe.write(byte_data, original.size());
+        assert(bytes_written == original.size());
+        
+        std::string result = pipe.read();
+        assert(result == original);
+        std::cout << "  Byte pointer write test passed" << std::endl;
+    }
+    
+    {
+        mx::Pipe pipe;
+        std::string original = "Vector byte test";
+        std::vector<std::byte> byte_vector;
+        for (char c : original) {
+            byte_vector.push_back(static_cast<std::byte>(c));
+        }
+        
+        size_t bytes_written = pipe.write(byte_vector);
+        assert(bytes_written == byte_vector.size());
+        
+        std::string result = pipe.read();
+        assert(result == original);
+        std::cout << "  Byte vector write test passed" << std::endl;
+    }
+    
+    {
+        mx::Pipe pipe;
+        
+        size_t bytes_written = pipe.write(std::string());
+        assert(bytes_written == 0);
+        
+        std::vector<std::byte> empty_vector;
+        bytes_written = pipe.write(empty_vector);
+        assert(bytes_written == 0);
+        
+        bytes_written = pipe.write(nullptr, 0);
+        assert(bytes_written == 0);
+        
+        std::cout << "  Empty data write tests passed" << std::endl;
+    }
+    
+    {
+        mx::Pipe pipe;
+        std::vector<std::byte> binary_data = {
+            std::byte{0x00}, std::byte{0x48}, std::byte{0x65}, std::byte{0x6C}, 
+            std::byte{0x6C}, std::byte{0x6F}, std::byte{0x00}, std::byte{0xFF}
+        };
+        
+        size_t bytes_written = pipe.write(binary_data);
+        assert(bytes_written == binary_data.size());
+        
+        std::vector<std::byte> result = pipe.read_bytes();
+        assert(result == binary_data);
+        std::cout << "  Binary data with nulls test passed" << std::endl;
+    }
+    
+    std::cout << " All write functions tests passed" << std::endl;
+}
+
+void test_large_write_functions() {
+    std::cout << "Testing large data with all write functions..." << std::endl;
+    
+    const size_t large_size = 50000;
+    
+    {
+        mx::Pipe pipe;
+        std::string large_string(large_size, 'X');
+        for (size_t i = 0; i < large_size; i += 1000) {
+            large_string[i] = 'Y';
+        }
+        
+        std::thread writer([&pipe, &large_string]() {
+            size_t bytes_written = pipe.write(large_string);
+            assert(bytes_written == large_string.size());
+            pipe.close_write();
+        });
+        
+        std::string result;
+        std::string chunk;
+        while (!(chunk = pipe.read()).empty()) {
+            result += chunk;
+        }
+        
+        writer.join();
+        assert(result == large_string);
+        std::cout << "  Large string write test passed" << std::endl;
+    }
+    
+    {
+        mx::Pipe pipe;
+        std::vector<std::byte> large_vector(large_size);
+        for (size_t i = 0; i < large_size; ++i) {
+            large_vector[i] = static_cast<std::byte>(i % 256);
+        }
+        
+        std::thread writer([&pipe, &large_vector]() {
+            size_t bytes_written = pipe.write(large_vector);
+            assert(bytes_written == large_vector.size());
+            pipe.close_write();
+        });
+        
+        std::vector<std::byte> result;
+        std::vector<std::byte> chunk;
+        while (!(chunk = pipe.read_bytes()).empty()) {
+            result.insert(result.end(), chunk.begin(), chunk.end());
+        }
+        
+        writer.join();
+        assert(result == large_vector);
+        std::cout << "  Large byte vector write test passed" << std::endl;
+    }
+    
+    std::cout << " Large write functions tests passed" << std::endl;
+}
+
+void test_write_error_conditions() {
+    std::cout << "Testing write error conditions..." << std::endl;
+    
+    {
+        mx::Pipe pipe;
+        pipe.close_write();
+        
+        try {
+            pipe.write(std::string("test"));
+            assert(false && "Should have thrown exception");
+        } catch (const std::exception& e) {
+            std::cout << "  Expected string write error: " << e.what() << std::endl;
+        }
+        
+        try {
+            std::vector<std::byte> data = {std::byte{0x01}};
+            pipe.write(data);
+            assert(false && "Should have thrown exception");
+        } catch (const std::exception& e) {
+            std::cout << "  Expected byte vector write error: " << e.what() << std::endl;
+        }
+        
+        try {
+            std::byte data = std::byte{0x01};
+            pipe.write(&data, 1);
+            assert(false && "Should have thrown exception");
+        } catch (const std::exception& e) {
+            std::cout << "  Expected byte pointer write error: " << e.what() << std::endl;
+        }
+    }
+    
+    std::cout << " Write error conditions tests passed" << std::endl;
+}
+
 void test_large_data_transfer() {
     std::cout << "Testing large data transfer..." << std::endl;
     mx::Pipe pipe;
     std::string large_data(100000, 'A');
     for (size_t i = 0; i < large_data.size(); i += 100) {
-        large_data[i] = 'B'; // Add some variation
+        large_data[i] = 'B'; 
     }
     std::thread writer([&pipe, &large_data]() {
         pipe.write(large_data);
-        pipe.close_write(); // Signal EOF
+        pipe.close_write(); 
     });
     std::string result;
     std::string chunk;
@@ -217,6 +383,9 @@ int main() {
         test_basic_construction();
         test_move_semantics();
         test_basic_read_write();
+        test_write_functions();
+        test_large_write_functions();
+        test_write_error_conditions();
         test_large_data_transfer();
         test_multiple_writes_reads();
         test_close_operations();
