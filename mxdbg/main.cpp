@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
                 free(line);    
                 if(!debugger.command(command)) {
                     break;
-                }
+                } else continue;
             } else {
                 free(line);
             }

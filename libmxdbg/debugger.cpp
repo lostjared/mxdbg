@@ -125,11 +125,14 @@ namespace mx {
             return true;
         } else if (tokens[0] == "exit" || tokens[0] == "quit") {
             if (process) {
-                process->detach();
-                std::cout << "Detached from process with PID: " << process->get_pid() << std::endl;
+                if(process->is_running()) {
+                    process->detach();
+                    std::cout << "Detached from process with PID: " << process->get_pid() << std::endl;
+                }
             }
             return false; 
         } 
-        return false;
+        std::cout << "Unknown command: " << tokens[0] << std::endl;
+        return true;
     }
 } 
