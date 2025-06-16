@@ -123,6 +123,13 @@ namespace mx {
                 std::cout << "No process attached or launched." << std::endl;
             }
             return true;
+        } else if(tokens[0] == "info") {
+            if(process && process->is_running()) {
+                std::cout << process->proc_info() << std::endl;
+            } else {
+                std::cout << "No process attached or launched." << std::endl;
+            }
+            return true;
         } else if (tokens[0] == "exit" || tokens[0] == "quit") {
             if (process) {
                 if(process->is_running()) {

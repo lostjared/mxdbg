@@ -24,6 +24,7 @@ namespace mx {
         bool is_running() const;
         void detach();
         int get_exit_status();
+        std::string proc_info() const;
     private:
         Process(pid_t pid) : m_pid(pid) {}    
         pid_t m_pid;

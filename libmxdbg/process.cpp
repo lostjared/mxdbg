@@ -11,6 +11,8 @@
 #include<vector>
 #include<thread>
 #include<chrono>
+#include<fstream>
+
 namespace mx {
     
     Process::Process(Process&& proc) : m_pid(proc.m_pid) {
@@ -140,5 +142,24 @@ namespace mx {
             }
         }
         return -1; 
+    }
+
+    std::string Process::proc_info() const {
+        std::ostringstream stream;
+        std::filesystem::path proc_path = "/proc/" + std::to_string(m_pid);
+        if (!std::filesystem::exists(proc_path)) {
+            return "Process not found in procfs";
+        }
+        std::ifstream status_file(proc_path / "status");
+        if (status_file.is_open()) {
+            std::string line;
+            while (std::getline(status_file, line)) {
+                stream << line << "\n";
+            }
+            status_file.close();
+        } else {
+            stream << "Unable to read process status from " << proc_path.string() << "/status";
+        }
+        return stream.str();
     }
 }
