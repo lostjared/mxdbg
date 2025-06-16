@@ -1,4 +1,6 @@
 #include"mxdbg/process.hpp"
+#include"mxdbg/pipe.hpp"
+#include"mxdbg/exception.hpp"
 #include<sys/ptrace.h>
 #include<sys/wait.h>
 #include<unistd.h>
@@ -7,6 +9,8 @@
 #include<sstream>
 #include<iostream>
 #include<vector>
+#include<thread>
+#include<chrono>
 namespace mx {
     
     Process::Process(Process&& proc) : m_pid(proc.m_pid) {
@@ -22,34 +26,46 @@ namespace mx {
     }
 
     std::unique_ptr<Process> Process::launch(const std::filesystem::path& program, const std::vector<std::string> &args) {
+        mx::Pipe error_pipe;
         pid_t pid = fork();
         if (pid == 0) {
+            error_pipe.close_read();          
             if (ptrace(PTRACE_TRACEME, 0, nullptr, nullptr) == -1) {
-                perror("ptrace");
+                std::string error_msg = "PTRACE_FAILED:" + std::string(strerror(errno));
+                error_pipe.write(error_msg);
+                error_pipe.close_write();
+                exit(1);
             }
-            if (!args.empty()) {
-                std::vector<char*> args_vec;
-                args_vec.push_back(const_cast<char*>(program.filename().c_str()));
-                for (auto& arg_str : args) {
-                    args_vec.push_back(const_cast<char*>(arg_str.data()));
-                }
-                args_vec.push_back(nullptr);
-                execvp(program.string().c_str(), args_vec.data());
-            } else {
-                std::cout << "Executing: " << program.string() << "\n";
-                execl(program.string().c_str(), program.filename().string().c_str(), nullptr);
+            std::vector<char*> args_vec;
+            args_vec.push_back(const_cast<char*>(program.filename().c_str()));
+            for (const auto& arg : args) {
+                args_vec.push_back(const_cast<char*>(arg.c_str()));
             }
-            throw std::runtime_error("Failed to execute program: " + std::string(strerror(errno)));
+            args_vec.push_back(nullptr);
+            error_pipe.close_write();
+            execvp(program.string().c_str(), args_vec.data());
+            perror("execvp");
+            exit(1);
         } else if (pid > 0) {
+            error_pipe.close_write();
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            std::string error_msg = error_pipe.read_nonblocking();
+            if (!error_msg.empty()) {
+                error_pipe.close();
+                kill(pid, SIGKILL);
+                int status;
+                waitpid(pid, &status, 0);
+                throw mx::Exception("Failed to launch process: " + error_msg);
+            }
+            error_pipe.close();
             int status;
             if (waitpid(pid, &status, 0) == -1) {
-                throw std::runtime_error("Failed to wait for child: " + std::string(strerror(errno)));
+                throw mx::Exception::error("Failed to wait for child process");
             }
             if (!WIFSTOPPED(status)) {
-                throw std::runtime_error("Child process did not stop as expected");
+                throw mx::Exception("Child process did not stop as expected");
             }
             return std::unique_ptr<Process>(new Process(pid));
-            
         } else {
             throw std::runtime_error("Failed to fork: " + std::string(strerror(errno)));
         }
@@ -57,25 +73,25 @@ namespace mx {
 
     std::unique_ptr<Process> Process::attach(pid_t pid) {
         if (ptrace(PTRACE_ATTACH, pid, nullptr, nullptr) == -1) {
-            throw std::runtime_error("Failed to attach to process: " + std::string(strerror(errno)));
+            throw mx::Exception::error("Failed to attach to process ");
         }
         int status;
         if (waitpid(pid, &status, 0) == -1) {
-            throw std::runtime_error("Failed to wait for process: " + std::string(strerror(errno)));
+            throw mx::Exception::error("Failed to wait for process after attaching");
         }
         return std::unique_ptr<Process>(new Process(pid));
     }
 
     void Process::continue_execution() {
         if (ptrace(PTRACE_CONT, m_pid, nullptr, 0) == -1) {
-            throw std::runtime_error("Failed to continue process: " + std::string(strerror(errno)));
+            throw mx::Exception::error("Failed to continue process");
         }
     }
 
     void Process::wait_for_stop() {
         int status;
         if (waitpid(m_pid, &status, 0) == -1) {
-            throw std::runtime_error("Failed to wait for process: " + std::string(strerror(errno)));
+            throw mx::Exception::error("Failed to wait for process stop");
         }
     }
 
@@ -98,7 +114,7 @@ namespace mx {
             }
         }        
         if (ptrace(PTRACE_DETACH, m_pid, nullptr, 0) == -1) {
-            throw std::runtime_error("Failed to detach from process: " + std::string(strerror(errno)));
+            throw mx::Exception::error("Failed to detach from process");
         }
     }
 
