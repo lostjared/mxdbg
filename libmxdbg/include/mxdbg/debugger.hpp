@@ -12,7 +12,8 @@
 namespace mx {
 
     std::vector<std::string> split_command(const std::string &cmd);
-
+    std::string join(size_t start, size_t stop, std::vector<std::string>  &tokens, const std::string &delimiter);
+    
     class Debugger {
     public:
         Debugger();

@@ -16,6 +16,17 @@ namespace mx {
         return tokenz;
     }
 
+    std::string join(size_t start, size_t stop, std::vector<std::string>  &tokens, const std::string &delimiter) {
+        std::ostringstream oss;
+        for (size_t i = 0; i < tokens.size(); ++i) {
+            oss << tokens[i];
+            if (i < tokens.size() - 1) {
+                oss << delimiter;
+            }
+        }
+        return oss.str();
+    }
+
     Debugger::Debugger() : p_id(-1) {}
 
     Debugger::~Debugger() {}
@@ -93,17 +104,6 @@ namespace mx {
 
     bool Debugger::is_running() const {
         return process && process->is_running();
-    }
-
-    std::string join(size_t start, size_t stop, std::vector<std::string>  &tokens, const std::string &delimiter) {
-        std::ostringstream oss;
-        for (size_t i = 0; i < tokens.size(); ++i) {
-            oss << tokens[i];
-            if (i < tokens.size() - 1) {
-                oss << delimiter;
-            }
-        }
-        return oss.str();
     }
 
     bool Debugger::command(const std::string &cmd) {
