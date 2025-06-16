@@ -26,6 +26,17 @@ namespace mx {
     }
 
     std::unique_ptr<Process> Process::launch(const std::filesystem::path& program, const std::vector<std::string> &args) {
+
+        if (!std::filesystem::exists(program)) {
+            throw mx::Exception("Executable file does not exist: " + program.string());
+        }
+        if (!std::filesystem::is_regular_file(program)) {
+            throw mx::Exception("Path is not a regular file: " + program.string());
+        }
+        if (access(program.c_str(), X_OK) != 0) {
+            throw mx::Exception("Executable file is not accessible: " + program.string());
+        }
+        
         mx::Pipe error_pipe;
         pid_t pid = fork();
         if (pid == 0) {
