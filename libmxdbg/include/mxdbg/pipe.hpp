@@ -15,7 +15,7 @@ namespace mx {
 
     class Pipe {    
     public:
-        Pipe();
+        Pipe(bool on_close = true);
         ~Pipe();
         Pipe(const Pipe&) = delete;
         Pipe& operator=(const Pipe&) = delete;

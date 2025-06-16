@@ -7,9 +7,9 @@
 
 namespace mx {
     
-    mx::Pipe::Pipe() {
+    mx::Pipe::Pipe(bool on_close) {
         int fds[2];
-        if (pipe(fds) == -1) {
+        if (pipe2(fds, on_close ? O_CLOEXEC :  0) == -1) {
             throw mx::Exception::error("Failed to create pipe: ");
         }
         m_read_fd = fds[0];
