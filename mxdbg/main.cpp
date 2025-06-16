@@ -51,6 +51,7 @@ Arguments parse_args(int argc, char **argv) {
     } catch (const std::exception &e) {
         std::cerr << "Error: " << e.what() << std::endl;
         parser.help(std::cout);
+        exit(EXIT_FAILURE);
     }
     return args;
 }
