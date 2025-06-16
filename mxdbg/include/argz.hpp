@@ -258,14 +258,16 @@ namespace mx {
                         } else if(pos->second.arg_type == ArgType::ARG_SINGLE_VALUE) {
                             if(index < static_cast<int>(arg_data.args.size())) {
                                 const String &s{arg_data.args[index]};
-                                if(s.length() > 1 && s[0] == '-' && !(s[1] >= '0' && s[1] <= '9')) {
-                                    if constexpr(std::is_same<typename String::value_type, char>::value) {
-                                        throw ArgException<String>("Expected value");
+                                bool is_known_option = false;
+                                if (s.length() > 1 && s[0] == '-') {
+                                    if (s[1] == '-') {
+                                        String option_name = s.substr(2);
+                                        is_known_option = (lookUpCode(option_name) != -1);
+                                    } else {
+                                        int option_char = static_cast<int>(s[1]);
+                                        is_known_option = (arg_info.find(option_char) != arg_info.end());
                                     }
-                                    if constexpr(std::is_same<typename String::value_type, wchar_t>::value) {
-                                        throw ArgException<String>(L"Expected value");
-                                    }
-                                } else if(s.length() == 1 && s[0] == '-') {
+                                } else if (s.length() == 1 && s[0] == '-') {
                                     if constexpr(std::is_same<typename String::value_type, char>::value) {
                                         throw ArgException<String>("Expected Value found -");
                                     }
@@ -273,12 +275,20 @@ namespace mx {
                                         throw ArgException<String>(L"Expected Value found -");
                                     }
                                 }
-                                if(s.length() > 0) {
+                                
+                                if (!is_known_option && s.length() > 0) {
                                     a = pos->second;
                                     a.arg_value = s;
                                     a.arg_name = name_val;
                                     index++;
                                     return c;
+                                } else {
+                                    if constexpr(std::is_same<typename String::value_type, char>::value) {
+                                        throw ArgException<String>("Expected Value");
+                                    }
+                                    if constexpr(std::is_same<typename String::value_type, wchar_t>::value) {
+                                        throw ArgException<String>(L"Expected Value");
+                                    }
                                 }
                             } else {
                                 if constexpr(std::is_same<typename String::value_type, char>::value) {

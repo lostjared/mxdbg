@@ -18,19 +18,25 @@ Arguments parse_args(int argc, char **argv) {
     mx::Argz<std::string> parser(argc, argv);
     try {
         parser.addOptionSingleValue('p', "Process ID to attach to")
-            .addOptionDoubleValue('x', "path", "Path to the executable or script")
-            .addOptionDoubleValue('a', "args", "Additional arguments for the process");
+            .addOptionDoubleValue('P', "pid", "Process ID to attach to")
+            .addOptionDoubleValue('R', "path", "Path to the executable or script")
+            .addOptionSingleValue('r', "Path to executable or script to run")
+            .addOptionDoubleValue('A', "args", "Additional arguments for the process")
+            .addOptionSingleValue('a', "Additional arguments for the process");
         int value = 0;
         mx::Argument<std::string> arg;
         while((value = parser.proc(arg)) != -1) {
             switch(value) {
                 case 'p':
+                case 'P':
                     args.p_id = std::stoi(arg.arg_value);
                     break;
-                case 'x':
+                case 'R':
+                case 'r':
                     args.path = std::filesystem::path(arg.arg_value);
                     break;
                 case 'a':
+                case 'A':
                     args.args_str = arg.arg_value;
                     break;
                 case '-':
