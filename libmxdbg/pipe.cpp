@@ -281,6 +281,40 @@ namespace mx {
         return total_read;
     }
 
+    std::vector<std::byte> Pipe::read_vec_nonblocking(std::size_t size) {
+        if (m_read_fd == -1) {
+            throw mx::Exception("Pipe is closed for reading");
+        }
+        
+        int flags = fcntl(m_read_fd, F_GETFL);
+        if (flags == -1) {
+            throw mx::Exception::error("Failed to get file flags");
+        }
+        
+        if (fcntl(m_read_fd, F_SETFL, flags | O_NONBLOCK) == -1) {
+            throw mx::Exception::error("Failed to set non-blocking mode");
+        }
+        
+        std::vector<std::byte> buffer(size);
+        ssize_t bytes_read = ::read(m_read_fd, buffer.data(), size);
+        
+        fcntl(m_read_fd, F_SETFL, flags);
+        
+        if (bytes_read == -1) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                return {}; 
+            }
+            throw mx::Exception::error("Failed to read from pipe");
+        }
+        
+        if (bytes_read == 0) {
+            return {}; 
+        }
+
+        buffer.resize(bytes_read);
+        return buffer;  
+    }
+
     bool Pipe::is_open() const {
         return m_read_fd != -1 || m_write_fd != -1;
     }   
