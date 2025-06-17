@@ -227,4 +227,62 @@ namespace mx {
         }
         return std::string(buffer, bytes_read);
     }
-}
+
+    std::size_t Pipe::read_data(std::byte *data, std::size_t size) {
+        if (m_read_fd == -1) {
+            throw mx::Exception("Pipe is closed for reading");
+        }
+        size_t total_read = 0;
+        while (total_read < size) {
+            ssize_t bytes_read = ::read(m_read_fd, data + total_read, size - total_read);
+            if (bytes_read == -1) {
+                if (errno == EINTR) {
+                    continue; 
+                }
+                throw mx::Exception::error("Failed to read from pipe");
+            }
+            if (bytes_read == 0) {
+                break; 
+            }
+            total_read += bytes_read;
+        }
+        return total_read;
+    }
+
+    std::size_t Pipe::read_data_nonblocking(std::byte *data, std::size_t size) {
+        if (m_read_fd == -1) {
+            throw mx::Exception("Pipe is closed for reading");
+        }
+        int flags = fcntl(m_read_fd, F_GETFL);
+        if (flags == -1) {
+            throw mx::Exception::error("Failed to get file flags");
+        }
+        
+        if (fcntl(m_read_fd, F_SETFL, flags | O_NONBLOCK) == -1) {
+            throw mx::Exception::error("Failed to set non-blocking mode");
+        }
+        
+        size_t total_read = 0;
+        while (total_read < size) {
+            ssize_t bytes_read = ::read(m_read_fd, data + total_read, size - total_read);
+            if (bytes_read == -1) {
+                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                    break; 
+                }
+                throw mx::Exception::error("Failed to read from pipe");
+            }
+            if (bytes_read == 0) {
+                break; 
+            }
+            total_read += bytes_read;
+        }
+        
+        fcntl(m_read_fd, F_SETFL, flags);
+        return total_read;
+    }
+
+    bool Pipe::is_open() const {
+        return m_read_fd != -1 || m_write_fd != -1;
+    }   
+
+}           
