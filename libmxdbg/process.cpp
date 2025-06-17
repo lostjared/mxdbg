@@ -162,4 +162,122 @@ namespace mx {
         }
         return stream.str();
     }
+
+    std::string Process::reg_info() const {
+        std::ostringstream stream;
+        struct user_regs_struct regs;
+        if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
+            throw mx::Exception::error("Failed to get registers for process");
+        }
+        stream << "RAX: " << std::hex << std::uppercase << regs.rax << "\n"
+               << "RBX: " << regs.rbx << "\n"
+               << "RCX: " << regs.rcx << "\n"
+               << "RDX: " << regs.rdx << "\n"
+               << "RSI: " << regs.rsi << "\n"
+               << "RDI: " << regs.rdi << "\n"
+               << "RBP: " << regs.rbp << "\n"
+               << "RSP: " << regs.rsp << "\n"
+               << "RIP: " << regs.rip
+               << "\n"
+               << "RFLAGS: " << regs.eflags << "\n"
+               << "CS: " << regs.cs << "\n"
+               << "SS: " << regs.ss << "\n"
+               << "DS: " << regs.ds << "\n"
+               << "ES: " << regs.es << "\n";
+
+        stream << "\n";
+        return stream.str();
+    }
+
+    void Process::single_step() {
+        if (ptrace(PTRACE_SINGLESTEP, m_pid, nullptr, nullptr) == -1) {
+            throw mx::Exception::error("Failed to single step process");
+        }
+        is_single_stepping = true;
+    }
+
+    void Process::wait_for_single_step() {
+        int status;
+        if (waitpid(m_pid, &status, 0) == -1) {
+            throw mx::Exception::error("Failed to wait for single step");
+        }
+        if (WIFEXITED(status)) {
+            throw mx::Exception::error("Process exited during single step");
+        } else if (WIFSIGNALED(status)) {
+            throw mx::Exception::error("Process killed by signal during single step");
+        } else if (WIFSTOPPED(status)) {
+            int signal = WSTOPSIG(status);
+            if (signal == SIGTRAP) {
+                is_single_stepping = false;
+            } else {
+                throw mx::Exception::error("Process stopped by signal: " + std::to_string(signal));
+            }
+        }
+    }
+
+    uint64_t Process::get_register(const std::string &reg_name_) const {
+        struct user_regs_struct regs;
+        if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
+            throw mx::Exception::error("Failed to get registers for process");
+        }
+        std::string reg_name = reg_name_;
+        std::transform(reg_name.begin(), reg_name.end(), reg_name.begin(), ::tolower);
+        if (reg_name == "rflags") return regs.eflags;
+        if (reg_name == "rip") return regs.rip;
+        if (reg_name == "rsp") return regs.rsp;
+        if (reg_name == "rbp") return regs.rbp;
+        if (reg_name == "rax") return regs.rax;
+        if (reg_name == "rbx") return regs.rbx;
+        if (reg_name == "rcx") return regs.rcx;
+        if (reg_name == "rdx") return regs.rdx;
+        if (reg_name == "rsi") return regs.rsi;
+        if (reg_name == "rdi") return regs.rdi;
+        throw mx::Exception("Unknown register: " + reg_name);
+    }
+
+    std::vector<uint8_t> Process::read_memory(uint64_t address, size_t size) const {
+        std::vector<uint8_t> result;
+        size_t count = 0;
+        while (count < size) {
+            errno = 0;
+            long word = ptrace(PTRACE_PEEKDATA, m_pid, address + count, nullptr);
+            if (errno != 0) {
+                throw mx::Exception::error("Failed to read memory");
+            }
+            size_t bytes_to_copy = std::min(sizeof(long), size - count);
+            uint8_t *p = reinterpret_cast<uint8_t*>(&word);
+            result.insert(result.end(), p, p + bytes_to_copy);
+            count += bytes_to_copy;
+        }
+        return result;
+    }
+
+    void Process::write_memory(uint64_t address, const std::vector<uint8_t> &data) {
+        size_t count = 0;
+        size_t size = data.size();
+        while (count < size) {
+            long word = 0;
+            size_t bytes_to_copy = std::min(sizeof(long), size - count);
+            std::memcpy(&word, data.data() + count, bytes_to_copy);
+            if (ptrace(PTRACE_POKEDATA, m_pid, address + count, word) == -1) {
+                throw mx::Exception::error("Failed to write memory");
+            }
+            count += bytes_to_copy;
+        }
+    }
+
+    uint64_t Process::get_pc() const {
+        return get_register("rip");
+    }
+
+    std::string Process::disassemble_instruction(uint64_t address) const {
+        // Stub: Requires external disassembler (e.g., Capstone)
+        return "disassembly not implemented";
+    }
+
+    std::string Process::get_current_instruction() const {
+        // Stub: Requires external disassembler (e.g., Capstone)
+        return "current instruction not implemented";
+    }
+
 }

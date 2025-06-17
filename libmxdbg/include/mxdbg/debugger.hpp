@@ -24,6 +24,8 @@ namespace mx {
         
         void continue_execution();
         void wait_for_stop();
+        void step();
+        void step_n(int count);
         
         pid_t get_pid() const;
         bool is_running() const;
@@ -32,8 +34,10 @@ namespace mx {
         
         void setup_history();
         void save_history();
+        void detach();
 
     private:
+        void print_current_instruction(); 
         std::unique_ptr<Process> process;
         std::string_view args;
         pid_t p_id;

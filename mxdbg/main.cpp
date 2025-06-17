@@ -6,6 +6,9 @@
 #include<readline/history.h>
 #include<thread>
 #include<chrono>
+#include<signal.h>
+#include<sys/types.h>
+#include<unistd.h>
 
 struct Arguments {
     pid_t p_id = -1;
@@ -100,6 +103,8 @@ int main(int argc, char **argv) {
             }
         }
         while(debugger.is_running()) {
+            kill(debugger.get_pid(), SIGTERM);
+            debugger.detach();
             debugger.wait_for_stop();
             std::cout << "Process with PID: " << debugger.get_pid() << " has stopped." << std::endl;
         }

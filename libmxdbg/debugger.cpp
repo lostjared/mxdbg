@@ -1,9 +1,13 @@
 #include "mxdbg/debugger.hpp"
-#include <iostream>
-#include <cstdlib>
+#include<iostream>
+#include<cstdlib>
 #include<sstream>
 #include<vector>
 #include<thread>
+#include<unistd.h>
+#include<iomanip>
+#include<filesystem>
+
 namespace mx {
 
     std::vector<std::string> split_command(const std::string &cmd) {
@@ -72,6 +76,21 @@ namespace mx {
         }
     }
 
+    void Debugger::detach() {
+        if (process) {
+            try {
+                process->detach();
+                std::cout << "Process detached." << std::endl;
+            } catch (const std::exception& e) {
+                std::cerr << "Error detaching from process: " << e.what() << std::endl;
+            }
+            process.reset();
+            p_id = -1;
+        } else {
+            std::cerr << "No process attached or launched." << std::endl;
+        }
+    }
+
     void Debugger::continue_execution() {
         if (process) {
             try {
@@ -107,39 +126,112 @@ namespace mx {
     }
 
     bool Debugger::command(const std::string &cmd) {
-        std::vector<std::string> tokens = split_command(cmd);
-        if (tokens.empty()) {
-            return true; 
-        }
-        if (tokens[0] == "continue") {
+        if (cmd == "continue" || cmd == "c") {
             continue_execution();
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
             return true;
-        } else if(tokens[0] == "status") {
-            if (process) {
+        } else if (cmd == "step" || cmd == "s") {
+            step();
+            return true;
+        } else if (cmd.substr(0, 5) == "step " || cmd.substr(0, 2) == "s ") {
+            try {
+                std::string num_str = cmd.substr(cmd.find(' ') + 1);
+                int count = std::stoi(num_str);
+                if (count > 0) {
+                    step_n(count);
+                } else {
+                    std::cout << "Step count must be positive." << std::endl;
+                }
+            } catch (const std::exception& e) {
+                std::cout << "Invalid step count. Usage: step <number>" << std::endl;
+            }
+            return true;
+        } else if (cmd == "quit" || cmd == "q" || cmd == "exit") {
+            return false;
+        } else if(cmd == "registers" || cmd == "reg") {
+            if (process && process->is_running()) {
+                std::cout << "Registers for PID " << process->get_pid() << ":" << std::endl;
+                std::cout << process->reg_info() << std::endl;
+            } else {
+                std::cout << "No process attached or running." << std::endl;
+            }
+            return true;  
+        } else if (cmd == "status" || cmd == "st") {
+            if (process) { 
                 std::cout << "Process PID: " << process->get_pid() << std::endl;
                 std::cout << "Process is running: " << (process->is_running() ? "Yes" : "No") << std::endl;
             } else {
                 std::cout << "No process attached or launched." << std::endl;
             }
             return true;
-        } else if(tokens[0] == "info") {
-            if(process && process->is_running()) {
-                std::cout << process->proc_info() << std::endl;
-            } else {
-                std::cout << "No process attached or launched." << std::endl;
-            }
+        } else if (cmd == "help" || cmd == "h") {
+            std::cout << "Available commands:" << std::endl;
+            std::cout << "  continue, c    - Continue process execution" << std::endl;
+            std::cout << "  step, s        - Execute single instruction" << std::endl;
+            std::cout << "  step N, s N    - Execute N instructions" << std::endl;
+            std::cout << "  status, st     - Show process status" << std::endl;
+            std::cout << "  help, h        - Show this help message" << std::endl;
+            std::cout << "  quit, q, exit  - Exit debugger" << std::endl;
             return true;
-        } else if (tokens[0] == "exit" || tokens[0] == "quit") {
-            if (process) {
-                if(process->is_running()) {
-                    process->detach();
-                    std::cout << "Detached from process with PID: " << process->get_pid() << std::endl;
-                }
-            }
-            return false; 
-        } 
-        std::cout << "Unknown command: " << tokens[0] << std::endl;
+        }
+
+        std::cout << "Unknown command: " << cmd << std::endl;
         return true;
     }
-} 
+
+    void Debugger::step() {
+        if (!process) {
+            std::cerr << "No process attached or launched." << std::endl;
+            return;
+        }
+        
+        try {
+            process->single_step();
+            process->wait_for_single_step();
+            std::cout << "Step completed." << std::endl;
+            
+            // Optional: show current position
+            print_current_instruction();
+            
+        } catch (const std::exception& e) {
+            std::cerr << "Error during single step: " << e.what() << std::endl;
+        }
+    }
+
+    void Debugger::step_n(int count) {
+        if (!process) {
+            std::cerr << "No process attached or launched." << std::endl;
+            return;
+        }
+        
+        std::cout << "Stepping " << count << " instructions..." << std::endl;
+        
+        for (int i = 0; i < count; ++i) {
+            try {
+                process->single_step();
+                process->wait_for_single_step();
+                std::cout << "Step " << (i + 1) << " completed." << std::endl;
+                
+            } catch (const std::exception& e) {
+                std::cerr << "Error during step " << (i + 1) << ": " << e.what() << std::endl;
+                break;
+            }
+        }
+    }
+
+    void Debugger::print_current_instruction() {
+        try {
+            uint64_t rip = process->get_register("rip");
+            const size_t instruction_size = 16; // Read up to 16 bytes
+            std::vector<uint8_t> instruction_bytes = process->read_memory(rip, instruction_size);
+            
+            std::cout << "Current instruction at 0x" << std::hex << rip << ": ";
+            for (size_t i = 0; i < std::min(instruction_bytes.size(), size_t(8)); ++i) {
+                std::cout << std::hex << std::setfill('0') << std::setw(2) 
+                          << static_cast<unsigned>(instruction_bytes[i]) << " ";
+            }
+            std::cout << std::dec << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "Error reading current instruction: " << e.what() << std::endl;
+        }
+    }
+}
