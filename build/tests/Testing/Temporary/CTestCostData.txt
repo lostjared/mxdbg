@@ -1,5 +1,0 @@
-process_continue 36 0.00151124
-process_attach 20 0.0628148
-pipe_test_ 16 0.000466666
-exception_test_ 12 0.00468724
----

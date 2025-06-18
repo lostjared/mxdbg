@@ -1,4 +1,5 @@
 #include "mxdbg/debugger.hpp"
+#include "mxdbg/exception.hpp"
 #include<iostream>
 #include<cstdlib>
 #include<sstream>
@@ -205,8 +206,6 @@ namespace mx {
 
         } else if(cmd == "base") {
             if (process && process->is_running()) {
-                uint64_t base_address = process->get_pc();
-                std::cout << "Base address: 0x" << std::hex << base_address << std::dec << std::endl;
                 print_address();
             } else {
                 std::cout << "No process attached or running." << std::endl;
@@ -318,20 +317,64 @@ namespace mx {
         }
     }
 
-    void Debugger::print_address() const {
-        std::fstream file;
-        file.open(std::string("/proc/") + std::to_string(get_pid()) + std::string("/maps"), std::ios::in);
-        if (!file.is_open()) {
-            std::cerr << "Failed to open /proc/" << std::to_string(get_pid()) << "/maps" << std::endl;
-            return;
-        }
-        std::string line;
-        while (std::getline(file, line)) {
-            if (line.find("r-xp") != std::string::npos && line.find(program_name) != std::string::npos) {
-                std::cout << line << std::endl;
-                return;
+    uint64_t Debugger::get_base_address() const {
+        if(process && process->is_running()) {
+            std::fstream file;
+            file.open(std::string("/proc/") + std::to_string(get_pid()) + std::string("/maps"), std::ios::in);
+            if (!file.is_open()) {
+                std::cerr << "Failed to open /proc/" << std::to_string(get_pid()) << "/maps" << std::endl;
+                throw mx::Exception("Failed to open /proc/maps file.");
+                return 0;
             }
+            std::string line;
+            std::string input;
+            while (std::getline(file, line)) {
+                if (line.find("r-xp") != std::string::npos && line.find(program_name) != std::string::npos) {
+                    auto pos = line.find_first_of('-');
+                    if (pos != std::string::npos) {
+                        std::string address_str = line.substr(0, pos);
+                        uint64_t base_address = std::stoull(address_str, nullptr, 16);
+                        file.close();
+                        return base_address;
+                    } else {
+                        std::cerr << "Invalid address format in /proc/maps." << std::endl;
+                        throw mx::Exception("Invalid address format in /proc/maps.");
+                    }
+                    file.close();
+                    std::cout << "Base address not found." << std::endl;
+                    return 0;
+                }
+            }
+            file.close();
         }
-        file.close();
+        throw mx::Exception("Base address not found in /proc/maps.");
+        return 0;
+    }
+
+    void Debugger::print_address() const {
+       
+        try {
+            uint64_t base_address = get_base_address();
+            if (base_address != 0) {
+                std::cout << "Base address: 0x" << std::hex << base_address << std::dec << std::endl;
+            } else {
+                std::cout << "Base address not found." << std::endl;
+            }
+        } catch (const mx::Exception& e) {
+            std::cerr << "Error getting base address: " << e.what() << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "Unexpected error: " << e.what() << std::endl;
+        }
+        if (process) {
+            try {
+                uint64_t pc = process->get_pc();
+                std::cout << "Current PC: 0x" << std::hex << pc << std::dec << std::endl;
+            } catch (const std::exception& e) {
+                std::cerr << "Error getting current PC: " << e.what() << std::endl;
+            }
+        } else {
+            std::cout << "No process attached or running." << std::endl;
+        }
+
     }
 }

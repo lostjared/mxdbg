@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/pipe_test.dir/pipe_test.cpp.o -o pipe_test  -Wl,-rpath,/home/jared/dbg/mxdbg/build/libmxdbg ../libmxdbg/libmxdbg.so 

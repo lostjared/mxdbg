@@ -1,1 +1,0 @@
-/usr/bin/c++ -fPIC -shared -Wl,-soname,libmxdbg.so -o libmxdbg.so CMakeFiles/libmxdbg.dir/process.cpp.o CMakeFiles/libmxdbg.dir/pipe.cpp.o CMakeFiles/libmxdbg.dir/debugger.cpp.o  -Wl,-rpath,:::::::::::::: 

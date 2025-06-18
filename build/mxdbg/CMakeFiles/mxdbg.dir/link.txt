@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/mxdbg.dir/main.cpp.o -o mxdbg  -Wl,-rpath,/home/jared/dbg/mxdbg/build/libmxdbg: ../libmxdbg/libmxdbg.so -lreadline 

@@ -36,7 +36,8 @@ namespace mx {
         void setup_history();
         void save_history();
         void detach();
-
+        
+        uint64_t get_base_address() const;
     private:
         void print_current_instruction(); 
         std::unique_ptr<Process> process;
