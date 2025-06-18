@@ -126,6 +126,11 @@ namespace mx {
     }
 
     bool Debugger::command(const std::string &cmd) {
+        std::vector<std::string> tokens = split_command(cmd);
+        if (tokens.empty()) {
+            std::cout << "No command entered." << std::endl;
+            return true;
+        }
         if (cmd == "continue" || cmd == "c") {
             continue_execution();
             return true;
@@ -147,7 +152,7 @@ namespace mx {
             return true;
         } else if (cmd == "quit" || cmd == "q" || cmd == "exit") {
             return false;
-        } else if(cmd == "registers" || cmd == "reg") {
+        } else if(tokens.size() == 1 && tokens[0] == "registers" || tokens[0] == "regs") {
             if (process && process->is_running()) {
                 std::cout << "Registers for PID " << process->get_pid() << ":" << std::endl;
                 std::cout << process->reg_info() << std::endl;
@@ -155,7 +160,21 @@ namespace mx {
                 std::cout << "No process attached or running." << std::endl;
             }
             return true;  
-        } else if (cmd == "status" || cmd == "st") {
+        } else if(tokens.size() == 2 && tokens[0] == "register" || tokens[0] == "reg") {
+            if (process && process->is_running()) {
+                std::string reg_name = tokens[1];
+                try {
+                    uint64_t value = process->get_register(reg_name);
+                    std::cout << "Register " << reg_name << ": 0x" << std::hex << value << " | " << std::dec << value << std::endl;
+                } catch (const std::exception& e) {
+                    std::cerr << "Error getting register " << reg_name << ": " << e.what() << std::endl;
+                }
+            } else {
+                std::cout << "No process attached or running." << std::endl;
+            }
+            return true;
+
+        }else if (cmd == "status" || cmd == "st") {
             if (process) { 
                 std::cout << "Process PID: " << process->get_pid() << std::endl;
                 std::cout << "Process is running: " << (process->is_running() ? "Yes" : "No") << std::endl;
