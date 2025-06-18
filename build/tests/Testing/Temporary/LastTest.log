@@ -1,0 +1,159 @@
+Start testing: Jun 17 00:52 PDT
+----------------------------------------------------------
+1/4 Testing: process_continue
+1/4 Test: process_continue
+Command: "/home/jared/dbg/mxdbg/build/tests/process_continue_test"
+Directory: /home/jared/dbg/mxdbg/build/tests
+"process_continue" start time: Jun 17 00:52 PDT
+Output:
+----------------------------------------------------------
+Process launched with PID: 2389
+CMakeFiles
+CTestTestfile.cmake
+Makefile
+Testing
+cmake_install.cmake
+exception_test
+pipe_test
+process_attach_test
+process_continue_test
+Process has stopped.
+Process PID: 2389
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"process_continue" end time: Jun 17 00:52 PDT
+"process_continue" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/4 Testing: process_attach
+2/4 Test: process_attach
+Command: "/home/jared/dbg/mxdbg/build/tests/process_attach_test"
+Directory: /home/jared/dbg/mxdbg/build/tests
+"process_attach" start time: Jun 17 00:52 PDT
+Output:
+----------------------------------------------------------
+Launching target process...
+Child process 2394 starting infinite loop...
+Parent: launched child with PID 2394
+Launched target process with PID: 2394
+Attaching debugger to process 2394...
+Successfully attached to process!
+Process is now paused.
+Continuing process execution...
+Process is still running after continue_execution()
+detaching debugger from process 2394...
+Detach failed (process may have terminated): Failed to detach from process: No such process
+Terminating launched process...
+Process terminated successfully.
+Test passed!
+<end of output>
+Test time =   1.26 sec
+----------------------------------------------------------
+Test Pass Reason:
+Required regular expression found. Regex=[Test passed]
+"process_attach" end time: Jun 17 00:52 PDT
+"process_attach" time elapsed: 00:00:01
+----------------------------------------------------------
+
+3/4 Testing: pipe_test_
+3/4 Test: pipe_test_
+Command: "/home/jared/dbg/mxdbg/build/tests/pipe_test"
+Directory: /home/jared/dbg/mxdbg/build/tests
+"pipe_test_" start time: Jun 17 00:52 PDT
+Output:
+----------------------------------------------------------
+Running comprehensive pipe tests...
+
+Testing basic construction...
+ Basic construction test passed
+Testing move semantics...
+ Move semantics test passed
+Testing basic read/write...
+ Basic read/write test passed
+Testing all write functions...
+  String write test passed
+  Byte pointer write test passed
+  Byte vector write test passed
+  Empty data write tests passed
+  Binary data with nulls test passed
+ All write functions tests passed
+Testing large data with all write functions...
+  Large string write test passed
+  Large byte vector write test passed
+ Large write functions tests passed
+Testing write error conditions...
+  Expected string write error: Pipe is closed for writing
+  Expected byte vector write error: Pipe is closed for writing
+  Expected byte pointer write error: Pipe is closed for writing
+ Write error conditions tests passed
+Testing large data transfer...
+ Large data transfer test passed
+Testing multiple writes/reads...
+ Multiple writes/reads test passed
+Testing close operations...
+ Close operations test passed
+Testing error conditions...
+  Expected error: Pipe is closed for writing
+  Expected error: Pipe is closed for reading
+ Error conditions test passed
+Testing EOF behavior...
+ EOF behavior test passed
+Testing interprocess communication...
+ Interprocess communication test passed
+Testing non-blocking read...
+ Non-blocking read test passed
+Testing destructor cleanup...
+ Destructor cleanup test passed
+
+ All pipe tests passed!
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"pipe_test_" end time: Jun 17 00:52 PDT
+"pipe_test_" time elapsed: 00:00:00
+----------------------------------------------------------
+
+4/4 Testing: exception_test_
+4/4 Test: exception_test_
+Command: "/home/jared/dbg/mxdbg/build/tests/exception_test"
+Directory: /home/jared/dbg/mxdbg/build/tests
+"exception_test_" start time: Jun 17 00:52 PDT
+Output:
+----------------------------------------------------------
+Running comprehensive exception tests...
+
+Testing basic exception construction...
+ Basic exception construction test passed
+Testing errno-based exception...
+ Errno-based exception test passed
+Testing exception inheritance...
+ Exception inheritance test passed
+Testing exception through pipe (same process)...
+ Exception through pipe (same process) test passed
+Testing exception through pipe (different processes)...
+  Child sent exception: Failed to open file: No such file or directory
+ Exception through pipe (different processes) test passed
+Testing multiple exceptions through pipe...
+ Multiple exceptions through pipe test passed
+Testing exception handling with pipe errors...
+  Caught expected pipe exception: Pipe is closed for reading
+ Exception handling with pipe errors test passed
+Testing exception error context...
+ Exception error context test passed
+Testing threaded exception communication...
+ Received threaded exception: Thread operation timed out: Connection timed out
+ Threaded exception communication test passed
+
+ All exception tests passed!
+<end of output>
+Test time =   0.06 sec
+----------------------------------------------------------
+Test Passed.
+"exception_test_" end time: Jun 17 00:52 PDT
+"exception_test_" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Jun 17 00:52 PDT

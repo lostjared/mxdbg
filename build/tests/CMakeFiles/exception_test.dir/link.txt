@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/exception_test.dir/exception_test.cpp.o -o exception_test  -Wl,-rpath,/home/jared/dbg/mxdbg/build/libmxdbg ../libmxdbg/libmxdbg.so 
