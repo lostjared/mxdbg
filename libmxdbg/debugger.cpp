@@ -191,8 +191,22 @@ namespace mx {
             std::cout << "  help, h        - Show this help message" << std::endl;
             std::cout << "  quit, q, exit  - Exit debugger" << std::endl;
             return true;
+        } else if (tokens.size() == 2 && (tokens[0] == "break" || tokens[0] == "b")) {
+            if (process && process->is_running()) {
+                uint64_t addr = std::stoull(tokens[1], nullptr, 0);
+                try {
+                    process->set_breakpoint(addr);
+                    std::cout << "Breakpoint set at 0x" << std::hex << addr << std::dec << std::endl;
+                } catch (const std::exception& e) {
+                    std::cerr << "Error setting breakpoint: " << e.what() << std::endl;
+                }
+            } else {
+                std::cout << "No process attached or running." << std::endl;
+            }
+            return true;
         }
 
+        
         std::cout << "Unknown command: " << cmd << std::endl;
         return true;
     }

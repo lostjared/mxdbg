@@ -4,6 +4,7 @@
 #include<sys/types.h>
 #include<string>
 #include<vector>
+#include<unordered_map>
 #include<memory>
 #include<filesystem>
 #include<sys/user.h>
@@ -37,11 +38,17 @@ namespace mx {
         uint64_t get_pc() const;
         std::string disassemble_instruction(uint64_t address) const;
         std::string get_current_instruction() const;
+        void set_breakpoint(uint64_t address);
+        void remove_breakpoint(uint64_t address);
+        bool has_breakpoint(uint64_t address) const;
+        std::vector<uint64_t> get_breakpoints() const;
     private:
         Process(pid_t pid) : m_pid(pid) {}    
         pid_t m_pid;
         bool is_single_stepping = false;
-    };
+        std::unordered_map<uint64_t, uint8_t> breakpoints;         
+                
+    };  
 
 } 
 

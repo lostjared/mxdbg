@@ -280,4 +280,27 @@ namespace mx {
         return "current instruction not implemented";
     }
 
+    void Process::set_breakpoint(uint64_t address) {
+        long data = ptrace(PTRACE_PEEKDATA, m_pid, address, nullptr);
+        if (data == -1 && errno != 0)
+            throw mx::Exception::error("Failed to read memory for breakpoint");
+
+        breakpoints[address] = static_cast<uint8_t>(data & 0xFF);
+        long data_with_int3 = (data & ~0xFF) | 0xCC;
+        if (ptrace(PTRACE_POKEDATA, m_pid, address, data_with_int3) == -1)
+            throw mx::Exception::error("Failed to write breakpoint");
+    }
+
+    void Process::remove_breakpoint(uint64_t address) {
+        auto it = breakpoints.find(address);
+        if (it == breakpoints.end()) return;
+        long data = ptrace(PTRACE_PEEKDATA, m_pid, address, nullptr);
+        long restored = (data & ~0xFF) | it->second;
+        ptrace(PTRACE_POKEDATA, m_pid, address, restored);
+        breakpoints.erase(it);
+    }
+
+    bool Process::has_breakpoint(uint64_t address) const {
+        return breakpoints.find(address) != breakpoints.end();
+    }
 }
