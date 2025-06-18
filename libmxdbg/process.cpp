@@ -95,39 +95,111 @@ namespace mx {
         return std::unique_ptr<Process>(new Process(pid));
     }
 
+    void Process::wait_for_stop() {
+        int status;
+        if (waitpid(m_pid, &status, 0) == -1) {
+            throw mx::Exception::error("Failed to wait for process");
+        }
+        
+        if (WIFEXITED(status)) {
+            std::cout << "Process exited with code: " << WEXITSTATUS(status) << std::endl;
+            return;
+        } else if (WIFSIGNALED(status)) {
+            std::cout << "Process killed by signal: " << WTERMSIG(status) << std::endl;
+            return;
+        } else if (WIFSTOPPED(status)) {
+            int signal = WSTOPSIG(status);
+            std::cout << "DEBUG: Process stopped by signal: " << signal << std::endl;
+            
+            if (signal == SIGTRAP) {
+                uint64_t pc = get_pc();           
+                if (breakpoints.find(pc) != breakpoints.end()) {
+                    std::cout << "Breakpoint hit at 0x" << std::hex << pc << std::dec << std::endl;
+                    return;
+                } else if (breakpoints.find(pc - 1) != breakpoints.end()) {
+                    std::cout << "Breakpoint hit at 0x" << std::hex << (pc - 1) << std::dec << std::endl;
+                    set_pc(pc - 1);
+                    return;
+                } else {
+                    
+                }
+            }
+        }
+    }
+
     void Process::continue_execution() {
         if (ptrace(PTRACE_CONT, m_pid, nullptr, 0) == -1) {
             throw mx::Exception::error("Failed to continue process");
         }
     }
 
-    void Process::wait_for_stop() {
+    void Process::single_step() {
+        uint64_t pc = get_pc();
+        
+        if (has_breakpoint(pc)) {
+            handle_breakpoint_step(pc);
+        } else {
+            if (ptrace(PTRACE_SINGLESTEP, m_pid, nullptr, nullptr) == -1) {
+                throw mx::Exception::error("Failed to single step process");
+            }
+            is_single_stepping = true;
+        }
+    }
+
+    void Process::handle_breakpoint_continue(uint64_t address) {
+        uint8_t original_byte = breakpoints[address];
+        long data = ptrace(PTRACE_PEEKDATA, m_pid, address, nullptr);
+        long restored = (data & ~0xFF) | original_byte;
+        ptrace(PTRACE_POKEDATA, m_pid, address, restored);
+        
+        ptrace(PTRACE_SINGLESTEP, m_pid, nullptr, nullptr);
+        int status;
+        waitpid(m_pid, &status, 0);
+        
+        data = ptrace(PTRACE_PEEKDATA, m_pid, address, nullptr);
+        long data_with_int3 = (data & ~0xFF) | 0xCC;
+        ptrace(PTRACE_POKEDATA, m_pid, address, data_with_int3);
+        
+        ptrace(PTRACE_CONT, m_pid, nullptr, 0);
+    }
+
+    void Process::handle_breakpoint_step(uint64_t address) {
+        uint8_t original_byte = breakpoints[address];
+        long data = ptrace(PTRACE_PEEKDATA, m_pid, address, nullptr);
+        long restored = (data & ~0xFF) | original_byte;
+        ptrace(PTRACE_POKEDATA, m_pid, address, restored);
+        
+        ptrace(PTRACE_SINGLESTEP, m_pid, nullptr, nullptr);
+        is_single_stepping = true;
+        
+    }
+
+    void Process::wait_for_single_step() {
         int status;
         if (waitpid(m_pid, &status, 0) == -1) {
-            throw mx::Exception::error("Failed to wait for process stop");
+            throw mx::Exception::error("Failed to wait for single step");
         }
-    }
-
-    bool Process::is_running() const {
-        int status;
-        pid_t result = waitpid(m_pid, &status, WNOHANG);
-        if (result == 0) {
-            return true; 
-        } else if (result == m_pid) {
-            return false; 
-        } else {
-            return false; 
-        }
-    }
-
-    void Process::detach() {
-        if (kill(m_pid, 0) == -1) {
-            if (errno == ESRCH) {
-                return;
+        
+        if (is_single_stepping) {
+            uint64_t prev_pc = get_pc() - 1; 
+            auto it = breakpoints.find(prev_pc);
+            if (it != breakpoints.end()) {
+                long data = ptrace(PTRACE_PEEKDATA, m_pid, prev_pc, nullptr);
+                long data_with_int3 = (data & ~0xFF) | 0xCC;
+                ptrace(PTRACE_POKEDATA, m_pid, prev_pc, data_with_int3);
             }
-        }        
-        if (ptrace(PTRACE_DETACH, m_pid, nullptr, 0) == -1) {
-            throw mx::Exception::error("Failed to detach from process");
+            is_single_stepping = false;
+        }
+    }
+
+    void Process::set_pc(uint64_t address) {
+        struct user_regs_struct regs;
+        if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
+            throw mx::Exception::error("Failed to get registers");
+        }
+        regs.rip = address;
+        if (ptrace(PTRACE_SETREGS, m_pid, nullptr, &regs) == -1) {
+            throw mx::Exception::error("Failed to set registers");
         }
     }
 
@@ -189,32 +261,6 @@ namespace mx {
         return stream.str();
     }
 
-    void Process::single_step() {
-        if (ptrace(PTRACE_SINGLESTEP, m_pid, nullptr, nullptr) == -1) {
-            throw mx::Exception::error("Failed to single step process");
-        }
-        is_single_stepping = true;
-    }
-
-    void Process::wait_for_single_step() {
-        int status;
-        if (waitpid(m_pid, &status, 0) == -1) {
-            throw mx::Exception::error("Failed to wait for single step");
-        }
-        if (WIFEXITED(status)) {
-            throw mx::Exception::error("Process exited during single step");
-        } else if (WIFSIGNALED(status)) {
-            throw mx::Exception::error("Process killed by signal during single step");
-        } else if (WIFSTOPPED(status)) {
-            int signal = WSTOPSIG(status);
-            if (signal == SIGTRAP) {
-                is_single_stepping = false;
-            } else {
-                throw mx::Exception::error("Process stopped by signal: " + std::to_string(signal));
-            }
-        }
-    }
-
     uint64_t Process::get_register(const std::string &reg_name_) const {
         struct user_regs_struct regs;
         if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
@@ -271,12 +317,10 @@ namespace mx {
     }
 
     std::string Process::disassemble_instruction(uint64_t address) const {
-        // Stub: Requires external disassembler (e.g., Capstone)
         return "disassembly not implemented";
     }
 
     std::string Process::get_current_instruction() const {
-        // Stub: Requires external disassembler (e.g., Capstone)
         return "current instruction not implemented";
     }
 
@@ -302,5 +346,30 @@ namespace mx {
 
     bool Process::has_breakpoint(uint64_t address) const {
         return breakpoints.find(address) != breakpoints.end();
+    }
+
+    std::vector<uint64_t> Process::get_breakpoints() const {
+        std::vector<uint64_t> addresses;
+        for (const auto& bp : breakpoints) {
+            addresses.push_back(bp.first);
+        }
+        return addresses;
+    }
+
+    bool Process::is_running() const {
+        if (m_pid <= 0) return false;
+        int result = kill(m_pid, 0);
+        return result == 0;
+    }
+
+    void Process::detach() {
+        if (kill(m_pid, 0) == -1) {
+            if (errno == ESRCH) {
+                return;
+            }
+        }        
+        if (ptrace(PTRACE_DETACH, m_pid, nullptr, 0) == -1) {
+            throw mx::Exception::error("Failed to detach from process");
+        }
     }
 }

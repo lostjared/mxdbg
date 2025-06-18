@@ -22,7 +22,7 @@ namespace mx {
         bool attach(pid_t pid);
         bool launch(const std::filesystem::path &exe, std::string_view args);
         void dump_file(const std::filesystem::path &file);
-        
+        void print_address() const;
         void continue_execution();
         void wait_for_stop();
         void step();
@@ -43,6 +43,7 @@ namespace mx {
         std::string_view args;
         pid_t p_id;
         std::string history_filename;
+        std::string program_name;
     };
 
 } 

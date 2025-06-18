@@ -7,6 +7,7 @@
 #include<unistd.h>
 #include<iomanip>
 #include<filesystem>
+#include<fstream>
 
 namespace mx {
 
@@ -41,10 +42,11 @@ namespace mx {
         try {
             process = Process::attach(pid);
             if (!process) {
-                std::cerr << "Failed to attach to process with PID: " << pid << std::endl;
+                std::cerr << "Failed to attach to process: " << pid << std::endl;
                 return false;
             }
-            p_id = pid;
+            p_id = process->get_pid();
+            std::cout << "Successfully attached to process " << pid << std::endl;
             return true;
         } catch (const std::exception& e) {
             std::cerr << "Error attaching to process " << pid << ": " << e.what() << std::endl;
@@ -69,6 +71,7 @@ namespace mx {
                 return false;
             }
             p_id = process->get_pid();
+            program_name = exe.string();
             return true;
         } catch (const std::exception& e) {
             std::cerr << "Error launching process " << exe << ": " << e.what() << std::endl;
@@ -149,7 +152,16 @@ namespace mx {
             return true;
         }
         if (cmd == "continue" || cmd == "c") {
-            continue_execution();
+            if (process && process->is_running()) {
+                try {
+                    process->continue_execution();
+                    process->wait_for_stop();
+                } catch (const std::exception& e) {
+                    std::cerr << "Error during continue: " << e.what() << std::endl;
+                }
+            } else {
+                std::cout << "No process running." << std::endl;
+            }
             return true;
         } else if (cmd == "step" || cmd == "s") {
             step();
@@ -191,7 +203,17 @@ namespace mx {
             }
             return true;
 
-        }else if (cmd == "status" || cmd == "st") {
+        } else if(cmd == "base") {
+            if (process && process->is_running()) {
+                uint64_t base_address = process->get_pc();
+                std::cout << "Base address: 0x" << std::hex << base_address << std::dec << std::endl;
+                print_address();
+            } else {
+                std::cout << "No process attached or running." << std::endl;
+            }
+            return true;
+        }
+        else if (cmd == "status" || cmd == "st") {
             if (process) { 
                 std::cout << "Process PID: " << process->get_pid() << std::endl;
                 std::cout << "Process is running: " << (process->is_running() ? "Yes" : "No") << std::endl;
@@ -199,7 +221,22 @@ namespace mx {
                 std::cout << "No process attached or launched." << std::endl;
             }
             return true;
-        } else if (cmd == "help" || cmd == "h") {
+        } 
+        else if (tokens.size() == 2 && tokens[0] == "read") {
+            uint64_t addr = std::stoull(tokens[1], nullptr, 0);
+            try {
+                auto data = process->read_memory(addr, 8);
+                std::cout << "Memory at 0x" << std::hex << addr << ": ";
+                for (auto byte : data) {
+                    std::cout << std::hex << std::setfill('0') << std::setw(2) << (int)byte << " ";
+                }
+                std::cout << std::dec << std::endl;
+            } catch (const std::exception& e) {
+                std::cerr << "Error reading memory: " << e.what() << std::endl;
+            }
+            return true;
+        }
+        else if (cmd == "help" || cmd == "h") {
             std::cout << "Available commands:" << std::endl;
             std::cout << "  continue, c    - Continue process execution" << std::endl;
             std::cout << "  step, s        - Execute single instruction" << std::endl;
@@ -238,10 +275,7 @@ namespace mx {
             process->single_step();
             process->wait_for_single_step();
             std::cout << "Step completed." << std::endl;
-            
-            // Optional: show current position
             print_current_instruction();
-            
         } catch (const std::exception& e) {
             std::cerr << "Error during single step: " << e.what() << std::endl;
         }
@@ -260,7 +294,6 @@ namespace mx {
                 process->single_step();
                 process->wait_for_single_step();
                 std::cout << "Step " << (i + 1) << " completed." << std::endl;
-                
             } catch (const std::exception& e) {
                 std::cerr << "Error during step " << (i + 1) << ": " << e.what() << std::endl;
                 break;
@@ -271,7 +304,7 @@ namespace mx {
     void Debugger::print_current_instruction() {
         try {
             uint64_t rip = process->get_register("rip");
-            const size_t instruction_size = 16; // Read up to 16 bytes
+            const size_t instruction_size = 16; 
             std::vector<uint8_t> instruction_bytes = process->read_memory(rip, instruction_size);
             
             std::cout << "Current instruction at 0x" << std::hex << rip << ": ";
@@ -283,5 +316,22 @@ namespace mx {
         } catch (const std::exception& e) {
             std::cerr << "Error reading current instruction: " << e.what() << std::endl;
         }
+    }
+
+    void Debugger::print_address() const {
+        std::fstream file;
+        file.open(std::string("/proc/") + std::to_string(get_pid()) + std::string("/maps"), std::ios::in);
+        if (!file.is_open()) {
+            std::cerr << "Failed to open /proc/" << std::to_string(get_pid()) << "/maps" << std::endl;
+            return;
+        }
+        std::string line;
+        while (std::getline(file, line)) {
+            if (line.find("r-xp") != std::string::npos && line.find(program_name) != std::string::npos) {
+                std::cout << line << std::endl;
+                return;
+            }
+        }
+        file.close();
     }
 }

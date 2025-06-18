@@ -47,7 +47,9 @@ namespace mx {
         pid_t m_pid;
         bool is_single_stepping = false;
         std::unordered_map<uint64_t, uint8_t> breakpoints;         
-                
+        void handle_breakpoint_continue(uint64_t address);
+        void handle_breakpoint_step(uint64_t address);
+        void set_pc(uint64_t address);        
     };  
 
 } 
