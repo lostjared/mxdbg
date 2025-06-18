@@ -14,6 +14,7 @@ struct Arguments {
     pid_t p_id = -1;
     std::filesystem::path path;
     std::string args_str;
+    bool dump_asm = false;
 };
 
 Arguments parse_args(int argc, char **argv) {
@@ -25,11 +26,24 @@ Arguments parse_args(int argc, char **argv) {
             .addOptionDoubleValue('R', "path", "Path to the executable or script")
             .addOptionSingleValue('r', "Path to executable or script to run")
             .addOptionDoubleValue('A', "args", "Additional arguments for the process")
-            .addOptionSingleValue('a', "Additional arguments for the process");
+            .addOptionSingleValue('a', "Additional arguments for the process")
+            .addOptionSingleValue('d', "Dump Assembly of the executable")
+            .addOptionDoubleValue('D', "dump", "Dump Assembly of the executable")
+            ;
+
         int value = 0;
         mx::Argument<std::string> arg;
         while((value = parser.proc(arg)) != -1) {
             switch(value) {
+                case 'd':
+                case 'D':
+                    args.dump_asm = true;
+                    args.path = std::filesystem::path(arg.arg_value);
+                    if(!args.path.empty() && !std::filesystem::exists(args.path)) {
+                        std::cerr << "Error: Path does not exist: " << args.path << std::endl;
+                        exit(EXIT_FAILURE);
+                    }
+                break;
                 case 'p':
                 case 'P':
                     args.p_id = std::stoi(arg.arg_value);
@@ -77,6 +91,14 @@ int main(int argc, char **argv) {
             history_filename = "./mxdbg_history";
         }
         read_history(history_filename.c_str());
+        if(args.dump_asm) {
+            if(args.path.empty()) {
+                std::cerr << "Error: No path provided for dumping assembly." << std::endl;
+                return 1;
+            }
+            debugger.dump_file(args.path);
+            return 0;
+        }
         if(args.p_id > 0) {
             if(!debugger.attach(args.p_id)) {
                 return 1;

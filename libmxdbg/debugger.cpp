@@ -76,6 +76,23 @@ namespace mx {
         }
     }
 
+    void  Debugger::dump_file(const std::filesystem::path &file) {
+        if (!std::filesystem::exists(file)) {
+            std::cerr << "File does not exist: " << file << std::endl;
+            return;
+        }
+        std::string command = "objdump -d " + file.string();
+        std::cout << "Running command: " << command << std::endl;
+        
+        int result = system(command.c_str());
+        if (result != 0) {
+            std::cerr << "Failed to execute objdump on file: " << file << std::endl;
+        }
+        else {
+            std::cout << "Disassembly of " << file << " completed." << std::endl;
+        }   
+    }
+
     void Debugger::detach() {
         if (process) {
             try {

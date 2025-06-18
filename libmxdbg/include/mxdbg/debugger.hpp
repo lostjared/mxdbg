@@ -21,6 +21,7 @@ namespace mx {
 
         bool attach(pid_t pid);
         bool launch(const std::filesystem::path &exe, std::string_view args);
+        void dump_file(const std::filesystem::path &file);
         
         void continue_execution();
         void wait_for_stop();
