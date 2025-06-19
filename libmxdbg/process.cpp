@@ -12,6 +12,7 @@
 #include<thread>
 #include<chrono>
 #include<fstream>
+#include<iomanip>
 
 namespace mx {
     
@@ -109,7 +110,7 @@ namespace mx {
             return;
         } else if (WIFSTOPPED(status)) {
             int signal = WSTOPSIG(status);
-            std::cout << "DEBUG: Process stopped by signal: " << signal << std::endl;
+            std::cout << "Process stopped by signal: " << signal << std::endl;
             
             if (signal == SIGTRAP) {
                 uint64_t pc = get_pc();           
@@ -261,24 +262,170 @@ namespace mx {
         return stream.str();
     }
 
-    uint64_t Process::get_register(const std::string &reg_name_) const {
+
+    uint64_t Process::get_register(const std::string &reg_name) const {
         struct user_regs_struct regs;
         if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
             throw mx::Exception::error("Failed to get registers for process");
         }
-        std::string reg_name = reg_name_;
-        std::transform(reg_name.begin(), reg_name.end(), reg_name.begin(), ::tolower);
-        if (reg_name == "rflags") return regs.eflags;
-        if (reg_name == "rip") return regs.rip;
-        if (reg_name == "rsp") return regs.rsp;
-        if (reg_name == "rbp") return regs.rbp;
+        
         if (reg_name == "rax") return regs.rax;
         if (reg_name == "rbx") return regs.rbx;
         if (reg_name == "rcx") return regs.rcx;
         if (reg_name == "rdx") return regs.rdx;
         if (reg_name == "rsi") return regs.rsi;
         if (reg_name == "rdi") return regs.rdi;
-        throw mx::Exception("Unknown register: " + reg_name);
+        if (reg_name == "rbp") return regs.rbp;
+        if (reg_name == "rsp") return regs.rsp;
+        if (reg_name == "rip") return regs.rip;
+        if (reg_name == "r8") return regs.r8;
+        if (reg_name == "r9") return regs.r9;
+        if (reg_name == "r10") return regs.r10;
+        if (reg_name == "r11") return regs.r11;
+        if (reg_name == "r12") return regs.r12;
+        if (reg_name == "r13") return regs.r13;
+        if (reg_name == "r14") return regs.r14;
+        if (reg_name == "r15") return regs.r15;
+        if (reg_name == "eflags") return regs.eflags;
+        
+        if (reg_name == "eax") return regs.rax & 0xFFFFFFFF;
+        if (reg_name == "ebx") return regs.rbx & 0xFFFFFFFF;
+        if (reg_name == "ecx") return regs.rcx & 0xFFFFFFFF;
+        if (reg_name == "edx") return regs.rdx & 0xFFFFFFFF;
+        if (reg_name == "esi") return regs.rsi & 0xFFFFFFFF;
+        if (reg_name == "edi") return regs.rdi & 0xFFFFFFFF;
+        if (reg_name == "ebp") return regs.rbp & 0xFFFFFFFF;
+        if (reg_name == "esp") return regs.rsp & 0xFFFFFFFF;
+        if (reg_name == "r8d") return regs.r8 & 0xFFFFFFFF;
+        if (reg_name == "r9d") return regs.r9 & 0xFFFFFFFF;
+        if (reg_name == "r10d") return regs.r10 & 0xFFFFFFFF;
+        if (reg_name == "r11d") return regs.r11 & 0xFFFFFFFF;
+        if (reg_name == "r12d") return regs.r12 & 0xFFFFFFFF;
+        if (reg_name == "r13d") return regs.r13 & 0xFFFFFFFF;
+        if (reg_name == "r14d") return regs.r14 & 0xFFFFFFFF;
+        if (reg_name == "r15d") return regs.r15 & 0xFFFFFFFF;
+        
+        if (reg_name == "ax") return regs.rax & 0xFFFF;
+        if (reg_name == "bx") return regs.rbx & 0xFFFF;
+        if (reg_name == "cx") return regs.rcx & 0xFFFF;
+        if (reg_name == "dx") return regs.rdx & 0xFFFF;
+        if (reg_name == "si") return regs.rsi & 0xFFFF;
+        if (reg_name == "di") return regs.rdi & 0xFFFF;
+        if (reg_name == "bp") return regs.rbp & 0xFFFF;
+        if (reg_name == "sp") return regs.rsp & 0xFFFF;
+        if (reg_name == "r8w") return regs.r8 & 0xFFFF;
+        if (reg_name == "r9w") return regs.r9 & 0xFFFF;
+        if (reg_name == "r10w") return regs.r10 & 0xFFFF;
+        if (reg_name == "r11w") return regs.r11 & 0xFFFF;
+        if (reg_name == "r12w") return regs.r12 & 0xFFFF;
+        if (reg_name == "r13w") return regs.r13 & 0xFFFF;
+        if (reg_name == "r14w") return regs.r14 & 0xFFFF;
+        if (reg_name == "r15w") return regs.r15 & 0xFFFF;
+        
+        if (reg_name == "al") return regs.rax & 0xFF;
+        if (reg_name == "ah") return (regs.rax >> 8) & 0xFF;
+        if (reg_name == "bl") return regs.rbx & 0xFF;
+        if (reg_name == "bh") return (regs.rbx >> 8) & 0xFF;
+        if (reg_name == "cl") return regs.rcx & 0xFF;
+        if (reg_name == "ch") return (regs.rcx >> 8) & 0xFF;
+        if (reg_name == "dl") return regs.rdx & 0xFF;
+        if (reg_name == "dh") return (regs.rdx >> 8) & 0xFF;
+        if (reg_name == "sil") return regs.rsi & 0xFF;
+        if (reg_name == "dil") return regs.rdi & 0xFF;
+        if (reg_name == "bpl") return regs.rbp & 0xFF;
+        if (reg_name == "spl") return regs.rsp & 0xFF;
+        if (reg_name == "r8b") return regs.r8 & 0xFF;
+        if (reg_name == "r9b") return regs.r9 & 0xFF;
+        if (reg_name == "r10b") return regs.r10 & 0xFF;
+        if (reg_name == "r11b") return regs.r11 & 0xFF;
+        if (reg_name == "r12b") return regs.r12 & 0xFF;
+        if (reg_name == "r13b") return regs.r13 & 0xFF;
+        if (reg_name == "r14b") return regs.r14 & 0xFF;
+        if (reg_name == "r15b") return regs.r15 & 0xFF;
+        
+        throw mx::Exception("Unknown register name: " + reg_name);
+    }
+
+    uint32_t Process::get_register_32(const std::string &reg_name) const {
+        struct user_regs_struct regs;
+        if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
+            throw mx::Exception::error("Failed to get registers for process");
+        }
+        
+        if (reg_name == "eax") return regs.rax & 0xFFFFFFFF;
+        if (reg_name == "ebx") return regs.rbx & 0xFFFFFFFF;
+        if (reg_name == "ecx") return regs.rcx & 0xFFFFFFFF;
+        if (reg_name == "edx") return regs.rdx & 0xFFFFFFFF;
+        if (reg_name == "esi") return regs.rsi & 0xFFFFFFFF;
+        if (reg_name == "edi") return regs.rdi & 0xFFFFFFFF;
+        if (reg_name == "ebp") return regs.rbp & 0xFFFFFFFF;
+        if (reg_name == "esp") return regs.rsp & 0xFFFFFFFF;
+        if (reg_name == "r8d") return regs.r8 & 0xFFFFFFFF;
+        if (reg_name == "r9d") return regs.r9 & 0xFFFFFFFF;
+        if (reg_name == "r10d") return regs.r10 & 0xFFFFFFFF;
+        if (reg_name == "r11d") return regs.r11 & 0xFFFFFFFF;
+        if (reg_name == "r12d") return regs.r12 & 0xFFFFFFFF;
+        if (reg_name == "r13d") return regs.r13 & 0xFFFFFFFF;
+        if (reg_name == "r14d") return regs.r14 & 0xFFFFFFFF;
+        if (reg_name == "r15d") return regs.r15 & 0xFFFFFFFF;
+        
+        throw mx::Exception("Unknown 32-bit register name: " + reg_name);
+    }
+
+    uint16_t Process::get_register_16(const std::string &reg_name) const {
+        struct user_regs_struct regs;
+        if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
+            throw mx::Exception::error("Failed to get registers for process");
+        }
+        
+        if (reg_name == "ax") return regs.rax & 0xFFFF;
+        if (reg_name == "bx") return regs.rbx & 0xFFFF;
+        if (reg_name == "cx") return regs.rcx & 0xFFFF;
+        if (reg_name == "dx") return regs.rdx & 0xFFFF;
+        if (reg_name == "si") return regs.rsi & 0xFFFF;
+        if (reg_name == "di") return regs.rdi & 0xFFFF;
+        if (reg_name == "bp") return regs.rbp & 0xFFFF;
+        if (reg_name == "sp") return regs.rsp & 0xFFFF;
+        if (reg_name == "r8w") return regs.r8 & 0xFFFF;
+        if (reg_name == "r9w") return regs.r9 & 0xFFFF;
+        if (reg_name == "r10w") return regs.r10 & 0xFFFF;
+        if (reg_name == "r11w") return regs.r11 & 0xFFFF;
+        if (reg_name == "r12w") return regs.r12 & 0xFFFF;
+        if (reg_name == "r13w") return regs.r13 & 0xFFFF;
+        if (reg_name == "r14w") return regs.r14 & 0xFFFF;
+        if (reg_name == "r15w") return regs.r15 & 0xFFFF;
+        
+        throw mx::Exception("Unknown 16-bit register name: " + reg_name);
+    }
+
+    uint8_t Process::get_register_8(const std::string &reg_name) const {
+        struct user_regs_struct regs;
+        if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
+            throw mx::Exception::error("Failed to get registers for process");
+        }
+        
+        if (reg_name == "al") return regs.rax & 0xFF;
+        if (reg_name == "ah") return (regs.rax >> 8) & 0xFF;
+        if (reg_name == "bl") return regs.rbx & 0xFF;
+        if (reg_name == "bh") return (regs.rbx >> 8) & 0xFF;
+        if (reg_name == "cl") return regs.rcx & 0xFF;
+        if (reg_name == "ch") return (regs.rcx >> 8) & 0xFF;
+        if (reg_name == "dl") return regs.rdx & 0xFF;
+        if (reg_name == "dh") return (regs.rdx >> 8) & 0xFF;
+        if (reg_name == "sil") return regs.rsi & 0xFF;
+        if (reg_name == "dil") return regs.rdi & 0xFF;
+        if (reg_name == "bpl") return regs.rbp & 0xFF;
+        if (reg_name == "spl") return regs.rsp & 0xFF;
+        if (reg_name == "r8b") return regs.r8 & 0xFF;
+        if (reg_name == "r9b") return regs.r9 & 0xFF;
+        if (reg_name == "r10b") return regs.r10 & 0xFF;
+        if (reg_name == "r11b") return regs.r11 & 0xFF;
+        if (reg_name == "r12b") return regs.r12 & 0xFF;
+        if (reg_name == "r13b") return regs.r13 & 0xFF;
+        if (reg_name == "r14b") return regs.r14 & 0xFF;
+        if (reg_name == "r15b") return regs.r15 & 0xFF;
+        
+        throw mx::Exception("Unknown 8-bit register name: " + reg_name);
     }
 
     std::vector<uint8_t> Process::read_memory(uint64_t address, size_t size) const {
@@ -371,5 +518,231 @@ namespace mx {
         if (ptrace(PTRACE_DETACH, m_pid, nullptr, 0) == -1) {
             throw mx::Exception::error("Failed to detach from process");
         }
+    }
+
+    void Process::set_register(const std::string &reg_name, uint64_t value) {
+        struct user_regs_struct regs;
+        if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
+            throw mx::Exception::error("Failed to get registers for process");
+        }
+        
+        if (reg_name == "rax") regs.rax = value;
+        else if (reg_name == "rbx") regs.rbx = value;
+        else if (reg_name == "rcx") regs.rcx = value;
+        else if (reg_name == "rdx") regs.rdx = value;
+        else if (reg_name == "rsi") regs.rsi = value;
+        else if (reg_name == "rdi") regs.rdi = value;
+        else if (reg_name == "rbp") regs.rbp = value;
+        else if (reg_name == "rsp") regs.rsp = value;
+        else if (reg_name == "rip") regs.rip = value;
+        else if (reg_name == "r8") regs.r8 = value;
+        else if (reg_name == "r9") regs.r9 = value;
+        else if (reg_name == "r10") regs.r10 = value;
+        else if (reg_name == "r11") regs.r11 = value;
+        else if (reg_name == "r12") regs.r12 = value;
+        else if (reg_name == "r13") regs.r13 = value;
+        else if (reg_name == "r14") regs.r14 = value;
+        else if (reg_name == "r15") regs.r15 = value;
+        else {
+            throw mx::Exception("Unknown register name: " + reg_name);
+        }
+        
+        if (ptrace(PTRACE_SETREGS, m_pid, nullptr, &regs) == -1) {
+            throw mx::Exception::error("Failed to set registers");
+        }
+    }
+
+    void Process::set_register_32(const std::string &reg_name, uint32_t value) {
+        struct user_regs_struct regs;
+        if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
+            throw mx::Exception::error("Failed to get registers for process");
+        }
+        
+        if (reg_name == "eax") regs.rax = (regs.rax & 0xFFFFFFFF00000000ULL) | value;
+        else if (reg_name == "ebx") regs.rbx = (regs.rbx & 0xFFFFFFFF00000000ULL) | value;
+        else if (reg_name == "ecx") regs.rcx = (regs.rcx & 0xFFFFFFFF00000000ULL) | value;
+        else if (reg_name == "edx") regs.rdx = (regs.rdx & 0xFFFFFFFF00000000ULL) | value;
+        else if (reg_name == "esi") regs.rsi = (regs.rsi & 0xFFFFFFFF00000000ULL) | value;
+        else if (reg_name == "edi") regs.rdi = (regs.rdi & 0xFFFFFFFF00000000ULL) | value;
+        else if (reg_name == "ebp") regs.rbp = (regs.rbp & 0xFFFFFFFF00000000ULL) | value;
+        else if (reg_name == "esp") regs.rsp = (regs.rsp & 0xFFFFFFFF00000000ULL) | value;
+        else if (reg_name == "r8d") regs.r8 = (regs.r8 & 0xFFFFFFFF00000000ULL) | value;
+        else if (reg_name == "r9d") regs.r9 = (regs.r9 & 0xFFFFFFFF00000000ULL) | value;
+        else if (reg_name == "r10d") regs.r10 = (regs.r10 & 0xFFFFFFFF00000000ULL) | value;
+        else if (reg_name == "r11d") regs.r11 = (regs.r11 & 0xFFFFFFFF00000000ULL) | value;
+        else if (reg_name == "r12d") regs.r12 = (regs.r12 & 0xFFFFFFFF00000000ULL) | value;
+        else if (reg_name == "r13d") regs.r13 = (regs.r13 & 0xFFFFFFFF00000000ULL) | value;
+        else if (reg_name == "r14d") regs.r14 = (regs.r14 & 0xFFFFFFFF00000000ULL) | value;
+        else if (reg_name == "r15d") regs.r15 = (regs.r15 & 0xFFFFFFFF00000000ULL) | value;
+        else {
+            throw mx::Exception("Unknown 32-bit register name: " + reg_name);
+        }
+        
+        if (ptrace(PTRACE_SETREGS, m_pid, nullptr, &regs) == -1) {
+            throw mx::Exception::error("Failed to set registers");
+        }
+    }
+
+    void Process::set_register_16(const std::string &reg_name, uint16_t value) {
+        struct user_regs_struct regs;
+        if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
+            throw mx::Exception::error("Failed to get registers for process");
+        }
+        
+        if (reg_name == "ax") regs.rax = (regs.rax & 0xFFFFFFFFFFFF0000ULL) | value;
+        else if (reg_name == "bx") regs.rbx = (regs.rbx & 0xFFFFFFFFFFFF0000ULL) | value;
+        else if (reg_name == "cx") regs.rcx = (regs.rcx & 0xFFFFFFFFFFFF0000ULL) | value;
+        else if (reg_name == "dx") regs.rdx = (regs.rdx & 0xFFFFFFFFFFFF0000ULL) | value;
+        else if (reg_name == "si") regs.rsi = (regs.rsi & 0xFFFFFFFFFFFF0000ULL) | value;
+        else if (reg_name == "di") regs.rdi = (regs.rdi & 0xFFFFFFFFFFFF0000ULL) | value;
+        else if (reg_name == "bp") regs.rbp = (regs.rbp & 0xFFFFFFFFFFFF0000ULL) | value;
+        else if (reg_name == "sp") regs.rsp = (regs.rsp & 0xFFFFFFFFFFFF0000ULL) | value;
+        else if (reg_name == "r8w") regs.r8 = (regs.r8 & 0xFFFFFFFFFFFF0000ULL) | value;
+        else if (reg_name == "r9w") regs.r9 = (regs.r9 & 0xFFFFFFFFFFFF0000ULL) | value;
+        else if (reg_name == "r10w") regs.r10 = (regs.r10 & 0xFFFFFFFFFFFF0000ULL) | value;
+        else if (reg_name == "r11w") regs.r11 = (regs.r11 & 0xFFFFFFFFFFFF0000ULL) | value;
+        else if (reg_name == "r12w") regs.r12 = (regs.r12 & 0xFFFFFFFFFFFF0000ULL) | value;
+        else if (reg_name == "r13w") regs.r13 = (regs.r13 & 0xFFFFFFFFFFFF0000ULL) | value;
+        else if (reg_name == "r14w") regs.r14 = (regs.r14 & 0xFFFFFFFFFFFF0000ULL) | value;
+        else if (reg_name == "r15w") regs.r15 = (regs.r15 & 0xFFFFFFFFFFFF0000ULL) | value;
+        else {
+            throw mx::Exception("Unknown 16-bit register name: " + reg_name);
+        }
+        
+        if (ptrace(PTRACE_SETREGS, m_pid, nullptr, &regs) == -1) {
+            throw mx::Exception::error("Failed to set registers");
+        }
+    }
+
+    void Process::set_register_8(const std::string &reg_name, uint8_t value) {
+        struct user_regs_struct regs;
+        if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
+            throw mx::Exception::error("Failed to get registers for process");
+        }
+        
+        if (reg_name == "al") regs.rax = (regs.rax & 0xFFFFFFFFFFFFFF00ULL) | value;
+        else if (reg_name == "ah") regs.rax = (regs.rax & 0xFFFFFFFFFFFF00FFULL) | (static_cast<uint64_t>(value) << 8);
+        else if (reg_name == "bl") regs.rbx = (regs.rbx & 0xFFFFFFFFFFFFFF00ULL) | value;
+        else if (reg_name == "bh") regs.rbx = (regs.rbx & 0xFFFFFFFFFFFF00FFULL) | (static_cast<uint64_t>(value) << 8);
+        else if (reg_name == "cl") regs.rcx = (regs.rcx & 0xFFFFFFFFFFFFFF00ULL) | value;
+        else if (reg_name == "ch") regs.rcx = (regs.rcx & 0xFFFFFFFFFFFF00FFULL) | (static_cast<uint64_t>(value) << 8);
+        else if (reg_name == "dl") regs.rdx = (regs.rdx & 0xFFFFFFFFFFFFFF00ULL) | value;
+        else if (reg_name == "dh") regs.rdx = (regs.rdx & 0xFFFFFFFFFFFF00FFULL) | (static_cast<uint64_t>(value) << 8);
+        else if (reg_name == "sil") regs.rsi = (regs.rsi & 0xFFFFFFFFFFFFFF00ULL) | value;
+        else if (reg_name == "dil") regs.rdi = (regs.rdi & 0xFFFFFFFFFFFFFF00ULL) | value;
+        else if (reg_name == "bpl") regs.rbp = (regs.rbp & 0xFFFFFFFFFFFFFF00ULL) | value;
+        else if (reg_name == "spl") regs.rsp = (regs.rsp & 0xFFFFFFFFFFFFFF00ULL) | value;
+        else if (reg_name == "r8b") regs.r8 = (regs.r8 & 0xFFFFFFFFFFFFFF00ULL) | value;
+        else if (reg_name == "r9b") regs.r9 = (regs.r9 & 0xFFFFFFFFFFFFFF00ULL) | value;
+        else if (reg_name == "r10b") regs.r10 = (regs.r10 & 0xFFFFFFFFFFFFFF00ULL) | value;
+        else if (reg_name == "r11b") regs.r11 = (regs.r11 & 0xFFFFFFFFFFFFFF00ULL) | value;
+        else if (reg_name == "r12b") regs.r12 = (regs.r12 & 0xFFFFFFFFFFFFFF00ULL) | value;
+        else if (reg_name == "r13b") regs.r13 = (regs.r13 & 0xFFFFFFFFFFFFFF00ULL) | value;
+        else if (reg_name == "r14b") regs.r14 = (regs.r14 & 0xFFFFFFFFFFFFFF00ULL) | value;
+        else if (reg_name == "r15b") regs.r15 = (regs.r15 & 0xFFFFFFFFFFFFFF00ULL) | value;
+        else {
+            throw mx::Exception("Unknown 8-bit register name: " + reg_name);
+        }
+        
+        if (ptrace(PTRACE_SETREGS, m_pid, nullptr, &regs) == -1) {
+            throw mx::Exception::error("Failed to set registers");
+        }
+    }
+
+    void Process::print_all_registers() const {
+        struct user_regs_struct regs;
+        if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
+            throw mx::Exception::error("Failed to get registers for process");
+        }
+        
+        std::cout << std::left << std::setfill(' ');
+        
+        std::cout << std::setw(8) << "RAX:" << "0x" << std::hex << std::setfill('0') << std::setw(16) << regs.rax << std::dec
+                  << "  EAX: 0x" << std::hex << std::setw(8) << (regs.rax & 0xFFFFFFFF) << std::dec
+                  << "  AX: 0x" << std::hex << std::setw(4) << (regs.rax & 0xFFFF) << std::dec
+                  << "  AL: 0x" << std::hex << std::setw(2) << (regs.rax & 0xFF) << std::dec
+                  << "  AH: 0x" << std::hex << std::setw(2) << ((regs.rax >> 8) & 0xFF) << std::dec << std::endl;
+        
+        std::cout << std::setw(8) << "RBX:" << "0x" << std::hex << std::setfill('0') << std::setw(16) << regs.rbx << std::dec
+                  << "  EBX: 0x" << std::hex << std::setw(8) << (regs.rbx & 0xFFFFFFFF) << std::dec
+                  << "  BX: 0x" << std::hex << std::setw(4) << (regs.rbx & 0xFFFF) << std::dec
+                  << "  BL: 0x" << std::hex << std::setw(2) << (regs.rbx & 0xFF) << std::dec
+                  << "  BH: 0x" << std::hex << std::setw(2) << ((regs.rbx >> 8) & 0xFF) << std::dec << std::endl;
+        
+        std::cout << std::setw(8) << "RCX:" << "0x" << std::hex << std::setfill('0') << std::setw(16) << regs.rcx << std::dec
+                  << "  ECX: 0x" << std::hex << std::setw(8) << (regs.rcx & 0xFFFFFFFF) << std::dec
+                  << "  CX: 0x" << std::hex << std::setw(4) << (regs.rcx & 0xFFFF) << std::dec
+                  << "  CL: 0x" << std::hex << std::setw(2) << (regs.rcx & 0xFF) << std::dec
+                  << "  CH: 0x" << std::hex << std::setw(2) << ((regs.rcx >> 8) & 0xFF) << std::dec << std::endl;
+        
+        std::cout << std::setw(8) << "RDX:" << "0x" << std::hex << std::setfill('0') << std::setw(16) << regs.rdx << std::dec
+                  << "  EDX: 0x" << std::hex << std::setw(8) << (regs.rdx & 0xFFFFFFFF) << std::dec
+                  << "  DX: 0x" << std::hex << std::setw(4) << (regs.rdx & 0xFFFF) << std::dec
+                  << "  DL: 0x" << std::hex << std::setw(2) << (regs.rdx & 0xFF) << std::dec
+                  << "  DH: 0x" << std::hex << std::setw(2) << ((regs.rdx >> 8) & 0xFF) << std::dec << std::endl;
+        
+        std::cout << std::setw(8) << "RSI:" << "0x" << std::hex << std::setfill('0') << std::setw(16) << regs.rsi << std::dec
+                  << "  ESI: 0x" << std::hex << std::setw(8) << (regs.rsi & 0xFFFFFFFF) << std::dec
+                  << "  SI: 0x" << std::hex << std::setw(4) << (regs.rsi & 0xFFFF) << std::dec
+                  << "  SIL: 0x" << std::hex << std::setw(2) << (regs.rsi & 0xFF) << std::dec << std::endl;
+        
+        std::cout << std::setw(8) << "RDI:" << "0x" << std::hex << std::setfill('0') << std::setw(16) << regs.rdi << std::dec
+                  << "  EDI: 0x" << std::hex << std::setw(8) << (regs.rdi & 0xFFFFFFFF) << std::dec
+                  << "  DI: 0x" << std::hex << std::setw(4) << (regs.rdi & 0xFFFF) << std::dec
+                  << "  DIL: 0x" << std::hex << std::setw(2) << (regs.rdi & 0xFF) << std::dec << std::endl;
+        
+        std::cout << std::setw(8) << "RBP:" << "0x" << std::hex << std::setfill('0') << std::setw(16) << regs.rbp << std::dec
+                  << "  EBP: 0x" << std::hex << std::setw(8) << (regs.rbp & 0xFFFFFFFF) << std::dec
+                  << "  BP: 0x" << std::hex << std::setw(4) << (regs.rbp & 0xFFFF) << std::dec
+                  << "  BPL: 0x" << std::hex << std::setw(2) << (regs.rbp & 0xFF) << std::dec << std::endl;
+        
+        std::cout << std::setw(8) << "RSP:" << "0x" << std::hex << std::setfill('0') << std::setw(16) << regs.rsp << std::dec
+                  << "  ESP: 0x" << std::hex << std::setw(8) << (regs.rsp & 0xFFFFFFFF) << std::dec
+                  << "  SP: 0x" << std::hex << std::setw(4) << (regs.rsp & 0xFFFF) << std::dec
+                  << "  SPL: 0x" << std::hex << std::setw(2) << (regs.rsp & 0xFF) << std::dec << std::endl;
+        
+        std::cout << std::setw(8) << "RIP:" << "0x" << std::hex << std::setfill('0') << std::setw(16) << regs.rip << std::dec << std::endl;
+        
+        std::cout << std::setw(8) << "R8:" << "0x" << std::hex << std::setfill('0') << std::setw(16) << regs.r8 << std::dec
+                  << "  R8D: 0x" << std::hex << std::setw(8) << (regs.r8 & 0xFFFFFFFF) << std::dec
+                  << "  R8W: 0x" << std::hex << std::setw(4) << (regs.r8 & 0xFFFF) << std::dec
+                  << "  R8B: 0x" << std::hex << std::setw(2) << (regs.r8 & 0xFF) << std::dec << std::endl;
+        
+        std::cout << std::setw(8) << "R9:" << "0x" << std::hex << std::setfill('0') << std::setw(16) << regs.r9 << std::dec
+                  << "  R9D: 0x" << std::hex << std::setw(8) << (regs.r9 & 0xFFFFFFFF) << std::dec
+                  << "  R9W: 0x" << std::hex << std::setw(4) << (regs.r9 & 0xFFFF) << std::dec
+                  << "  R9B: 0x" << std::hex << std::setw(2) << (regs.r9 & 0xFF) << std::dec << std::endl;
+        
+        std::cout << std::setw(8) << "R10:" << "0x" << std::hex << std::setfill('0') << std::setw(16) << regs.r10 << std::dec
+                  << "  R10D: 0x" << std::hex << std::setw(8) << (regs.r10 & 0xFFFFFFFF) << std::dec
+                  << "  R10W: 0x" << std::hex << std::setw(4) << (regs.r10 & 0xFFFF) << std::dec
+                  << "  R10B: 0x" << std::hex << std::setw(2) << (regs.r10 & 0xFF) << std::dec << std::endl;
+        
+        std::cout << std::setw(8) << "R11:" << "0x" << std::hex << std::setfill('0') << std::setw(16) << regs.r11 << std::dec
+                  << "  R11D: 0x" << std::hex << std::setw(8) << (regs.r11 & 0xFFFFFFFF) << std::dec
+                  << "  R11W: 0x" << std::hex << std::setw(4) << (regs.r11 & 0xFFFF) << std::dec
+                  << "  R11B: 0x" << std::hex << std::setw(2) << (regs.r11 & 0xFF) << std::dec << std::endl;
+        
+        std::cout << std::setw(8) << "R12:" << "0x" << std::hex << std::setfill('0') << std::setw(16) << regs.r12 << std::dec
+                  << "  R12D: 0x" << std::hex << std::setw(8) << (regs.r12 & 0xFFFFFFFF) << std::dec
+                  << "  R12W: 0x" << std::hex << std::setw(4) << (regs.r12 & 0xFFFF) << std::dec
+                  << "  R12B: 0x" << std::hex << std::setw(2) << (regs.r12 & 0xFF) << std::dec << std::endl;
+        
+        std::cout << std::setw(8) << "R13:" << "0x" << std::hex << std::setfill('0') << std::setw(16) << regs.r13 << std::dec
+                  << "  R13D: 0x" << std::hex << std::setw(8) << (regs.r13 & 0xFFFFFFFF) << std::dec
+                  << "  R13W: 0x" << std::hex << std::setw(4) << (regs.r13 & 0xFFFF) << std::dec
+                  << "  R13B: 0x" << std::hex << std::setw(2) << (regs.r13 & 0xFF) << std::dec << std::endl;
+        
+        std::cout << std::setw(8) << "R14:" << "0x" << std::hex << std::setfill('0') << std::setw(16) << regs.r14 << std::dec
+                  << "  R14D: 0x" << std::hex << std::setw(8) << (regs.r14 & 0xFFFFFFFF) << std::dec
+                  << "  R14W: 0x" << std::hex << std::setw(4) << (regs.r14 & 0xFFFF) << std::dec
+                  << "  R14B: 0x" << std::hex << std::setw(2) << (regs.r14 & 0xFF) << std::dec << std::endl;
+        
+        std::cout << std::setw(8) << "R15:" << "0x" << std::hex << std::setfill('0') << std::setw(16) << regs.r15 << std::dec
+                  << "  R15D: 0x" << std::hex << std::setw(8) << (regs.r15 & 0xFFFFFFFF) << std::dec
+                  << "  R15W: 0x" << std::hex << std::setw(4) << (regs.r15 & 0xFFFF) << std::dec
+                  << "  R15B: 0x" << std::hex << std::setw(2) << (regs.r15 & 0xFF) << std::dec << std::endl;
+        
+        std::cout << std::setw(8) << "EFLAGS:" << "0x" << std::hex << std::setfill('0') << std::setw(8) << regs.eflags << std::dec << std::endl;
     }
 }

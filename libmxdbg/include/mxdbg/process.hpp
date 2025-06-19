@@ -33,6 +33,15 @@ namespace mx {
         void single_step();
         void wait_for_single_step();
         uint64_t get_register(const std::string &reg_name) const;
+        uint32_t get_register_32(const std::string &reg_name) const;
+        uint16_t get_register_16(const std::string &reg_name) const;
+        uint8_t get_register_8(const std::string &reg_name) const;
+        std::vector<std::string> get_all_registers() const;
+        void print_all_registers() const;
+        void set_register(const std::string &reg_name, uint64_t value);
+        void set_register_32(const std::string &reg_name, uint32_t value);
+        void set_register_16(const std::string &reg_name, uint16_t value);
+        void set_register_8(const std::string &reg_name, uint8_t value);
         std::vector<uint8_t> read_memory(uint64_t address, size_t size) const;
         void write_memory(uint64_t address, const std::vector<uint8_t> &data);
         uint64_t get_pc() const;

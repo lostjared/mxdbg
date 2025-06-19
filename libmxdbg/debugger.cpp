@@ -146,6 +146,7 @@ namespace mx {
         return process && process->is_running();
     }
 
+    
     bool Debugger::command(const std::string &cmd) {
         std::vector<std::string> tokens = split_command(cmd);
         if (tokens.empty()) {
@@ -204,6 +205,42 @@ namespace mx {
             }
             return true;
 
+        } else if(tokens.size() == 2 && tokens[0] == "register32") {
+            if (process && process->is_running()) {
+                try {
+                    uint32_t value = process->get_register_32(tokens[1]);
+                    std::cout << "Register " << tokens[1] << " (32-bit): 0x" << std::hex << value << " | " << std::dec << value << std::endl;
+                } catch (const std::exception& e) {
+                    std::cerr << "Error reading register: " << e.what() << std::endl;
+                }
+            } else {
+                std::cout << "No process running." << std::endl;
+            }
+            return true;
+        } else if(tokens.size() == 2 && tokens[0] == "register16") {
+            if (process && process->is_running()) {
+                try {
+                    uint16_t value = process->get_register_16(tokens[1]);
+                    std::cout << "Register " << tokens[1] << " (16-bit): 0x" << std::hex << value << " | " << std::dec << value << std::endl;
+                } catch (const std::exception& e) {
+                    std::cerr << "Error reading register: " << e.what() << std::endl;
+                }
+            } else {
+                std::cout << "No process running." << std::endl;
+            }
+            return true;
+        } else if(tokens.size() == 2 && tokens[0] == "register8") {
+            if (process && process->is_running()) {
+                try {
+                    uint8_t value = process->get_register_8(tokens[1]);
+                    std::cout << "Register " << tokens[1] << " (8-bit): 0x" << std::hex << (int)value << " | " << std::dec << (int)value << std::endl;
+                } catch (const std::exception& e) {
+                    std::cerr << "Error reading register: " << e.what() << std::endl;
+                }
+            } else {
+                std::cout << "No process running." << std::endl;
+            }
+            return true;
         } else if(cmd == "base") {
             if (process && process->is_running()) {
                 print_address();
@@ -234,6 +271,34 @@ namespace mx {
                 std::cerr << "Error reading memory: " << e.what() << std::endl;
             }
             return true;
+        } else if(tokens.size() == 3 && tokens[0] == "write") {
+            uint64_t addr = std::stoull(tokens[1], nullptr, 0);
+            std::string value_str = tokens[2];
+            try {
+                uint64_t value = std::stoull(value_str, nullptr, 0);
+                std::vector<uint8_t> data(8);
+                for (size_t i = 0; i < 8; ++i) {
+                    data[i] = (value >> (i * 8)) & 0xFF;
+                }
+                process->write_memory(addr, data);
+                std::cout << "Wrote 0x" << std::hex << value << " to memory at 0x" << addr << std::dec << std::endl;
+            } catch (const std::exception& e) {
+                std::cerr << "Error writing memory: " << e.what() << std::endl;
+            }
+            return true;
+        } else if(tokens.size() == 2 && (tokens[0] == "search" || tokens[0] == "find")) {
+            std::string value = tokens[1];
+            std::ostringstream stream;
+            stream << "objdump -d " << program_name << " | grep '" << value << "'";
+            std::string command = stream.str();
+            std::cout << "Running command: " << command << std::endl;
+            int result = system(command.c_str());
+            if (result != 0) {
+                std::cerr << "Failed to execute search command." << std::endl;
+            } else {
+                std::cout << "Search completed." << std::endl;
+            }
+            return true;
         }
         else if (cmd == "help" || cmd == "h") {
             std::cout << "Available commands:" << std::endl;
@@ -255,6 +320,34 @@ namespace mx {
                 }
             } else {
                 std::cout << "No process attached or running." << std::endl;
+            }
+            return true;
+        } else if (tokens.size() == 3 && tokens[0] == "set") {
+            if (process && process->is_running()) {
+                try {
+                    std::string reg_name = tokens[1];
+                    uint64_t value = std::stoull(tokens[2], nullptr, 0);
+                    
+                    if (reg_name.length() == 3 && reg_name[0] == 'r') {
+                        process->set_register(reg_name, value);
+                    } else if (reg_name.length() == 3 && reg_name[0] == 'e') {
+                        process->set_register_32(reg_name, static_cast<uint32_t>(value));
+                    } else if (reg_name.length() == 2 || (reg_name.length() == 3 && reg_name[2] == 'w')) {
+                        process->set_register_16(reg_name, static_cast<uint16_t>(value));
+                    } else if (reg_name.length() == 2 && (reg_name[1] == 'l' || reg_name[1] == 'h')) {
+                        process->set_register_8(reg_name, static_cast<uint8_t>(value));
+                    } else if (reg_name.length() == 3 && reg_name[2] == 'b') {
+                        process->set_register_8(reg_name, static_cast<uint8_t>(value));
+                    } else {
+                        process->set_register(reg_name, value);
+                    }
+                    
+                    std::cout << "Register " << reg_name << " set to 0x" << std::hex << value << std::dec << std::endl;
+                } catch (const std::exception& e) {
+                    std::cerr << "Error setting register: " << e.what() << std::endl;
+                }
+            } else {
+                std::cout << "No process running." << std::endl;
             }
             return true;
         }
@@ -351,8 +444,7 @@ namespace mx {
         return 0;
     }
 
-    void Debugger::print_address() const {
-       
+    void Debugger::print_address() const {     
         try {
             uint64_t base_address = get_base_address();
             if (base_address != 0) {
