@@ -38,8 +38,11 @@ namespace mx {
         void detach();
         
         uint64_t get_base_address() const;
+        void disasm_bytes(std::vector<uint8_t> &bytes);
+
     private:
         void print_current_instruction(); 
+        std::size_t get_instruction_length(const std::vector<uint8_t>& bytes, size_t offset);
         std::unique_ptr<Process> process;
         std::string_view args;
         pid_t p_id;

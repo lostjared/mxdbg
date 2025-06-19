@@ -286,7 +286,9 @@ namespace mx {
                 std::cerr << "Error writing memory: " << e.what() << std::endl;
             }
             return true;
-        } else if(tokens.size() == 2 && (tokens[0] == "search" || tokens[0] == "find")) {
+        } 
+        
+        else if(tokens.size() == 2 && (tokens[0] == "search" || tokens[0] == "find")) {
             std::string value = tokens[1];
             std::ostringstream stream;
             stream << "objdump -d " << program_name << " | grep '" << value << "'";
@@ -396,15 +398,50 @@ namespace mx {
     void Debugger::print_current_instruction() {
         try {
             uint64_t rip = process->get_register("rip");
-            const size_t instruction_size = 16; 
-            std::vector<uint8_t> instruction_bytes = process->read_memory(rip, instruction_size);
+            
+            std::vector<uint8_t> instruction_bytes = process->read_memory(rip, 15);
             
             std::cout << "Current instruction at 0x" << std::hex << rip << ": ";
-            for (size_t i = 0; i < std::min(instruction_bytes.size(), size_t(8)); ++i) {
-                std::cout << std::hex << std::setfill('0') << std::setw(2) 
-                          << static_cast<unsigned>(instruction_bytes[i]) << " ";
+            
+            std::ofstream temp("/tmp/mxdbg_temp.bin", std::ios::binary);
+            temp.write(reinterpret_cast<const char*>(instruction_bytes.data()), instruction_bytes.size());
+            temp.close();
+            
+            std::string cmd = "objdump -D -b binary -m i386:x86-64 /tmp/mxdbg_temp.bin 2>/dev/null";
+            FILE* pipe = popen(cmd.c_str(), "r");
+            if (!pipe) {
+                std::cerr << "Failed to run objdump" << std::endl;
+                return;
             }
-            std::cout << std::dec << std::endl;
+            
+            char buffer[1024];
+            std::string result;
+            while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+                result += buffer;
+            }
+            pclose(pipe);
+            
+            std::istringstream ss(result);
+            std::string line;
+            while (std::getline(ss, line)) {
+                if (line.find("   0:") != std::string::npos) {
+                    size_t colon_pos = line.find(":");
+                    size_t tab_pos = line.find('\t', colon_pos);
+                    
+                    if (colon_pos != std::string::npos && tab_pos != std::string::npos) {
+                        std::string hex_part = line.substr(colon_pos + 1, tab_pos - colon_pos - 1);
+                        std::string instr_part = line.substr(tab_pos + 1);
+                        
+                        std::cout << hex_part << " -> " << instr_part << std::endl;
+                    } else {
+                        std::cout << line << std::endl;
+                    }
+                    break; 
+                }
+            }
+            
+            std::filesystem::remove("/tmp/mxdbg_temp.bin");
+            
         } catch (const std::exception& e) {
             std::cerr << "Error reading current instruction: " << e.what() << std::endl;
         }
@@ -468,5 +505,72 @@ namespace mx {
             std::cout << "No process attached or running." << std::endl;
         }
 
+    }
+
+    void Debugger::disasm_bytes(std::vector<uint8_t> &bytes) {
+        std::ofstream temp("/tmp/mxdbg_temp.bin", std::ios::binary);
+        temp.write(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+        temp.close();
+        std::string cmd = "objdump -D -b binary -m i386:x86-64 /tmp/mxdbg_temp.bin";
+        std::cout << "Running command: " << cmd << std::endl;
+        int result = system(cmd.c_str());
+        if (result != 0) {
+            std::cerr << "Failed to execute objdump command." << std::endl;
+        } else {
+            std::cout << "Disassembly completed." << std::endl;
+        }
+        std::filesystem::remove("/tmp/mxdbg_temp.bin");
+    }
+
+    std::size_t Debugger::get_instruction_length(const std::vector<uint8_t>& bytes, size_t offset) {
+        if (offset >= bytes.size()) return 1;
+        
+        try {
+            std::ofstream temp("/tmp/mxdbg_instr.bin", std::ios::binary);
+            temp.write(reinterpret_cast<const char*>(bytes.data() + offset), bytes.size() - offset);
+            temp.close();
+            
+            std::string cmd = "objdump -D -b binary -m i386:x86-64 /tmp/mxdbg_instr.bin 2>/dev/null";
+            FILE* pipe = popen(cmd.c_str(), "r");
+            if (!pipe) return 1;
+            
+            char buffer[256];
+            std::string result;
+            while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+                result += buffer;
+            }
+            pclose(pipe);
+            
+            std::istringstream ss(result);
+            std::string line;
+            while (std::getline(ss, line)) {
+                if (line.find("   0:") != std::string::npos) {
+                    size_t colon_pos = line.find(":");
+                    if (colon_pos == std::string::npos) continue;
+                    
+                    size_t tab_pos = line.find('\t', colon_pos);
+                    if (tab_pos == std::string::npos) continue;
+                    
+                    std::string hex_part = line.substr(colon_pos + 1, tab_pos - colon_pos - 1);
+                    
+                    size_t byte_count = 0;
+                    std::istringstream hex_stream(hex_part);
+                    std::string hex_byte;
+                    while (hex_stream >> hex_byte) {
+                        if (hex_byte.length() == 2 && std::isxdigit(hex_byte[0]) && std::isxdigit(hex_byte[1])) {
+                            byte_count++;
+                        }
+                    }
+                    
+                    std::filesystem::remove("/tmp/mxdbg_instr.bin");
+                    return byte_count > 0 ? byte_count : 1;
+                }
+            }
+            
+            std::filesystem::remove("/tmp/mxdbg_instr.bin");
+            return 1;
+        } catch (...) {
+            return 1;
+        }
     }
 }
