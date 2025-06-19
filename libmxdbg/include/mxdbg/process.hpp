@@ -51,6 +51,7 @@ namespace mx {
         void remove_breakpoint(uint64_t address);
         bool has_breakpoint(uint64_t address) const;
         std::vector<uint64_t> get_breakpoints() const;
+        
     private:
         Process(pid_t pid) : m_pid(pid) {}    
         pid_t m_pid;

@@ -80,6 +80,51 @@ namespace mx {
         return total_written;
     }
 
+    std::size_t Pipe::write_nonblocking(const std::byte *data, std::size_t size) {
+        if (m_write_fd == -1) {
+            throw mx::Exception("Pipe is closed for writing");
+        }
+        
+        int flags = fcntl(m_write_fd, F_GETFL);
+        if (flags == -1) {
+            throw mx::Exception::error("Failed to get file flags");
+        }
+        
+        if (fcntl(m_write_fd, F_SETFL, flags | O_NONBLOCK) == -1) {
+            throw mx::Exception::error("Failed to set non-blocking mode");
+        }
+        
+        size_t total_written = 0;
+        const char* ptr = reinterpret_cast<const char*>(data);
+        
+        while (total_written < size) {
+            ssize_t bytes_written = ::write(m_write_fd, ptr + total_written, size - total_written);
+            if (bytes_written == -1) {
+                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                    break; 
+                }
+                
+                fcntl(m_write_fd, F_SETFL, flags);
+                throw mx::Exception::error("Failed to write to pipe");
+            }
+            total_written += bytes_written;
+        }
+        
+        fcntl(m_write_fd, F_SETFL, flags);
+        return total_written;
+    }
+
+    std::size_t Pipe::write_nonblocking(const std::vector<std::byte> &data) {
+        return write_nonblocking(data.data(), data.size());
+    }
+
+    std::size_t Pipe::write_nonblocking(const std::string& data) {
+        return write_nonblocking(reinterpret_cast<const std::byte*>(data.data()), data.size());
+    }
+
+    bool Pipe::is_open() const {
+        return m_read_fd != -1 || m_write_fd != -1;
+    }           
     std::string Pipe::read() {
         if (m_read_fd == -1) {
             throw mx::Exception("Pipe is closed for reading");
@@ -313,10 +358,5 @@ namespace mx {
 
         buffer.resize(bytes_read);
         return buffer;  
-    }
-
-    bool Pipe::is_open() const {
-        return m_read_fd != -1 || m_write_fd != -1;
-    }   
-
+    } 
 }           

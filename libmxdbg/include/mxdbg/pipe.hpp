@@ -25,7 +25,9 @@ namespace mx {
         std::size_t write(const std::string& data);
         std::size_t write(const std::byte *data, std::size_t size);
         std::size_t write(const std::vector<std::byte> &data);
-
+        std::size_t write_nonblocking(const std::string& data);
+        std::size_t write_nonblocking(const std::byte *data, std::size_t size);
+        std::size_t write_nonblocking(const std::vector<std::byte> &data);
         std::string read();
         std::vector<std::byte> read_bytes();
         std::size_t read_data(std::byte *data, std::size_t size);
@@ -33,6 +35,7 @@ namespace mx {
         std::vector<std::byte> read_vec_nonblocking(std::size_t size);
         std::string read_nonblocking();
         std::vector<std::byte> read_bytes_nonblocking();
+        
         bool is_open() const;
         bool is_readable() const;
         bool is_writable() const;
