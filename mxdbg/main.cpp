@@ -128,9 +128,17 @@ int main(int argc, char **argv) {
             kill(debugger.get_pid(), SIGTERM);
             debugger.detach();
             debugger.wait_for_stop();
-            std::cout << "Process with PID: " << debugger.get_pid() << " has stopped." << std::endl;
+            if(debugger.get_pid() == -1) {
+                //std::cout << "No process running." << std::endl;
+            } else {
+                std::cout << "Process with PID: " << std::dec << debugger.get_pid() << " has stopped." << std::endl;
+            }
         }
-        std::cout << "Process with PID: " << debugger.get_pid() << " has exited." << std::endl;
+        if(debugger.get_pid() == -1) {
+            //std::cout << "No process running." << std::endl;
+        } else {
+            std::cout << "Process with PID: " << std::dec << debugger.get_pid() << " has exited." << std::endl;
+        }
         write_history(history_filename.c_str());
     } catch (const std::exception &e) {
         std::cerr << "Error: " << e.what() << std::endl;
