@@ -293,7 +293,14 @@ namespace mx {
             std::cout << out_stream.str() << std::endl;
             return true;
         }
-        else if(cmd == "explain") {
+        else if(cmd.substr(0, 7) == "explain" && cmd.length() > 7 && cmd[7] == ' ') {
+            std::string function_name = cmd.substr(8); 
+            if (function_name.empty()) {
+                std::cout << "Usage: explain <function_name>" << std::endl;
+                return true;
+            }
+            
+            
             std::ostringstream stream;
             stream << "objdump -d " << program_name;
             std::string command = stream.str();
@@ -303,32 +310,75 @@ namespace mx {
                 std::cerr << "Failed to run objdump command." << std::endl;
                 return true;
             }
-            std::ostringstream out_stream;
+            
+            
+            std::ostringstream full_disassembly;
             while(!feof(fptr)) {
                 char buffer[256];
                 if (fgets(buffer, sizeof(buffer), fptr) != nullptr) {
-                    out_stream << buffer;
+                    full_disassembly << buffer;
                 }
             }
             if(pclose(fptr) == -1) {
                 std::cerr << "Failed to close pipe." << std::endl;
             }
-            std::cout << out_stream.str() << std::endl;
-            if(request) {
-                if(out_stream.str().length() < 25000) {
-                    std::cout << "Requesting explanation from model..." << std::endl;
-                    std::cout << "This may take a while, please wait..." << std::endl;
-                    request->setPrompt("Explain this disassembly what the program genearly does in a single paragraph no more than 500 characters: " + out_stream.str());
-                    try {
-                        std::string response = request->generateTextWithCallback([](const std::string &chunk) {
-                            std::cout << chunk << std::flush; 
-                        });
-                        std::cout << "\n";
-                    } catch (const mx::ObjectRequestException &e) {
-                        std::cerr << "Error: " << e.what() << std::endl;
-                    }      
+            
+            
+            std::string disassembly = full_disassembly.str();
+            std::ostringstream function_disassembly;
+            bool in_function = false;
+            std::istringstream iss(disassembly);
+            std::string line;
+            
+            while (std::getline(iss, line)) {
+            
+                if (line.find("<" + function_name + ">:") != std::string::npos) {
+                    in_function = true;
+                    function_disassembly << line << "\n";
+                    continue;
+                }
+                
+                if (in_function) {
+                    if (line.find("<") != std::string::npos && line.find(">:") != std::string::npos) {
+                        break;
+                    }
+                    if (!line.empty() && line.find_first_not_of(" \t\n\r") != std::string::npos) {
+                        function_disassembly << line << "\n";
+                    }
                 }
             }
+            
+            std::string function_code = function_disassembly.str();
+            if (function_code.empty()) {
+                std::cout << "Function '" << function_name << "' not found in disassembly." << std::endl;
+                std::cout << "Available functions can be seen with 'objdump -t " << program_name << "'" << std::endl;
+                return true;
+            }
+            
+            std::cout << "Disassembly of function '" << function_name << "':" << std::endl;
+            std::cout << function_code << std::endl;
+            
+            if(request) {
+                std::cout << "Requesting explanation from model..." << std::endl;
+                std::cout << "This may take a while, please wait..." << std::endl;
+                std::string prompt = "Explain this x86-64 assembly function '" + function_name + 
+                                   "' step by step. What does it do? Be concise but thorough:\n\n" + function_code;
+                request->setPrompt(prompt);
+                try {
+                    std::string response = request->generateTextWithCallback([](const std::string &chunk) {
+                        std::cout << chunk << std::flush; 
+                    });
+                    std::cout << "\n";
+                } catch (const mx::ObjectRequestException &e) {
+                    std::cerr << "Error: " << e.what() << std::endl;
+                }      
+            }
+            return true;
+        }
+        else if(cmd == "explain") {
+            std::cout << "Usage: explain <function_name>" << std::endl;
+            std::cout << "Example: explain main" << std::endl;
+            std::cout << "To see available functions: objdump -t " << program_name << std::endl;
             return true;
         }
         else if (cmd == "status" || cmd == "st") {
@@ -371,14 +421,14 @@ namespace mx {
         } 
         
         else if(tokens.size() == 2 && (tokens[0] == "search" || tokens[0] == "find")) {
-            std::string value = tokens[1];
+            std::string value = cmd.substr(cmd.find(' ') + 1);
             std::ostringstream stream;
             stream << "objdump -d " << program_name << " | grep '" << value << "'";
             std::string command = stream.str();
             std::cout << "Running command: " << command << std::endl;
             int result = system(command.c_str());
             if (result != 0) {
-                std::cerr << "Failed to execute search command." << std::endl;
+                std::cerr << "Failed to find: " << value << "." << std::endl;
             } else {
                 std::cout << "Search completed." << std::endl;
             }
@@ -386,12 +436,19 @@ namespace mx {
         }
         else if (cmd == "help" || cmd == "h") {
             std::cout << "Available commands:" << std::endl;
-            std::cout << "  continue, c    - Continue process execution" << std::endl;
-            std::cout << "  step, s        - Execute single instruction" << std::endl;
-            std::cout << "  step N, s N    - Execute N instructions" << std::endl;
-            std::cout << "  status, st     - Show process status" << std::endl;
-            std::cout << "  help, h        - Show this help message" << std::endl;
-            std::cout << "  quit, q, exit  - Exit debugger" << std::endl;
+            std::cout << "  continue, c        - Continue process execution" << std::endl;
+            std::cout << "  step, s            - Execute single instruction" << std::endl;
+            std::cout << "  step N, s N        - Execute N instructions" << std::endl;
+            std::cout << "  status, st         - Show process status" << std::endl;
+            std::cout << "  registers, regs    - Show all registers" << std::endl;
+            std::cout << "  register <name>    - Show specific register value" << std::endl;
+            std::cout << "  set <reg> <value>  - Set register to value" << std::endl;
+            std::cout << "  break <addr>, b    - Set breakpoint at address" << std::endl;
+            std::cout << "  memory <addr>      - Read memory at address" << std::endl;
+            std::cout << "  disasm [addr]      - Disassemble at address" << std::endl;
+            std::cout << "  explain <function> - Explain function disassembly with AI" << std::endl;
+            std::cout << "  help, h            - Show this help message" << std::endl;
+            std::cout << "  quit, q, exit      - Exit debugger" << std::endl;
             return true;
         } else if (tokens.size() == 2 && (tokens[0] == "break" || tokens[0] == "b")) {
             if (process && process->is_running()) {

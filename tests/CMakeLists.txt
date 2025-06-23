@@ -70,13 +70,25 @@ target_include_directories(register_test PRIVATE
 )
 target_compile_features(register_test PRIVATE cxx_std_20)
 
+target_link_libraries(register_test PRIVATE
+       libmxdbg
+       ollama_gen
+)
 
 target_link_libraries(register_test PRIVATE
        libmxdbg
        ollama_gen
 )
 
+add_executable(c_test
+    test_explain.c
+)
 
+target_include_directories(c_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libmxdbg/include
+)
+target_compile_features(c_test PRIVATE cxx_std_20)
+target_compile_options(c_test PRIVATE -no-pie)
 
 enable_testing()
 
