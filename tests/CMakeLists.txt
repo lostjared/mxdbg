@@ -78,8 +78,10 @@ set_tests_properties(process_attach PROPERTIES
     PASS_REGULAR_EXPRESSION "Test passed"
 )
 
-add_custom_target(registers_test_asm ALL
-    COMMAND ${CMAKE_C_COMPILER} -nostdlib -static -no-pie ${CMAKE_CURRENT_SOURCE_DIR}/registers_test.s -o registers_test_asm
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    COMMENT "Building assembly register test"
+enable_language(ASM)
+
+add_executable(registers_test_asm registers_test.s)
+set_target_properties(registers_test_asm PROPERTIES
+    LINKER_LANGUAGE ASM
+    LINK_FLAGS "-nostdlib -static -no-pie"
 )
