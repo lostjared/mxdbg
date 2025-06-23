@@ -275,11 +275,57 @@ namespace mx {
             stream << "objdump -d " << program_name;
             std::string command = stream.str();
             std::cout << "Running command: " << command << std::endl;
-            int result = system(command.c_str());
-            if (result != 0) {
-                std::cerr << "Failed to execute objdump command." << std::endl;
-            } else {
-                std::cout << "Disassembly completed." << std::endl;                 
+            FILE *fptr = popen(command.c_str(), "r");
+            if (!fptr) {
+                std::cerr << "Failed to run objdump command." << std::endl;
+                return true;
+            }
+            std::ostringstream out_stream;
+            while(!feof(fptr)) {
+                char buffer[256];
+                if (fgets(buffer, sizeof(buffer), fptr) != nullptr) {
+                    out_stream << buffer;
+                }
+            }
+            if(pclose(fptr) == -1) {
+                std::cerr << "Failed to close pipe." << std::endl;
+            }
+            std::cout << out_stream.str() << std::endl;
+            return true;
+        }
+        else if(cmd == "explain") {
+            std::ostringstream stream;
+            stream << "objdump -d " << program_name;
+            std::string command = stream.str();
+            std::cout << "Running command: " << command << std::endl;
+            FILE *fptr = popen(command.c_str(), "r");
+            if (!fptr) {
+                std::cerr << "Failed to run objdump command." << std::endl;
+                return true;
+            }
+            std::ostringstream out_stream;
+            while(!feof(fptr)) {
+                char buffer[256];
+                if (fgets(buffer, sizeof(buffer), fptr) != nullptr) {
+                    out_stream << buffer;
+                }
+            }
+            if(pclose(fptr) == -1) {
+                std::cerr << "Failed to close pipe." << std::endl;
+            }
+            std::cout << out_stream.str() << std::endl;
+            if(request) {
+                if(out_stream.str().length() < 25000) {
+                    request->setPrompt("Explain this disassembly what the program genearly does in a single paragraph no more than 500 characters: " + out_stream.str());
+                    try {
+                        std::string response = request->generateTextWithCallback([](const std::string &chunk) {
+                            std::cout << chunk << std::flush; 
+                        });
+                        std::cout << "\n";
+                    } catch (const mx::ObjectRequestException &e) {
+                        std::cerr << "Error: " << e.what() << std::endl;
+                    }      
+                }
             }
             return true;
         }
