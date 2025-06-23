@@ -36,6 +36,8 @@ target_include_directories(pipe_test PRIVATE
 )
 target_compile_features(pipe_test PRIVATE cxx_std_20)
 
+enable_language(C)
+
 
 add_executable(pipe_write_test
     pipe_write.cpp
