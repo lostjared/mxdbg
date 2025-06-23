@@ -75,7 +75,7 @@ sudo make uninstall
 
 ```bash
 # Launch a program for debugging
-./mxdbg -R /path/to/program
+./mxdbg /path/to/program
 
 # Attach to an existing process
 ./mxdbg -p <PID>
