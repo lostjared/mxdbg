@@ -316,6 +316,8 @@ namespace mx {
             std::cout << out_stream.str() << std::endl;
             if(request) {
                 if(out_stream.str().length() < 25000) {
+                    std::cout << "Requesting explanation from model..." << std::endl;
+                    std::cout << "This may take a while, please wait..." << std::endl;
                     request->setPrompt("Explain this disassembly what the program genearly does in a single paragraph no more than 500 characters: " + out_stream.str());
                     try {
                         std::string response = request->generateTextWithCallback([](const std::string &chunk) {
