@@ -74,6 +74,10 @@ target_link_libraries(register_test PRIVATE
 add_executable(c_test
     test_explain.c
 )
+
+set_target_properties(c_test PROPERTIES
+    LINK_FLAGS "-no-pie"
+)
 target_include_directories(c_test PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../libmxdbg/include
 )

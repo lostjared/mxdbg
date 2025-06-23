@@ -463,7 +463,77 @@ namespace mx {
                 std::cout << "No process attached or running." << std::endl;
             }
             return true;
-        } else if (tokens.size() == 3 && tokens[0] == "set") {
+        } else if (tokens.size() == 2 && tokens[0] == "function") {
+            
+            if (!process || !process->is_running()) {
+                std::cout << "No process attached or running." << std::endl;
+                return true;
+            }
+            
+            std::string function_name = tokens[1];
+            if (function_name.empty()) {
+                std::cout << "Usage: function <function_name>" << std::endl;
+                return true;
+            }
+            
+            std::ostringstream stream;
+            stream << "objdump -d " << program_name;
+            std::string command = stream.str();
+            
+            FILE *fptr = popen(command.c_str(), "r");
+            if (!fptr) {
+                std::cerr << "Failed to run objdump command." << std::endl;
+                return true;
+            }
+            
+            std::ostringstream full_disassembly;
+            while(!feof(fptr)) {
+                char buffer[256];
+                if (fgets(buffer, sizeof(buffer), fptr) != nullptr) {
+                    full_disassembly << buffer;
+                }
+            }
+            if(pclose(fptr) == -1) {
+                std::cerr << "Failed to close pipe." << std::endl;
+            }
+            std::string disassembly = full_disassembly.str();
+            std::istringstream iss(disassembly);
+            std::string line;
+            uint64_t function_address = 0;   
+            while (std::getline(iss, line)) {
+                if (line.find("<" + function_name + ">:") != std::string::npos) {
+                    size_t space_pos = line.find(' ');
+                    if (space_pos != std::string::npos) {
+                        std::string addr_str = line.substr(0, space_pos);
+                        try {
+                            function_address = std::stoull(addr_str, nullptr, 16);
+                            break;
+                        } catch (const std::exception& e) {
+                            std::cerr << "Error parsing function address: " << e.what() << std::endl;
+                            return true;
+                        }
+                    }
+                }
+            }
+            if (function_address == 0) {
+                std::cout << "Function '" << function_name << "' not found in disassembly." << std::endl;
+                std::cout << "Available functions can be seen with 'objdump -t " << program_name << "'" << std::endl;
+                std::cout << "Note: If addresses show as relative (like 0x1000), compile with -no-pie flag:" << std::endl;
+                std::cout << "      gcc -no-pie -g your_program.c -o your_program" << std::endl;
+                return true;
+            }
+            try {
+                process->set_breakpoint(function_address);
+                std::cout << "Breakpoint set at function '" << function_name << "' (0x" 
+                        << std::hex << function_address << std::dec << ")" << std::endl;
+            } catch (const std::exception& e) {
+                std::cerr << "Error setting breakpoint at function '" << function_name << "': " << e.what() << std::endl;
+                std::cout << "This might be due to ASLR or PIE. Try compiling with -no-pie flag:" << std::endl;
+                std::cout << "      gcc -no-pie -g your_program.c -o your_program" << std::endl;
+            }
+            return true;
+        }
+        else if (tokens.size() == 3 && tokens[0] == "set") {
             if (process && process->is_running()) {
                 try {
                     std::string reg_name = tokens[1];
