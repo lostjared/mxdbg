@@ -660,29 +660,30 @@ namespace mx {
     void Debugger::print_current_instruction() {
         try {
             uint64_t rip = process->get_register("rip");
-            
             std::vector<uint8_t> instruction_bytes = process->read_memory(rip, 15);
-            
-            std::cout << "Current instruction at 0x" << std::hex << rip << ": ";
-            
+
+            if (process->has_breakpoint(rip)) {
+                uint8_t original_byte = process->get_original_instruction(rip);
+                instruction_bytes[0] = original_byte;  // Replace CC (int3) with original
+                std::cout << "Current instruction at 0x" << std::hex << rip << " [BREAKPOINT]: ";
+            } else {
+                std::cout << "Current instruction at 0x" << std::hex << rip << ": ";
+            }
             std::ofstream temp("/tmp/mxdbg_temp.bin", std::ios::binary);
             temp.write(reinterpret_cast<const char*>(instruction_bytes.data()), instruction_bytes.size());
             temp.close();
-            
             std::string cmd = "objdump -D -b binary -m i386:x86-64 /tmp/mxdbg_temp.bin 2>/dev/null";
             FILE* pipe = popen(cmd.c_str(), "r");
             if (!pipe) {
                 std::cerr << "Failed to run objdump" << std::endl;
                 return;
-            }
-            
+            }         
             char buffer[1024];
             std::string result;
             while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
                 result += buffer;
             }
             pclose(pipe);
-            
             std::istringstream ss(result);
             std::string line;
             std::ostringstream output;
