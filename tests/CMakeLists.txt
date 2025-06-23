@@ -88,7 +88,7 @@ target_include_directories(c_test PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../libmxdbg/include
 )
 target_compile_features(c_test PRIVATE cxx_std_20)
-target_compile_options(c_test PRIVATE -no-pie)
+
 
 enable_testing()
 
