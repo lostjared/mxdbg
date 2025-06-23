@@ -14,12 +14,9 @@
 pid_t launch_dummy_process() {
     pid_t pid = fork();
     if (pid == 0) {
-        // Child process: just sleep
         execl("/bin/sleep", "sleep", "60", nullptr);
         exit(1);
-    }
-    
-    // Give child time to start
+    } 
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     return pid;
 }
