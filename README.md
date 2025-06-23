@@ -2,6 +2,8 @@
 
 A modern C++ debugger built with ptrace that integrates with Ollama for AI-powered code analysis and explanation.
 
+$  Not complete, some features still need to be implemented. This is a new project.
+
 ## Features
 
 - **Process Control**: Launch or attach to processes with full debugging capabilities
