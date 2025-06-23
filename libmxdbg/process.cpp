@@ -90,9 +90,16 @@ namespace mx {
             throw mx::Exception::error("Failed to attach to process");
         }
         int status;
-        if (waitpid(pid, &status, 0) == -1) {
-            throw mx::Exception::error("Failed to wait for process after attaching");
+        int result = waitpid(pid, &status, WNOHANG);
+        if (result == 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            result = waitpid(pid, &status, 0);
         }
+        
+        if (result == -1) {
+            ptrace(PTRACE_DETACH, pid, nullptr, nullptr);
+            throw mx::Exception::error("Failed to wait for attached process");
+        }        
         return std::unique_ptr<Process>(new Process(pid));
     }
 
