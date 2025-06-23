@@ -9,6 +9,11 @@
 #include<iomanip>
 #include<filesystem>
 #include<fstream>
+#include<sys/user.h>
+#include<sys/wait.h>
+#include<fcntl.h>
+#include<sys/ptrace.h>
+
 
 namespace mx {
 
@@ -180,14 +185,33 @@ namespace mx {
             if (process && process->is_running()) {
                 try {
                     uint64_t pc_before = process->get_pc();
+                    
+                    
                     if (process->has_breakpoint(pc_before)) {
-                        process->handle_breakpoint_continue(pc_before);
+                        uint8_t original_byte = process->get_original_instruction(pc_before);
+                        long data = ptrace(PTRACE_PEEKDATA, process->get_pid(), pc_before, nullptr);
+                        long restored = (data & ~0xFF) | original_byte;
+                        ptrace(PTRACE_POKEDATA, process->get_pid(), pc_before, restored);
+                        
+                        
+                        process->single_step();
+                        process->wait_for_single_step();
+                        
+                        
+                        data = ptrace(PTRACE_PEEKDATA, process->get_pid(), pc_before, nullptr);
+                        long data_with_int3 = (data & ~0xFF) | 0xCC;
+                        ptrace(PTRACE_POKEDATA, process->get_pid(), pc_before, data_with_int3);
+                        
+                        
+                        process->continue_execution();
                         process->wait_for_stop();
                     } else {
                         process->continue_execution();
                         process->wait_for_stop();
                     }
+                    
                     print_current_instruction();
+                    
                     if(request) {
                         try {
                             std::string response = request->generateTextWithCallback([](const std::string &chunk) {

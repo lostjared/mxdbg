@@ -469,7 +469,7 @@ namespace mx {
         data = ptrace(PTRACE_PEEKDATA, m_pid, address, nullptr);
         long data_with_int3 = (data & ~0xFF) | 0xCC;
         ptrace(PTRACE_POKEDATA, m_pid, address, data_with_int3);
-        ptrace(PTRACE_CONT, m_pid, nullptr, 0);
+        //ptrace(PTRACE_CONT, m_pid, nullptr, 0);
     }
 
     std::string Process::disassemble_instruction(uint64_t address) const {
