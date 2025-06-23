@@ -57,3 +57,6 @@ convert_loop:
     movq $60, %rax          # sys_exit
     movq $0, %rdi           # Exit status
     syscall
+
+.section .note.GNU-stack,"",@progbits
+

@@ -1,9 +1,11 @@
+find_package(ollama_gen REQUIRED)
 
 add_executable(process_continue_test
     process_continue.cpp
 )
 target_link_libraries(process_continue_test PRIVATE
     libmxdbg
+    ollama_gen
 )
 target_include_directories(process_continue_test PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../libmxdbg/include
@@ -15,6 +17,7 @@ add_executable(process_attach_test
 )
 target_link_libraries(process_attach_test PRIVATE
     libmxdbg
+    ollama_gen
 )
 target_include_directories(process_attach_test PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../libmxdbg/include
@@ -26,6 +29,7 @@ add_executable(pipe_test
 )
 target_link_libraries(pipe_test PRIVATE
     libmxdbg
+    ollama_gen
 )
 target_include_directories(pipe_test PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../libmxdbg/include
@@ -38,6 +42,7 @@ add_executable(pipe_write_test
 )
 target_link_libraries(pipe_write_test PRIVATE
     libmxdbg
+    ollama_gen
 )
 target_include_directories(pipe_write_test PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../libmxdbg/include
@@ -49,6 +54,7 @@ add_executable(exception_test
 )
 target_link_libraries(exception_test PRIVATE
     libmxdbg
+    ollama_gen
 )
 target_include_directories(exception_test PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../libmxdbg/include
@@ -59,9 +65,18 @@ add_executable(register_test
     register_test.cpp
 )
 
-target_link_libraries(register_test PRIVATE
-    libmxdbg
+target_include_directories(register_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libmxdbg/include
 )
+target_compile_features(register_test PRIVATE cxx_std_20)
+
+
+target_link_libraries(register_test PRIVATE
+       libmxdbg
+       ollama_gen
+)
+
+
 
 enable_testing()
 

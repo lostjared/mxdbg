@@ -119,4 +119,6 @@ test_8bit:
     .byte 0xab, 0xcd                  # Expected CL, CH values
     .byte 0xef, 0x12                  # Expected DL, DH values
 
+    .section .note.GNU-stack,"",@progbits
+
     

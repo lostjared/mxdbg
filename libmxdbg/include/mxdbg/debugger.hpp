@@ -8,7 +8,7 @@
 #include <filesystem>
 #include <cstdlib>
 #include "mxdbg/process.hpp"
-
+#include<mx2-ollama.hpp>
 namespace mx {
 
     std::vector<std::string> split_command(const std::string &cmd);
@@ -48,6 +48,9 @@ namespace mx {
         pid_t p_id;
         std::string history_filename;
         std::string program_name;
+        std::unique_ptr<mx::ObjectRequest> request;
+  
+
     };
 
 } 

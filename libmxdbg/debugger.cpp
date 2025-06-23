@@ -33,7 +33,17 @@ namespace mx {
         return oss.str();
     }
 
-    Debugger::Debugger() : p_id(-1) {}
+    Debugger::Debugger() : p_id(-1) {
+        char *host = getenv("MXDBG_HOST");
+        char *model = getenv("MXDBG_MODEL");
+        if (host != nullptr && model != nullptr) {
+            std::string host_str(host);
+            std::string model_str(model);
+            if (!host_str.empty() && !model_str.empty()) {
+                request = std::make_unique<mx::ObjectRequest>(host_str, model_str);
+            }
+        }
+    }
 
     Debugger::~Debugger() {}
 
@@ -381,6 +391,16 @@ namespace mx {
             process->wait_for_single_step();
             std::cout << "Step completed." << std::endl;
             print_current_instruction();
+            if(request) {
+                try {
+                    std::string response = request->generateTextWithCallback([](const std::string &chunk) {
+                        std::cout << chunk << std::flush; 
+                    });
+                    std::cout << "\n";
+                } catch (const mx::ObjectRequestException &e) {
+                    std::cerr << "Error: " << e.what() << std::endl;
+                } 
+            }
         } catch (const std::exception& e) {
             std::cerr << "Error during single step: " << e.what() << std::endl;
         }
@@ -434,6 +454,7 @@ namespace mx {
             
             std::istringstream ss(result);
             std::string line;
+            std::ostringstream output;
             while (std::getline(ss, line)) {
                 if (line.find("   0:") != std::string::npos) {
                     size_t colon_pos = line.find(":");
@@ -444,15 +465,19 @@ namespace mx {
                         std::string instr_part = line.substr(tab_pos + 1);
                         
                         std::cout << hex_part << " -> " << instr_part << std::endl;
+                        output << hex_part << " -> " << instr_part << std::endl;
                     } else {
                         std::cout << line << std::endl;
+                        output <<  line << std::endl;
                     }
                     break; 
                 }
             }
-            
+            if(request) {
+                request->setPrompt("Expalin this instruction in one or two sentences: " + output.str());
+            }
             std::filesystem::remove("/tmp/mxdbg_temp.bin");
-            
+
         } catch (const std::exception& e) {
             std::cerr << "Error reading current instruction: " << e.what() << std::endl;
         }
