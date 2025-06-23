@@ -27,7 +27,8 @@ A modern C++ debugger built with ptrace that integrates with Ollama for AI-power
 
 ### Installing ollama_gen
 
-The project requires the `ollama_gen` library for AI integration. Install it according to your system's package manager or build from source.
+The project requires the `ollama_gen` library for AI integration. Install it by building from source. https://github.com/lostjared/ollama_gen
+
 
 ## Environment Setup
 
