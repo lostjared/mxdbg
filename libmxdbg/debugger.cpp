@@ -248,6 +248,17 @@ namespace mx {
                 std::cout << "No process attached or running." << std::endl;
             }
             return true;
+        } else if(cmd == "list") {
+            std::ostringstream stream;
+            stream << "objdump -d " << program_name;
+            std::string command = stream.str();
+            std::cout << "Running command: " << command << std::endl;
+            int result = system(command.c_str());
+            if (result != 0) {
+                std::cerr << "Failed to execute objdump command." << std::endl;
+            } else {
+                std::cout << "Disassembly completed." << std::endl;                 
+            }
         }
         else if (cmd == "status" || cmd == "st") {
             if (process) { 
