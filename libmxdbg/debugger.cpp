@@ -281,6 +281,7 @@ namespace mx {
             } else {
                 std::cout << "Disassembly completed." << std::endl;                 
             }
+            return true;
         }
         else if (cmd == "status" || cmd == "st") {
             if (process) { 
