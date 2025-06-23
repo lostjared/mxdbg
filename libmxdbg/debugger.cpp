@@ -66,6 +66,7 @@ namespace mx {
     }
 
     bool Debugger::launch(const std::filesystem::path &exe, std::string_view args) {
+        args_string = args;
         try {
             std::vector<std::string> args_v;
             if (!args.empty()) {
@@ -293,14 +294,13 @@ namespace mx {
             std::cout << out_stream.str() << std::endl;
             return true;
         }
-        else if(cmd.substr(0, 7) == "explain" && cmd.length() > 7 && cmd[7] == ' ') {
+        else if(cmd.length() >= 7 && cmd.substr(0, 7) == "explain" && cmd.length() > 7 && cmd[7] == ' ') {
             std::string function_name = cmd.substr(8); 
             if (function_name.empty()) {
                 std::cout << "Usage: explain <function_name>" << std::endl;
                 return true;
             }
-            
-            
+               
             std::ostringstream stream;
             stream << "objdump -d " << program_name;
             std::string command = stream.str();
@@ -491,9 +491,35 @@ namespace mx {
                 std::cout << "No process running." << std::endl;
             }
             return true;
+        } else if (cmd == "start" || cmd == "restart") {
+            if (program_name.empty()) {
+                std::cout << "No program to restart. Use launch command first or provide a program path." << std::endl;
+                return true;
+            }
+            
+            std::cout << "Restarting program: " << program_name << std::endl;
+            if (process) {
+                try {
+                    process->detach();
+                    std::cout << "Detached from current process." << std::endl;
+                } catch (const std::exception& e) {
+                    std::cerr << "Warning: Error detaching from process: " << e.what() << std::endl;
+                }
+                process.reset();
+                p_id = -1;
+            }
+            try {
+                std::filesystem::path exe_path(program_name);
+                if (launch(exe_path, args_string)) {
+                    std::cout << "Program restarted successfully." << std::endl;
+                } else {
+                    std::cout << "Failed to restart program." << std::endl;
+                }
+            } catch (const std::exception& e) {
+                std::cerr << "Error restarting program: " << e.what() << std::endl;
+            }      
+            return true;
         }
-
-        
         std::cout << "Unknown command: " << cmd << std::endl;
         return true;
     }

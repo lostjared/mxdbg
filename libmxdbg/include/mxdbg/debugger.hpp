@@ -48,6 +48,7 @@ namespace mx {
         pid_t p_id;
         std::string history_filename;
         std::string program_name;
+        std::string_view args_string;
         std::unique_ptr<mx::ObjectRequest> request;
   
 
