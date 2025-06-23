@@ -83,6 +83,18 @@ namespace mx {
             }
             p_id = process->get_pid();
             program_name = exe.string();
+            std::cout << "Process launched and stopped at entry point." << std::endl;
+            print_current_instruction();
+            if(request) {
+                try {
+                    std::string response = request->generateTextWithCallback([](const std::string &chunk) {
+                        std::cout << chunk << std::flush; 
+                    });
+                    std::cout << "\n";
+                } catch (const mx::ObjectRequestException &e) {
+                    std::cerr << "Error: " << e.what() << std::endl;
+                } 
+            }
             return true;
         } catch (const std::exception& e) {
             std::cerr << "Error launching process " << exe << ": " << e.what() << std::endl;
