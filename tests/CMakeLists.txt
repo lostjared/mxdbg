@@ -77,3 +77,9 @@ set_tests_properties(process_attach PROPERTIES
     TIMEOUT 5
     PASS_REGULAR_EXPRESSION "Test passed"
 )
+
+add_custom_target(registers_test_asm ALL
+    COMMAND ${CMAKE_C_COMPILER} -nostdlib -static -no-pie ${CMAKE_CURRENT_SOURCE_DIR}/registers_test.s -o registers_test_asm
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMENT "Building assembly register test"
+)
