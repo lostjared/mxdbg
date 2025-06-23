@@ -51,13 +51,13 @@ namespace mx {
         void remove_breakpoint(uint64_t address);
         bool has_breakpoint(uint64_t address) const;
         std::vector<uint64_t> get_breakpoints() const;
-        
+        uint8_t get_original_instruction(uint64_t address) const;
+        void handle_breakpoint_continue(uint64_t address);
     private:
         Process(pid_t pid) : m_pid(pid) {}    
         pid_t m_pid;
         bool is_single_stepping = false;
         std::unordered_map<uint64_t, uint8_t> breakpoints;         
-        void handle_breakpoint_continue(uint64_t address);
         void handle_breakpoint_step(uint64_t address);
         void set_pc(uint64_t address);        
     };  

@@ -179,8 +179,14 @@ namespace mx {
         if (cmd == "continue" || cmd == "c") {
             if (process && process->is_running()) {
                 try {
-                    process->continue_execution();
-                    process->wait_for_stop();
+                    uint64_t pc_before = process->get_pc();
+                    if (process->has_breakpoint(pc_before)) {
+                        process->handle_breakpoint_continue(pc_before);
+                        process->wait_for_stop();
+                    } else {
+                        process->continue_execution();
+                        process->wait_for_stop();
+                    }
                     print_current_instruction();
                     if(request) {
                         try {

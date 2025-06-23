@@ -154,23 +154,6 @@ namespace mx {
         }
     }
 
-    void Process::handle_breakpoint_continue(uint64_t address) {
-        uint8_t original_byte = breakpoints[address];
-        long data = ptrace(PTRACE_PEEKDATA, m_pid, address, nullptr);
-        long restored = (data & ~0xFF) | original_byte;
-        ptrace(PTRACE_POKEDATA, m_pid, address, restored);
-        
-        ptrace(PTRACE_SINGLESTEP, m_pid, nullptr, nullptr);
-        int status;
-        waitpid(m_pid, &status, 0);
-        
-        data = ptrace(PTRACE_PEEKDATA, m_pid, address, nullptr);
-        long data_with_int3 = (data & ~0xFF) | 0xCC;
-        ptrace(PTRACE_POKEDATA, m_pid, address, data_with_int3);
-        
-        ptrace(PTRACE_CONT, m_pid, nullptr, 0);
-    }
-
     void Process::handle_breakpoint_step(uint64_t address) {
         uint8_t original_byte = breakpoints[address];
         long data = ptrace(PTRACE_PEEKDATA, m_pid, address, nullptr);
@@ -468,6 +451,25 @@ namespace mx {
 
     uint64_t Process::get_pc() const {
         return get_register("rip");
+    }
+
+    uint8_t Process::get_original_instruction(uint64_t address) const {
+        auto it = breakpoints.find(address);
+        return (it != breakpoints.end()) ? it->second : 0;
+    }
+
+    void Process::handle_breakpoint_continue(uint64_t address) {
+        uint8_t original_byte = breakpoints[address];
+        long data = ptrace(PTRACE_PEEKDATA, m_pid, address, nullptr);
+        long restored = (data & ~0xFF) | original_byte;
+        ptrace(PTRACE_POKEDATA, m_pid, address, restored);
+        ptrace(PTRACE_SINGLESTEP, m_pid, nullptr, nullptr);
+        int status;
+        waitpid(m_pid, &status, 0);
+        data = ptrace(PTRACE_PEEKDATA, m_pid, address, nullptr);
+        long data_with_int3 = (data & ~0xFF) | 0xCC;
+        ptrace(PTRACE_POKEDATA, m_pid, address, data_with_int3);
+        ptrace(PTRACE_CONT, m_pid, nullptr, 0);
     }
 
     std::string Process::disassemble_instruction(uint64_t address) const {
