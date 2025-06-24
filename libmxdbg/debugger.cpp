@@ -635,8 +635,8 @@ namespace mx {
                 }
             } catch(mx::Exception &e) {
                 std::cerr << e.what() << "\n";
-                return true;
             }
+            return true;
         }
         else if (tokens.size() == 3 && tokens[0] == "set") {
             if (process && process->is_running()) {
