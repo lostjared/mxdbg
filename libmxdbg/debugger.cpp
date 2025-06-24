@@ -529,6 +529,21 @@ namespace mx {
                 std::cerr << "Error writing memory: " << e.what() << std::endl;
             }
             return true;
+        } else if(tokens.size() >= 3 && tokens[0] == "write_bytes") {
+            try {
+                uint64_t addr = std::stoull(tokens[1], nullptr, 0);
+                std::vector<uint8_t> data;
+                for (size_t i = 2; i < tokens.size(); ++i) {
+                    uint8_t byte = static_cast<uint8_t>(std::stoull(tokens[i], nullptr, 16));
+                    data.push_back(byte);
+                }                
+                process->write_memory(addr, data);
+                std::cout << "Wrote " << data.size() << " bytes to memory at 0x" 
+                          << std::hex << addr << std::dec << std::endl;
+            } catch (const std::exception& e) {
+                std::cerr << "Error writing bytes: " << e.what() << std::endl;
+            }
+            return true;
         } else if(tokens.size() >= 2 && tokens[0] == "ask") {
             std::string question = cmd.substr(cmd.find(' ') + 1);
             if (question.empty()) {
@@ -587,6 +602,7 @@ namespace mx {
             std::cout << "  break <addr>, b      - Set breakpoint at address" << std::endl;
             std::cout << "  read <addr>          - Read memory at address" << std::endl;
             std::cout << "  write <addr> <value> - Write value to memory at address" << std::endl;
+            std::cout << "  write_bytes <ad> <va>  - Write bytes to address" << std::endl;
             std::cout << "  explain <function>   - Explain function disassembly with AI" << std::endl;
             std::cout << "  user mode            - User Difficulty level for use with AI" << std::endl;
             std::cout << "  help, h              - Show this help message" << std::endl;
@@ -598,7 +614,7 @@ namespace mx {
                 try {
                     process->set_breakpoint(addr);
                     std::cout << "Breakpoint set at 0x" << std::hex << addr << std::dec << std::endl;
-                } catch (const std::exception& e) {
+                } catch (const std::exception& e) { 
                     std::cerr << "Error setting breakpoint: " << e.what() << std::endl;
                 }
             } else {
