@@ -792,7 +792,7 @@ namespace mx {
                         std::string instr_part = line.substr(tab_pos + 1);
                         
                         std::cout << hex_part << " -> " << instr_part << std::endl;
-                        output << hex_part << " -> " << instr_part << std::endl;
+                        output << hex_part << " " << instr_part << std::endl;
                     } else {
                         std::cout << line << std::endl;
                         output <<  line << std::endl;
