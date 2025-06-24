@@ -209,18 +209,18 @@ namespace mx {
                         process->continue_execution();
                         process->wait_for_stop();
                     }
-                    
-                    print_current_instruction();
-                    
-                    if(request) {
-                        try {
-                            std::string response = request->generateTextWithCallback([](const std::string &chunk) {
-                                std::cout << chunk << std::flush; 
-                            });
-                            std::cout << "\n";
-                        } catch (const mx::ObjectRequestException &e) {
-                            std::cerr << "Error: " << e.what() << std::endl;
-                        } 
+                    if(process && process->is_running()) {    
+                        print_current_instruction();
+                        if(request) {
+                            try {
+                                std::string response = request->generateTextWithCallback([](const std::string &chunk) {
+                                    std::cout << chunk << std::flush; 
+                                });
+                                std::cout << "\n";
+                            } catch (const mx::ObjectRequestException &e) {
+                                std::cerr << "Error: " << e.what() << std::endl;
+                            } 
+                        }
                     }
                 } catch (const std::exception& e) {
                     std::cerr << "Error during continue: " << e.what() << std::endl;
