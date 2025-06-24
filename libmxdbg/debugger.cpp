@@ -13,7 +13,7 @@
 #include<sys/wait.h>
 #include<fcntl.h>
 #include<sys/ptrace.h>
-
+#include<random>
 
 namespace mx {
 
@@ -696,10 +696,31 @@ namespace mx {
             } else {
                 std::cout << "Current instruction at 0x" << std::hex << rip << ": ";
             }
-            std::ofstream temp("/tmp/mxdbg_temp.bin", std::ios::binary);
+
+            std::string  random_name ;
+            std::random_device rd;
+            std::mt19937 gen(rd());
+            std::uniform_int_distribution<> dis(0, 25);  
+            for(size_t i = 0; i < 10; ++i) {
+                random_name += 'a' + dis(gen);
+            }
+            std::string fullname = "/tmp/mxdbg_temp" + random_name + ".bin";
+            class RemoveFileRaii {
+            public:
+                RemoveFileRaii(const std::string &name) : fullname(name) {}
+                ~RemoveFileRaii() {
+                    if(std::filesystem::exists(fullname))
+                        std::filesystem::remove(fullname);
+                }
+            private:
+                std::string fullname;
+            };
+
+            std::ofstream temp(fullname, std::ios::binary);
             temp.write(reinterpret_cast<const char*>(instruction_bytes.data()), instruction_bytes.size());
             temp.close();
-            std::string cmd = "objdump -D -b binary -m i386:x86-64 /tmp/mxdbg_temp.bin 2>/dev/null";
+            RemoveFileRaii remove_file(fullname);
+            std::string cmd = "objdump -D -b binary -m i386:x86-64 " + fullname + " 2>/dev/null";
             FILE* pipe = popen(cmd.c_str(), "r");
             if (!pipe) {
                 std::cerr << "Failed to run objdump" << std::endl;
@@ -735,7 +756,7 @@ namespace mx {
             if(request) {
                 request->setPrompt("Expalin this instruction in one or two sentences: " + output.str());
             }
-            std::filesystem::remove("/tmp/mxdbg_temp.bin");
+            std::filesystem::remove(fullname);
 
         } catch (const std::exception& e) {
             std::cerr << "Error reading current instruction: " << e.what() << std::endl;
