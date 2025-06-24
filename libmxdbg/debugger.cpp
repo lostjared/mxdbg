@@ -288,9 +288,7 @@ namespace mx {
         } else if (cmd == "continue" || cmd == "c") {
             if (process && process->is_running()) {
                 try {
-                    uint64_t pc_before = process->get_pc();
-                    
-                    
+                    uint64_t pc_before = process->get_pc(); 
                     if (process->has_breakpoint(pc_before)) {
                         uint8_t original_byte = process->get_original_instruction(pc_before);
                         long data = ptrace(PTRACE_PEEKDATA, process->get_pid(), pc_before, nullptr);
