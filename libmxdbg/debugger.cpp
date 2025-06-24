@@ -515,9 +515,9 @@ namespace mx {
             }
             return true;
         } else if(tokens.size() == 3 && tokens[0] == "write") {
-            uint64_t addr = std::stoull(tokens[1], nullptr, 0);
-            std::string value_str = tokens[2];
             try {
+                uint64_t addr = std::stoull(tokens[1], nullptr, 0);
+                std::string value_str = tokens[2];
                 uint64_t value = std::stoull(value_str, nullptr, 0);
                 std::vector<uint8_t> data(8);
                 for (size_t i = 0; i < 8; ++i) {
@@ -529,8 +529,29 @@ namespace mx {
                 std::cerr << "Error writing memory: " << e.what() << std::endl;
             }
             return true;
-        } 
-        
+        } else if(tokens.size() >= 2 && tokens[0] == "ask") {
+            std::string question = cmd.substr(cmd.find(' ') + 1);
+            if (question.empty()) {
+                std::cout << "Usage: ask <question>" << std::endl;
+                return true;
+            }   
+            if (!request) {
+                std::cerr << "No AI model configured. Set MXDBG_HOST and MXDBG_MODEL environment variables." << std::endl;
+                return true;
+            }   
+            std::cout << "Asking AI: " << question << std::endl;
+            std::string prompt = "You are a helpful AI assistant. Answer the following question about the program: " + question;
+            request->setPrompt(prompt);
+            try {
+                std::string response = request->generateTextWithCallback([](const std::string &chunk) {
+                    std::cout << chunk << std::flush; 
+                });
+                std::cout << "\n";
+            } catch (const mx::ObjectRequestException &e) {
+                std::cerr << "Error: " << e.what() << std::endl;
+            }
+            return true;
+        }
         else if(tokens.size() == 2 && (tokens[0] == "search" || tokens[0] == "find")) {
             std::string value = cmd.substr(cmd.find(' ') + 1);
             std::ostringstream stream;
@@ -556,18 +577,20 @@ namespace mx {
         }
         else if (cmd == "help" || cmd == "h") {
             std::cout << "Available commands:" << std::endl;
-            std::cout << "  continue, c        - Continue process execution" << std::endl;
-            std::cout << "  step, s            - Execute single instruction" << std::endl;
-            std::cout << "  step N, s N        - Execute N instructions" << std::endl;
-            std::cout << "  status, st         - Show process status" << std::endl;
-            std::cout << "  registers, regs    - Show all registers" << std::endl;
-            std::cout << "  register <name>    - Show specific register value" << std::endl;
-            std::cout << "  set <reg> <value>  - Set register to value" << std::endl;
-            std::cout << "  break <addr>, b    - Set breakpoint at address" << std::endl;
-            std::cout << "  read <addr>        - Read memory at address" << std::endl;
-            std::cout << "  explain <function> - Explain function disassembly with AI" << std::endl;
-            std::cout << "  help, h            - Show this help message" << std::endl;
-            std::cout << "  quit, q, exit      - Exit debugger" << std::endl;
+            std::cout << "  continue, c          - Continue process execution" << std::endl;
+            std::cout << "  step, s              - Execute single instruction" << std::endl;
+            std::cout << "  step N, s N          - Execute N instructions" << std::endl;
+            std::cout << "  status, st           - Show process status" << std::endl;
+            std::cout << "  registers, regs      - Show all registers" << std::endl;
+            std::cout << "  register <name>      - Show specific register value" << std::endl;
+            std::cout << "  set <reg> <value>    - Set register to value" << std::endl;
+            std::cout << "  break <addr>, b      - Set breakpoint at address" << std::endl;
+            std::cout << "  read <addr>          - Read memory at address" << std::endl;
+            std::cout << "  write <addr> <value> - Write value to memory at address" << std::endl;
+            std::cout << "  explain <function>   - Explain function disassembly with AI" << std::endl;
+            std::cout << "  user mode            - User Difficulty level for use with AI" << std::endl;
+            std::cout << "  help, h              - Show this help message" << std::endl;
+            std::cout << "  quit, q, exit        - Exit debugger" << std::endl;
             return true;
         } else if (tokens.size() == 2 && (tokens[0] == "break" || tokens[0] == "b")) {
             if (process && process->is_running()) {
