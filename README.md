@@ -138,7 +138,7 @@ When `MXDBG_HOST` and `MXDBG_MODEL` are set, the debugger will:
 
 - Provide AI explanations when stepping through code
 - Analyze disassembly output with the `explain` command
-- Offer context-aware debugging assistance
+- Offer context-aware debugging assistance with ask command
 
 Example AI integration:
 ```bash
