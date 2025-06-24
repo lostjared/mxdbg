@@ -596,6 +596,7 @@ namespace mx {
             std::cout << "  step, s              - Execute single instruction" << std::endl;
             std::cout << "  step N, s N          - Execute N instructions" << std::endl;
             std::cout << "  status, st           - Show process status" << std::endl;
+            std::cout << "  list, list_less      - display disassembly " << std::endl;
             std::cout << "  registers, regs      - Show all registers" << std::endl;
             std::cout << "  register <name>      - Show specific register value" << std::endl;
             std::cout << "  set <reg> <value>    - Set register to value" << std::endl;
