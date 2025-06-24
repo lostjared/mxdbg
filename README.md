@@ -37,8 +37,8 @@ The project requires the `ollama_gen` library for AI integration. Install it by 
 %o use the AI integration features, you must export these environment variables to use with ollama
 
 ```bash
-export MXDBG_HOST="localhost"  # Your Ollama server URL
-export MXDBG_MODEL="llama2"                # Your preferred Ollama model
+export MXDBG_HOST="localhost"     # Your Ollama server URL can included port example 192.168.1.50:1088 op just the ip 192.168.1.50 
+export MXDBG_MODEL="llama2"       # Your preferred Ollama model
 ```
 
 ### Setting up Ollama
