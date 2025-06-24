@@ -817,7 +817,7 @@ namespace mx {
                 }
             }
             if(request) {
-                request->setPrompt("Explain this instruction in one or two sentences for the user at the level of " + user_mode + ": " + output.str());
+                request->setPrompt("Explain this elf64-x86-64 instruction in one or two sentences for the user at the level of " + user_mode + ": " + output.str());
             }
             std::filesystem::remove(fullname);
 
