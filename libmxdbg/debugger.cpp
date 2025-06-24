@@ -473,7 +473,7 @@ namespace mx {
                 std::cout << "Requesting explanation from model..." << std::endl;
                 std::cout << "This may take a while, please wait..." << std::endl;
                 std::string prompt = "Explain this x86-64 assembly function '" + function_name + 
-                                   "' step by step. What does it do? Be concise but thorough:\n\n" + function_code;
+                                   "' step by step. What does it do? Be concise but thorough for the user at their level of: " + user_mode + ":\n\n" + function_code;
                 request->setPrompt(prompt);
                 try {
                     std::string response = request->generateTextWithCallback([](const std::string &chunk) {
@@ -544,6 +544,15 @@ namespace mx {
                 std::cout << "Search completed." << std::endl;
             }
             return true;
+        } else if(tokens.size() == 2 && (tokens[0] == "mode" || tokens[0] == "user")) {
+            std::string mode = tokens[1];
+            if (mode == "programmer" || mode == "beginner" || mode == "expert") {
+                user_mode = mode;
+                std::cout << "Switched to " << user_mode << " mode." << std::endl;
+            } else {
+                std::cout << "Invalid mode. Available modes: beginner, programmer, expert." << std::endl;
+            }
+            return true;
         }
         else if (cmd == "help" || cmd == "h") {
             std::cout << "Available commands:" << std::endl;
@@ -555,8 +564,7 @@ namespace mx {
             std::cout << "  register <name>    - Show specific register value" << std::endl;
             std::cout << "  set <reg> <value>  - Set register to value" << std::endl;
             std::cout << "  break <addr>, b    - Set breakpoint at address" << std::endl;
-            std::cout << "  memory <addr>      - Read memory at address" << std::endl;
-            std::cout << "  disasm [addr]      - Disassemble at address" << std::endl;
+            std::cout << "  read <addr>        - Read memory at address" << std::endl;
             std::cout << "  explain <function> - Explain function disassembly with AI" << std::endl;
             std::cout << "  help, h            - Show this help message" << std::endl;
             std::cout << "  quit, q, exit      - Exit debugger" << std::endl;
@@ -754,7 +762,7 @@ namespace mx {
                 }
             }
             if(request) {
-                request->setPrompt("Expalin this instruction in one or two sentences: " + output.str());
+                request->setPrompt("Explain this instruction in one or two sentences for the user at the level of " + user_mode + ": " + output.str());
             }
             std::filesystem::remove(fullname);
 
