@@ -623,6 +623,20 @@ namespace mx {
             return true;
         } else if (tokens.size() == 2 && tokens[0] == "function") {
             return setfunction_breakpoint(tokens[1]);
+        } else if (tokens.size() == 1 && tokens[0] == "list_less") {
+            try {
+                std::ostringstream stream;
+                stream << "objdump -d " << program_name << " | less ";
+                std::string command = stream.str();
+                if(system(command.c_str()) == 0) {
+                    std::cout << "Succesful disassembly listing...\n";
+                } else {
+                    std::cout << "Failed disassembly listing...\n";
+                }
+            } catch(mx::Exception &e) {
+                std::cerr << e.what() << "\n";
+                return true;
+            }
         }
         else if (tokens.size() == 3 && tokens[0] == "set") {
             if (process && process->is_running()) {
