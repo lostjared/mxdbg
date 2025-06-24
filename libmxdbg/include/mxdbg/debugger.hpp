@@ -39,7 +39,7 @@ namespace mx {
         
         uint64_t get_base_address() const;
         void disasm_bytes(std::vector<uint8_t> &bytes);
-
+        bool setfunction_breakpoint(const std::string &function_name);
     private:
         void print_current_instruction(); 
         std::size_t get_instruction_length(const std::vector<uint8_t>& bytes, size_t offset);

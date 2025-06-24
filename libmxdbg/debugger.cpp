@@ -149,6 +149,61 @@ namespace mx {
         return full_disassembly.str();
     }
 
+    bool Debugger::setfunction_breakpoint(const std::string &filename) {
+         if (!process || !process->is_running()) {
+                std::cout << "No process attached or running." << std::endl;
+                return true;
+            }
+            
+            std::string function_name = filename;
+            if (function_name.empty()) {
+                std::cout << "Usage: function <function_name>" << std::endl;
+                return true;
+            }
+            std::string disassembly;
+            try {
+                disassembly = obj_dump();
+            } catch( mx::Exception &e) {
+                std::cerr << "Error running objdump: " << e.what() << std::endl;
+                return true;
+            }
+            std::istringstream iss(disassembly);
+            std::string line;
+            uint64_t function_address = 0;   
+            while (std::getline(iss, line)) {
+                if (line.find("<" + function_name + ">:") != std::string::npos) {
+                    size_t space_pos = line.find(' ');
+                    if (space_pos != std::string::npos) {
+                        std::string addr_str = line.substr(0, space_pos);
+                        try {
+                            function_address = std::stoull(addr_str, nullptr, 16);
+                            break;
+                        } catch (const std::exception& e) {
+                            std::cerr << "Error parsing function address: " << e.what() << std::endl;
+                            return true;
+                        }
+                    }
+                }
+            }
+            if (function_address == 0) {
+                std::cout << "Function '" << function_name << "' not found in disassembly." << std::endl;
+                std::cout << "Available functions can be seen with 'objdump -t " << program_name << "'" << std::endl;
+                std::cout << "Note: If addresses show as relative (like 0x1000), compile with -no-pie flag:" << std::endl;
+                std::cout << "      gcc -no-pie -g your_program.c -o your_program" << std::endl;
+                return true;
+            }
+            try {
+                process->set_breakpoint(function_address);
+                std::cout << "Breakpoint set at function '" << function_name << "' (0x" 
+                        << std::hex << function_address << std::dec << ")" << std::endl;
+            } catch (const std::exception& e) {
+                std::cerr << "Error setting breakpoint at function '" << function_name << "': " << e.what() << std::endl;
+                std::cout << "This might be due to ASLR or PIE. Try compiling with -no-pie flag:" << std::endl;
+                std::cout << "      gcc -no-pie -g your_program.c -o your_program" << std::endl;
+            }
+            return true;
+    }
+
     void Debugger::detach() {
         if (process) {
             try {
@@ -205,7 +260,32 @@ namespace mx {
             std::cout << "No command entered." << std::endl;
             return true;
         }
-        if (cmd == "continue" || cmd == "c") {
+        if(cmd == "run" || cmd == "r") {
+            if(process  && process->is_running()) {
+                try {
+                    setfunction_breakpoint("main");
+                    process->continue_execution();
+                    process->wait_for_stop();
+                    print_current_instruction();    
+                    if(request) {
+                        try {
+                            std::string response = request->generateTextWithCallback([](const std::string &chunk) {
+                                std::cout << chunk << std::flush; 
+                            });
+                            std::cout << "\n";
+                        } catch (const mx::ObjectRequestException &e) {
+                            std::cerr << "Error: " << e.what() << std::endl;
+                        } 
+                    }
+                } catch(const mx::Exception &e) {
+                    std::cerr << "Error running process: " << e.what() << std::endl;
+                }
+            } else {
+                std::cout << "No process attached or running." << std::endl;
+            }
+            return true;
+
+        } else if (cmd == "continue" || cmd == "c") {
             if (process && process->is_running()) {
                 try {
                     uint64_t pc_before = process->get_pc();
@@ -497,60 +577,7 @@ namespace mx {
             }
             return true;
         } else if (tokens.size() == 2 && tokens[0] == "function") {
-            
-            if (!process || !process->is_running()) {
-                std::cout << "No process attached or running." << std::endl;
-                return true;
-            }
-            
-            std::string function_name = tokens[1];
-            if (function_name.empty()) {
-                std::cout << "Usage: function <function_name>" << std::endl;
-                return true;
-            }
-            std::string disassembly;
-            try {
-                disassembly = obj_dump();
-            } catch( mx::Exception &e) {
-                std::cerr << "Error running objdump: " << e.what() << std::endl;
-                return true;
-            }
-
-            std::istringstream iss(disassembly);
-            std::string line;
-            uint64_t function_address = 0;   
-            while (std::getline(iss, line)) {
-                if (line.find("<" + function_name + ">:") != std::string::npos) {
-                    size_t space_pos = line.find(' ');
-                    if (space_pos != std::string::npos) {
-                        std::string addr_str = line.substr(0, space_pos);
-                        try {
-                            function_address = std::stoull(addr_str, nullptr, 16);
-                            break;
-                        } catch (const std::exception& e) {
-                            std::cerr << "Error parsing function address: " << e.what() << std::endl;
-                            return true;
-                        }
-                    }
-                }
-            }
-            if (function_address == 0) {
-                std::cout << "Function '" << function_name << "' not found in disassembly." << std::endl;
-                std::cout << "Available functions can be seen with 'objdump -t " << program_name << "'" << std::endl;
-                std::cout << "Note: If addresses show as relative (like 0x1000), compile with -no-pie flag:" << std::endl;
-                std::cout << "      gcc -no-pie -g your_program.c -o your_program" << std::endl;
-                return true;
-            }
-            try {
-                process->set_breakpoint(function_address);
-                std::cout << "Breakpoint set at function '" << function_name << "' (0x" 
-                        << std::hex << function_address << std::dec << ")" << std::endl;
-            } catch (const std::exception& e) {
-                std::cerr << "Error setting breakpoint at function '" << function_name << "': " << e.what() << std::endl;
-                std::cout << "This might be due to ASLR or PIE. Try compiling with -no-pie flag:" << std::endl;
-                std::cout << "      gcc -no-pie -g your_program.c -o your_program" << std::endl;
-            }
-            return true;
+            return setfunction_breakpoint(tokens[1]);
         }
         else if (tokens.size() == 3 && tokens[0] == "set") {
             if (process && process->is_running()) {
