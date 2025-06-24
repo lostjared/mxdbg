@@ -121,9 +121,10 @@ Once in the debugger shell (`mx $>`), you can use:
 #### Breakpoints
 - `break <address>`, `b <address>`: Set breakpoint
 - `breakpoints`: List all breakpoints
+- `function`: set a breakpoint at the given function
 
 #### Analysis
-- `list`: Disassemble current program
+- `list`: Disassemble the current program
 - `explain`: Get AI explanation of program behavior (requires Ollama)
 - `search <term>`: Search for term in disassembly
 - `base`: Show process base address
@@ -138,11 +139,11 @@ When `MXDBG_HOST` and `MXDBG_MODEL` are set, the debugger will:
 
 - Provide AI explanations when stepping through code
 - Analyze disassembly output with the `explain` command
-- Offer context-aware debugging assistance with ask command
+- Offer context-aware debugging assistance with the ask command
 
 Example AI integration:
 ```bash
-mx $> explain
+mx $> explain function
 # AI will analyze the program's disassembly and explain its behavior
 ```
 
