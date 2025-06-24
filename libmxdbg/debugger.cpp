@@ -125,6 +125,30 @@ namespace mx {
         }   
     }
 
+    std::string Debugger::obj_dump() {
+        std::ostringstream stream;
+        stream << "objdump -d " << program_name;
+        std::string command = stream.str();
+        
+        FILE *fptr = popen(command.c_str(), "r");
+        if (!fptr) {
+            std::cerr << "Failed to run objdump command." << std::endl;
+            throw mx::Exception("failed to run objdump command...\n");
+        }
+        
+        std::ostringstream full_disassembly;
+        while(!feof(fptr)) {
+            char buffer[256];
+            if (fgets(buffer, sizeof(buffer), fptr) != nullptr) {
+                full_disassembly << buffer;
+            }
+        }
+        if(pclose(fptr) == -1) {
+            std::cerr << "Failed to close pipe." << std::endl;
+        }
+        return full_disassembly.str();
+    }
+
     void Debugger::detach() {
         if (process) {
             try {
@@ -313,26 +337,11 @@ namespace mx {
             }
             return true;
         } else if(cmd == "list") {
-            std::ostringstream stream;
-            stream << "objdump -d " << program_name;
-            std::string command = stream.str();
-            std::cout << "Running command: " << command << std::endl;
-            FILE *fptr = popen(command.c_str(), "r");
-            if (!fptr) {
-                std::cerr << "Failed to run objdump command." << std::endl;
-                return true;
+            try {
+                std::cout << obj_dump() << std::endl;
+            } catch(mx::Exception &e) {
+                std::cerr << "Error running objdump: " << e.what() << std::endl;
             }
-            std::ostringstream out_stream;
-            while(!feof(fptr)) {
-                char buffer[256];
-                if (fgets(buffer, sizeof(buffer), fptr) != nullptr) {
-                    out_stream << buffer;
-                }
-            }
-            if(pclose(fptr) == -1) {
-                std::cerr << "Failed to close pipe." << std::endl;
-            }
-            std::cout << out_stream.str() << std::endl;
             return true;
         }
         else if(cmd.length() >= 7 && cmd.substr(0, 7) == "explain" && cmd.length() > 7 && cmd[7] == ' ') {
@@ -341,31 +350,14 @@ namespace mx {
                 std::cout << "Usage: explain <function_name>" << std::endl;
                 return true;
             }
-               
-            std::ostringstream stream;
-            stream << "objdump -d " << program_name;
-            std::string command = stream.str();
-            std::cout << "Running command: " << command << std::endl;
-            FILE *fptr = popen(command.c_str(), "r");
-            if (!fptr) {
-                std::cerr << "Failed to run objdump command." << std::endl;
+            
+            std::string disassembly;
+            try {
+                disassembly = obj_dump();
+            } catch(mx::Exception &e) {
+                std::cerr << "Error running objdump: " << e.what() << std::endl;
                 return true;
             }
-            
-            
-            std::ostringstream full_disassembly;
-            while(!feof(fptr)) {
-                char buffer[256];
-                if (fgets(buffer, sizeof(buffer), fptr) != nullptr) {
-                    full_disassembly << buffer;
-                }
-            }
-            if(pclose(fptr) == -1) {
-                std::cerr << "Failed to close pipe." << std::endl;
-            }
-            
-            
-            std::string disassembly = full_disassembly.str();
             std::ostringstream function_disassembly;
             bool in_function = false;
             std::istringstream iss(disassembly);
@@ -516,28 +508,14 @@ namespace mx {
                 std::cout << "Usage: function <function_name>" << std::endl;
                 return true;
             }
-            
-            std::ostringstream stream;
-            stream << "objdump -d " << program_name;
-            std::string command = stream.str();
-            
-            FILE *fptr = popen(command.c_str(), "r");
-            if (!fptr) {
-                std::cerr << "Failed to run objdump command." << std::endl;
+            std::string disassembly;
+            try {
+                disassembly = obj_dump();
+            } catch( mx::Exception &e) {
+                std::cerr << "Error running objdump: " << e.what() << std::endl;
                 return true;
             }
-            
-            std::ostringstream full_disassembly;
-            while(!feof(fptr)) {
-                char buffer[256];
-                if (fgets(buffer, sizeof(buffer), fptr) != nullptr) {
-                    full_disassembly << buffer;
-                }
-            }
-            if(pclose(fptr) == -1) {
-                std::cerr << "Failed to close pipe." << std::endl;
-            }
-            std::string disassembly = full_disassembly.str();
+
             std::istringstream iss(disassembly);
             std::string line;
             uint64_t function_address = 0;   

@@ -50,6 +50,7 @@ namespace mx {
         std::string program_name;
         std::string_view args_string;
         std::unique_ptr<mx::ObjectRequest> request;
+        std::string obj_dump();
   
 
     };
