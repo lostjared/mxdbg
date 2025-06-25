@@ -462,7 +462,7 @@ namespace mx {
             std::string function_code = function_disassembly.str();
             if (function_code.empty()) {
                 std::cout << "Function '" << function_name << "' not found in disassembly." << std::endl;
-                std::cout << "Available functions can be seen with 'objdump -t " << program_name << "'" << std::endl;
+                std::cout << "Available functions can be seen with list command" << std::endl;
                 return true;
             }
             
@@ -473,7 +473,7 @@ namespace mx {
                 std::cout << "Requesting explanation from model..." << std::endl;
                 std::cout << "This may take a while, please wait..." << std::endl;
                 std::string prompt = "Explain this x86-64 assembly function '" + function_name + 
-                                   "' step by step. What does it do? Be concise but thorough for the user at their level of: " + user_mode + ":\n\n" + function_code;
+                                   "' step by step in plain English What does it do? Be concise but thorough for the user at their level of: " + user_mode + ":\n\n" + function_code + " \n\n";
                 request->setPrompt(prompt);
                 try {
                     std::string response = request->generateTextWithCallback([](const std::string &chunk) {
@@ -755,9 +755,9 @@ namespace mx {
             if (process->has_breakpoint(rip)) {
                 uint8_t original_byte = process->get_original_instruction(rip);
                 instruction_bytes[0] = original_byte;  // Replace CC (int3) with original
-                std::cout << "Current instruction at 0x" << std::hex << rip << " [BREAKPOINT]: ";
+                std::cout << "Current instruction at 0x" << std::hex << rip << std::dec << " [BREAKPOINT]: ";
             } else {
-                std::cout << "Current instruction at 0x" << std::hex << rip << ": ";
+                std::cout << "Current instruction at 0x" << std::hex << rip << std::dec << ": ";
             }
 
             std::string  random_name ;
