@@ -17,6 +17,7 @@
 #include<termios.h>
 
 namespace mx {
+    
     namespace Color {
         const std::string RESET = "\033[0m";
         const std::string BOLD = "\033[1m";
@@ -38,54 +39,13 @@ namespace mx {
         const std::string BG_RED = "\033[41m";
         const std::string BG_GREEN = "\033[42m";
         const std::string BG_YELLOW = "\033[43m";
-    }
-   
+    }   
+    
     bool terminal_supports_color() {
         return isatty(STDOUT_FILENO) && getenv("TERM") != nullptr;
     }
-
+    
     bool color_ = terminal_supports_color();
-
-    class ColorOutput {
-    private:
-        bool colors_enabled;    
-    public:
-        ColorOutput() : colors_enabled(isatty(STDOUT_FILENO) && getenv("TERM") != nullptr) {}
-        
-        std::string red(const std::string& text) const {
-            return colors_enabled ? "\033[31m" + text + "\033[0m" : text;
-        }
-        
-        std::string green(const std::string& text) const {
-            return colors_enabled ? "\033[32m" + text + "\033[0m" : text;
-        }
-        
-        std::string yellow(const std::string& text) const {
-            return colors_enabled ? "\033[33m" + text + "\033[0m" : text;
-        }
-        
-        std::string blue(const std::string& text) const {
-            return colors_enabled ? "\033[34m" + text + "\033[0m" : text;
-        }
-        
-        std::string cyan(const std::string& text) const {
-            return colors_enabled ? "\033[36m" + text + "\033[0m" : text;
-        }
-        
-        std::string bold(const std::string& text) const {
-            return colors_enabled ? "\033[1m" + text + "\033[0m" : text;
-        }
-        
-        std::string bright_red(const std::string& text) const {
-            return colors_enabled ? "\033[91m" + text + "\033[0m" : text;
-        }
-        
-        std::string bright_green(const std::string& text) const {
-            return colors_enabled ? "\033[92m" + text + "\033[0m" : text;
-        }
-    };
-
-    ColorOutput color;
 
     std::vector<std::string> split_command(const std::string &cmd) {
         std::vector<std::string> tokenz;
@@ -645,7 +605,13 @@ namespace mx {
                 std::cerr << "No AI model configured. Set MXDBG_HOST and MXDBG_MODEL environment variables." << std::endl;
                 return true;
             }   
-            std::cout << "Asking AI: " << question << std::endl;
+            std::cout << "Asking AI: ";
+            if(color_)
+                std::cout << Color::GREEN;
+            std::cout << question << std::endl;
+            if(color_)
+                std::cout << Color::RESET;
+
             std::string prompt = "You are a helpful AI assistant. Answer the following question with this context: " + code.str() + "\n\nthe question: " + question;
             request->setPrompt(prompt);
             try {
