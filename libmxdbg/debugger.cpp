@@ -168,7 +168,7 @@ namespace mx {
             if(request) {
                 try {
                     if(color_)
-                        std::cout << Color::BLUE;
+                        std::cout << Color::CYAN;
                     std::string response = request->generateTextWithCallback([](const std::string &chunk) {
                         std::cout << chunk << std::flush; 
                     });
@@ -348,7 +348,7 @@ namespace mx {
                     if(request) {
                         try {
                             if(color_)
-                                std::cout << Color::BLUE;
+                                std::cout << Color::CYAN;
                             std::string response = request->generateTextWithCallback([](const std::string &chunk) {
                                 std::cout << chunk << std::flush; 
                             });
@@ -398,7 +398,7 @@ namespace mx {
                         if(request) {
                             try {
                                 if(color_)
-                                    std::cout << Color::BLUE;
+                                    std::cout << Color::CYAN;
                                 std::string response = request->generateTextWithCallback([](const std::string &chunk) {
                                     std::cout << chunk << std::flush; 
                                 });
@@ -563,7 +563,7 @@ namespace mx {
                 request->setPrompt(prompt);
                 try {
                     if(color_)
-                        std::cout << Color::BLUE;
+                        std::cout << Color::CYAN;
                     std::string response = request->generateTextWithCallback([](const std::string &chunk) {
                         std::cout << chunk << std::flush; 
                     });
@@ -650,7 +650,7 @@ namespace mx {
             request->setPrompt(prompt);
             try {
                 if(color_)
-                    std::cout << Color::BLUE;
+                    std::cout << Color::CYAN;
                 std::string response = request->generateTextWithCallback([](const std::string &chunk) {
                     std::cout << chunk << std::flush; 
                 });
@@ -687,7 +687,7 @@ namespace mx {
         }
         else if (cmd == "help" || cmd == "h") {
             if(color_)
-                std::cout << Color::CYAN;
+                std::cout << Color::YELLOW;
             std::cout << "Available commands:" << std::endl;
             std::cout << "  continue, c            - Continue process execution" << std::endl;
             std::cout << "  step, s                - Execute single instruction" << std::endl;
@@ -814,7 +814,7 @@ namespace mx {
             if(request) {
                 try {
                     if(color_)
-                        std::cout << Color::BLUE;
+                        std::cout << Color::CYAN;
                     std::string response = request->generateTextWithCallback([](const std::string &chunk) {
                         std::cout << chunk << std::flush; 
                     });
