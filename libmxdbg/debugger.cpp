@@ -937,8 +937,9 @@ namespace mx {
             }
             std::string line;
             std::string input;
+            std::filesystem::path program_path = std::filesystem::absolute(program_name);
             while (std::getline(file, line)) {
-                if (line.find("r-xp") != std::string::npos && line.find(program_name) != std::string::npos) {
+                if (line.find("r-xp") != std::string::npos && line.find(program_path.filename().string()) != std::string::npos) {
                     auto pos = line.find_first_of('-');
                     if (pos != std::string::npos) {
                         std::string address_str = line.substr(0, pos);
