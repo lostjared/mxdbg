@@ -189,58 +189,122 @@ namespace mx {
     }
 
     bool Debugger::setfunction_breakpoint(const std::string &filename) {
-         if (!process || !process->is_running()) {
-                std::cout << "No process attached or running." << std::endl;
-                return true;
-            }
-            
-            std::string function_name = filename;
-            if (function_name.empty()) {
-                std::cout << "Usage: function <function_name>" << std::endl;
-                return true;
-            }
-            std::string disassembly;
-            try {
-                disassembly = obj_dump();
-            } catch( mx::Exception &e) {
-                std::cerr << "Error running objdump: " << e.what() << std::endl;
-                return true;
-            }
+        if (!process || !process->is_running()) {
+            std::cout << "No process attached or running." << std::endl;
+            return true;
+        }
+        
+        std::string function_name = filename;
+        if (function_name.empty()) {
+            std::cout << "Usage: function <function_name>" << std::endl;
+            return true;
+        }
+        
+        try {
+            std::string disassembly = obj_dump();
             std::istringstream iss(disassembly);
             std::string line;
-            uint64_t function_address = 0;   
+            uint64_t function_offset = 0;   
+            
             while (std::getline(iss, line)) {
                 if (line.find("<" + function_name + ">:") != std::string::npos) {
                     size_t space_pos = line.find(' ');
                     if (space_pos != std::string::npos) {
                         std::string addr_str = line.substr(0, space_pos);
-                        try {
-                            function_address = std::stoull(addr_str, nullptr, 16);
-                            break;
-                        } catch (const std::exception& e) {
-                            std::cerr << "Error parsing function address: " << e.what() << std::endl;
-                            return true;
-                        }
+                        function_offset = std::stoull(addr_str, nullptr, 16);
+                        break;
                     }
                 }
             }
-            if (function_address == 0) {
+            
+            if (function_offset == 0) {
                 std::cout << "Function '" << function_name << "' not found in disassembly." << std::endl;
-                std::cout << "Available functions can be seen with 'objdump -t " << program_name << "'" << std::endl;
-                std::cout << "Note: If addresses show as relative (like 0x1000), compile with -no-pie flag:" << std::endl;
-                std::cout << "      gcc -no-pie -g your_program.c -o your_program" << std::endl;
                 return true;
             }
-            try {
-                process->set_breakpoint(function_address);
-                std::cout << "Breakpoint set at function '" << function_name << "' (0x" 
-                        << std::hex << function_address << std::dec << ")" << std::endl;
-            } catch (const std::exception& e) {
-                std::cerr << "Error setting breakpoint at function '" << function_name << "': " << e.what() << std::endl;
-                std::cout << "This might be due to ASLR or PIE. Try compiling with -no-pie flag:" << std::endl;
-                std::cout << "      gcc -no-pie -g your_program.c -o your_program" << std::endl;
+            
+            bool is_pie = false;
+            uint64_t base_address = 0;
+            uint64_t file_offset = 0;
+            uint64_t runtime_address = function_offset; 
+            
+            std::fstream file;
+            file.open(std::string("/proc/") + std::to_string(get_pid()) + std::string("/maps"), std::ios::in);
+            if (!file.is_open()) {
+                std::cerr << "Failed to open /proc/maps" << std::endl;
+                return true;
             }
-            return true;
+            
+            std::filesystem::path program_path = std::filesystem::absolute(program_name);
+            std::string maps_line;
+            while (std::getline(file, maps_line)) {
+                if (maps_line.find("r-xp") != std::string::npos && 
+                    maps_line.find(program_path.filename().string()) != std::string::npos) {
+                    
+                    std::istringstream iss(maps_line);
+                    std::string addr_range, permissions, offset_str;
+                    iss >> addr_range >> permissions >> offset_str;
+                    
+                    auto dash_pos = addr_range.find('-');
+                    if (dash_pos != std::string::npos) {
+                        std::string base_addr_str = addr_range.substr(0, dash_pos);
+                        base_address = std::stoull(base_addr_str, nullptr, 16);
+                    }
+                    
+                    file_offset = std::stoull(offset_str, nullptr, 16);
+                    
+                    if (base_address < 0x400000 || base_address > 0x500000) {
+                        is_pie = true;
+                    } else {
+                        is_pie = false;
+                    }
+                    break;
+                }
+            }
+            file.close();
+            
+            if (base_address == 0) {
+                std::cout << "Could not find base address in /proc/maps" << std::endl;
+                return true;
+            }
+            
+            if (is_pie) {
+                runtime_address = base_address + (function_offset - file_offset);
+                
+                if(color_)
+                    std::cout << Color::BRIGHT_BLUE;
+                std::cout << "Detected PIE executable" << std::endl;
+                if(color_)
+                    std::cout << Color::RESET;
+            } else {
+                runtime_address = function_offset;
+                
+                if(color_)
+                    std::cout << Color::BRIGHT_BLUE;
+                std::cout << "Detected non-PIE executable" << std::endl;
+                if(color_)
+                    std::cout << Color::RESET;
+            }
+            
+            process->set_breakpoint(runtime_address);
+            
+            if(color_)
+                std::cout << Color::BRIGHT_GREEN;
+            std::cout << "Breakpoint set at function '" << function_name << "'" << std::endl;
+            std::cout << "  Function offset: 0x" << std::hex << function_offset << std::endl;
+            if (is_pie) {
+                std::cout << "  Base address: 0x" << base_address << std::endl;
+                std::cout << "  File offset: 0x" << file_offset << std::endl;
+            }
+            std::cout << "  Runtime address: 0x" << runtime_address << std::dec << std::endl;
+            std::cout << "  PIE executable: " << (is_pie ? "Yes" : "No") << std::endl;
+            if(color_)
+                std::cout << Color::RESET;
+            
+        } catch (const std::exception& e) {
+            std::cerr << "Error setting breakpoint: " << e.what() << std::endl;
+        }
+        
+        return true;
     }
 
     void Debugger::detach() {
