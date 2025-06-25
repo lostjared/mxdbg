@@ -14,8 +14,78 @@
 #include<fcntl.h>
 #include<sys/ptrace.h>
 #include<random>
+#include<termios.h>
 
 namespace mx {
+    namespace Color {
+        const std::string RESET = "\033[0m";
+        const std::string BOLD = "\033[1m";
+        const std::string DIM = "\033[2m";
+        const std::string BLACK = "\033[30m";
+        const std::string RED = "\033[31m";
+        const std::string GREEN = "\033[32m";
+        const std::string YELLOW = "\033[33m";
+        const std::string BLUE = "\033[34m";
+        const std::string MAGENTA = "\033[35m";
+        const std::string CYAN = "\033[36m";
+        const std::string WHITE = "\033[37m";
+        const std::string BRIGHT_RED = "\033[91m";
+        const std::string BRIGHT_GREEN = "\033[92m";
+        const std::string BRIGHT_YELLOW = "\033[93m";
+        const std::string BRIGHT_BLUE = "\033[94m";
+        const std::string BRIGHT_MAGENTA = "\033[95m";
+        const std::string BRIGHT_CYAN = "\033[96m";        
+        const std::string BG_RED = "\033[41m";
+        const std::string BG_GREEN = "\033[42m";
+        const std::string BG_YELLOW = "\033[43m";
+    }
+   
+    bool terminal_supports_color() {
+        return isatty(STDOUT_FILENO) && getenv("TERM") != nullptr;
+    }
+
+    bool color_ = terminal_supports_color();
+
+    class ColorOutput {
+    private:
+        bool colors_enabled;    
+    public:
+        ColorOutput() : colors_enabled(isatty(STDOUT_FILENO) && getenv("TERM") != nullptr) {}
+        
+        std::string red(const std::string& text) const {
+            return colors_enabled ? "\033[31m" + text + "\033[0m" : text;
+        }
+        
+        std::string green(const std::string& text) const {
+            return colors_enabled ? "\033[32m" + text + "\033[0m" : text;
+        }
+        
+        std::string yellow(const std::string& text) const {
+            return colors_enabled ? "\033[33m" + text + "\033[0m" : text;
+        }
+        
+        std::string blue(const std::string& text) const {
+            return colors_enabled ? "\033[34m" + text + "\033[0m" : text;
+        }
+        
+        std::string cyan(const std::string& text) const {
+            return colors_enabled ? "\033[36m" + text + "\033[0m" : text;
+        }
+        
+        std::string bold(const std::string& text) const {
+            return colors_enabled ? "\033[1m" + text + "\033[0m" : text;
+        }
+        
+        std::string bright_red(const std::string& text) const {
+            return colors_enabled ? "\033[91m" + text + "\033[0m" : text;
+        }
+        
+        std::string bright_green(const std::string& text) const {
+            return colors_enabled ? "\033[92m" + text + "\033[0m" : text;
+        }
+    };
+
+    ColorOutput color;
 
     std::vector<std::string> split_command(const std::string &cmd) {
         std::vector<std::string> tokenz;
@@ -97,9 +167,13 @@ namespace mx {
             print_current_instruction();
             if(request) {
                 try {
+                    if(color_)
+                        std::cout << Color::BLUE;
                     std::string response = request->generateTextWithCallback([](const std::string &chunk) {
                         std::cout << chunk << std::flush; 
                     });
+                    if(color_)
+                        std::cout << Color::RESET;
                     std::cout << "\n";
                 } catch (const mx::ObjectRequestException &e) {
                     std::cerr << "Error: " << e.what() << std::endl;
@@ -273,9 +347,13 @@ namespace mx {
                     print_current_instruction();    
                     if(request) {
                         try {
+                            if(color_)
+                                std::cout << Color::BLUE;
                             std::string response = request->generateTextWithCallback([](const std::string &chunk) {
                                 std::cout << chunk << std::flush; 
                             });
+                            if(color_)
+                                std::cout << Color::RESET;
                             std::cout << "\n";
                         } catch (const mx::ObjectRequestException &e) {
                             std::cerr << "Error: " << e.what() << std::endl;
@@ -319,9 +397,13 @@ namespace mx {
                         print_current_instruction();
                         if(request) {
                             try {
+                                if(color_)
+                                    std::cout << Color::BLUE;
                                 std::string response = request->generateTextWithCallback([](const std::string &chunk) {
                                     std::cout << chunk << std::flush; 
                                 });
+                                if(color_)
+                                    std::cout << Color::RESET;
                                 std::cout << "\n";
                             } catch (const mx::ObjectRequestException &e) {
                                 std::cerr << "Error: " << e.what() << std::endl;
@@ -480,9 +562,13 @@ namespace mx {
                                    "' step by step in plain English What does it do? Be concise but thorough for the user at their level of: " + user_mode + ":\n\n" + function_code + " \n\n";
                 request->setPrompt(prompt);
                 try {
+                    if(color_)
+                        std::cout << Color::BLUE;
                     std::string response = request->generateTextWithCallback([](const std::string &chunk) {
                         std::cout << chunk << std::flush; 
                     });
+                    if(color_)
+                        std::cout << Color::RESET;
                     std::cout << "\n";
                     code << "Explanation of: " << function_name << response << "\n";
                 } catch (const mx::ObjectRequestException &e) {
@@ -563,9 +649,13 @@ namespace mx {
             std::string prompt = "You are a helpful AI assistant. Answer the following question with this context: " + code.str() + "\n\nthe question: " + question;
             request->setPrompt(prompt);
             try {
+                if(color_)
+                    std::cout << Color::BLUE;
                 std::string response = request->generateTextWithCallback([](const std::string &chunk) {
                     std::cout << chunk << std::flush; 
                 });
+                if(color_)
+                    std::cout << Color::RESET;
                 std::cout << "\n";
             } catch (const mx::ObjectRequestException &e) {
                 std::cerr << "Error: " << e.what() << std::endl;
@@ -719,9 +809,13 @@ namespace mx {
             print_current_instruction();
             if(request) {
                 try {
+                    if(color_)
+                        std::cout << Color::BLUE;
                     std::string response = request->generateTextWithCallback([](const std::string &chunk) {
                         std::cout << chunk << std::flush; 
                     });
+                    if(color_)
+                        std::cout << Color::RESET;
                     std::cout << "\n";
                 } catch (const mx::ObjectRequestException &e) {
                     std::cerr << "Error: " << e.what() << std::endl;
