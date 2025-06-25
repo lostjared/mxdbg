@@ -52,6 +52,7 @@ namespace mx {
         std::unique_ptr<mx::ObjectRequest> request;
         std::string obj_dump();
         std::string user_mode = "programmer";
+        std::ostringstream code;
     };
 
 } 

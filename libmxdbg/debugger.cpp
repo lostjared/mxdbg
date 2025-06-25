@@ -55,6 +55,8 @@ namespace mx {
     void Debugger::setup_history() {
     }
     bool Debugger::attach(pid_t pid) {
+        code.clear();
+        code.str("");
         try {
             process = Process::attach(pid);
             if (!process) {
@@ -72,6 +74,8 @@ namespace mx {
 
     bool Debugger::launch(const std::filesystem::path &exe, std::string_view args) {
         args_string = args;
+        code.clear();
+        code.str("");
         try {
             std::vector<std::string> args_v;
             if (!args.empty()) {
@@ -555,7 +559,7 @@ namespace mx {
                 return true;
             }   
             std::cout << "Asking AI: " << question << std::endl;
-            std::string prompt = "You are a helpful AI assistant. Answer the following question with the context about the code: " + question;
+            std::string prompt = "You are a helpful AI assistant. Answer the following question with this context: " + code.str() + "\n\nthe question: " + question;
             request->setPrompt(prompt);
             try {
                 std::string response = request->generateTextWithCallback([](const std::string &chunk) {
@@ -809,6 +813,7 @@ namespace mx {
                         
                         std::cout << hex_part << " -> " << instr_part << std::endl;
                         output << hex_part << " " << instr_part << std::endl;
+                        code << output.str();
                     } else {
                         std::cout << line << std::endl;
                         output <<  line << std::endl;
