@@ -1,5 +1,6 @@
-#include "mxdbg/debugger.hpp"
-#include "mxdbg/exception.hpp"
+#include"mxdbg/debugger.hpp"
+#include"mxdbg/exception.hpp"
+#include"mxdbg/expr.hpp"
 #include<iostream>
 #include<cstdlib>
 #include<sstream>
@@ -291,6 +292,21 @@ namespace mx {
         return process && process->is_running();
     }
 
+    void expression(const std::string &text) {
+        try {
+            expr_parser::ExprLexer lexer(text);
+            expr_parser::ExprParser parser(lexer);
+            uint64_t result = parser.parse();
+            std::cout << "The result: ";
+            if(color_)
+                std::cout << Color::BOLD;
+            std::cout << "0x" << std::hex << result << " | " << std::dec << result << "\n";
+            if(color_)
+                std::cout << Color::RESET;
+        } catch (const std::exception& e) {
+            std::cerr << "Error on expression: " << e.what() << "\n";
+        }
+    }
     
     bool Debugger::command(const std::string &cmd) {
         std::vector<std::string> tokens = split_command(cmd);
@@ -298,7 +314,11 @@ namespace mx {
             std::cout << "No command entered." << std::endl;
             return true;
         }
-        if(cmd == "run" || cmd == "r") {
+        if(tokens.size() >= 2 && tokens[0] == "expr") {
+            std::string e = cmd.substr(cmd.find(' ') + 1);
+            expression(e);
+            return true;
+        } else if(cmd == "run" || cmd == "r") {
             if(process  && process->is_running()) {
                 try {
                     setfunction_breakpoint("main");
