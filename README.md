@@ -2,6 +2,14 @@
 
 A modern C++ debugger built with ptrace that integrates with Ollama for AI-powered code analysis and explanation.
 
+![image](https://github.com/user-attachments/assets/149d94fd-6cdd-48f5-9171-ad83a066f26d)
+
+## Color Key
+- Cyan for AI
+- Red for machine code/disassembly
+- White for debugger text
+
+
 #  Not complete, some features still need to be implemented. This is a new project.
 
 ## Features
