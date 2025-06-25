@@ -484,6 +484,7 @@ namespace mx {
                         std::cout << chunk << std::flush; 
                     });
                     std::cout << "\n";
+                    code << "Explanation of: " << function_name << response << "\n";
                 } catch (const mx::ObjectRequestException &e) {
                     std::cerr << "Error: " << e.what() << std::endl;
                 }      
@@ -760,6 +761,8 @@ namespace mx {
                 uint8_t original_byte = process->get_original_instruction(rip);
                 instruction_bytes[0] = original_byte;  // Replace CC (int3) with original
                 std::cout << "Current instruction at 0x" << std::hex << rip << std::dec << " [BREAKPOINT]: ";
+                code.str("");
+                code << "New breakpoint at 0x" << std::hex << "rip:\n" << std::dec;
             } else {
                 std::cout << "Current instruction at 0x" << std::hex << rip << std::dec << ": ";
             }
