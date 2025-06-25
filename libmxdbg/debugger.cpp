@@ -686,6 +686,8 @@ namespace mx {
             return true;
         }
         else if (cmd == "help" || cmd == "h") {
+            if(color_)
+                std::cout << Color::CYAN;
             std::cout << "Available commands:" << std::endl;
             std::cout << "  continue, c            - Continue process execution" << std::endl;
             std::cout << "  step, s                - Execute single instruction" << std::endl;
@@ -704,6 +706,8 @@ namespace mx {
             std::cout << "  user mode              - User Difficulty level for use with AI" << std::endl;
             std::cout << "  help, h                - Show this help message" << std::endl;
             std::cout << "  quit, q, exit          - Exit debugger" << std::endl;
+            if(color_)
+                std::cout << Color::RESET;
             return true;
         } else if (tokens.size() == 2 && (tokens[0] == "break" || tokens[0] == "b")) {
             if (process && process->is_running()) {
@@ -854,7 +858,11 @@ namespace mx {
             if (process->has_breakpoint(rip)) {
                 uint8_t original_byte = process->get_original_instruction(rip);
                 instruction_bytes[0] = original_byte;  // Replace CC (int3) with original
+                if(color_)
+                    std::cout << Color::YELLOW;
                 std::cout << "Current instruction at 0x" << std::hex << rip << std::dec << " [BREAKPOINT]: ";
+                if(color_)
+                    std::cout << Color::RESET;
                 code.str("");
                 code << "New breakpoint at 0x" << std::hex << "rip:\n" << std::dec;
             } else {
@@ -899,6 +907,8 @@ namespace mx {
             std::istringstream ss(result);
             std::string line;
             std::ostringstream output;
+            if(color_)
+                std::cout << Color::RED;
             while (std::getline(ss, line)) {
                 if (line.find("   0:") != std::string::npos) {
                     size_t colon_pos = line.find(":");
@@ -918,6 +928,8 @@ namespace mx {
                     break; 
                 }
             }
+            if(color_)
+                std::cout << Color::RESET;
             if(request) {
                 request->setPrompt("Explain this elf64-x86-64 instruction in one or two sentences for the user at the level of " + user_mode + ": " + output.str());
             }
