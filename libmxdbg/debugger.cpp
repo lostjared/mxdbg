@@ -942,6 +942,7 @@ namespace mx {
                 if (line.find("r-xp") != std::string::npos && line.find(program_path.filename().string()) != std::string::npos) {
                     auto pos = line.find_first_of('-');
                     if (pos != std::string::npos) {
+                        std::cout << line << "\n";
                         std::string address_str = line.substr(0, pos);
                         uint64_t base_address = std::stoull(address_str, nullptr, 16);
                         file.close();
