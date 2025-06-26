@@ -191,13 +191,13 @@ namespace mx {
     bool Debugger::setfunction_breakpoint(const std::string &filename) {
         if (!process || !process->is_running()) {
             std::cout << "No process attached or running." << std::endl;
-            return true;
+            return false;
         }
         
         std::string function_name = filename;
         if (function_name.empty()) {
             std::cout << "Usage: function <function_name>" << std::endl;
-            return true;
+            return false;
         }
         
         try {
@@ -219,7 +219,7 @@ namespace mx {
             
             if (function_offset == 0) {
                 std::cout << "Function '" << function_name << "' not found in disassembly." << std::endl;
-                return true;
+                return false;
             }
             
             bool is_pie = false;
@@ -231,7 +231,7 @@ namespace mx {
             file.open(std::string("/proc/") + std::to_string(get_pid()) + std::string("/maps"), std::ios::in);
             if (!file.is_open()) {
                 std::cerr << "Failed to open /proc/maps" << std::endl;
-                return true;
+                return false;
             }
             
             std::filesystem::path program_path = std::filesystem::absolute(program_name);
@@ -264,7 +264,7 @@ namespace mx {
             
             if (base_address == 0) {
                 std::cout << "Could not find base address in /proc/maps" << std::endl;
-                return true;
+                return false;
             }
             
             if (is_pie) {
@@ -385,7 +385,10 @@ namespace mx {
         } else if(cmd == "run" || cmd == "r") {
             if(process  && process->is_running()) {
                 try {
-                    setfunction_breakpoint("main");
+                    if(!setfunction_breakpoint("main")) {
+                        std::cerr << "Could not set breakpoint..\n";
+                        return true;
+                    }
                     process->continue_execution();
                     process->wait_for_stop();
                     print_current_instruction();    
@@ -773,7 +776,10 @@ namespace mx {
             }
             return true;
         } else if (tokens.size() == 2 && tokens[0] == "function") {
-            return setfunction_breakpoint(tokens[1]);
+            if(!setfunction_breakpoint(tokens[1])) {
+                std::cerr << "Could not set breakpooint: " << tokens[1] << "\n";
+            }
+            return true;
         } else if (tokens.size() == 1 && tokens[0] == "list_less") {
             try {
                 std::ostringstream stream;
