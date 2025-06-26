@@ -780,6 +780,28 @@ namespace mx {
                 std::cerr << "Could not set breakpooint: " << tokens[1] << "\n";
             }
             return true;
+        } else if(tokens.size() == 2 && (tokens[0] == "remove" || tokens[0] == "rmv")) {
+            if(process && process->is_running()) {
+                uint64_t bp = std::stoull(tokens[1], nullptr, 0);
+                if(process->remove_breakpoint(bp)) {
+                    std::cout << "Breakpoint removed...\n";
+                } else {
+                    std::cout << "Could not find breakpoint...\n";
+                }
+            } else {
+                std::cerr << "No process running..\n";
+            }
+            return true;
+        } else if(tokens.size() == 1 && tokens[0] == "list_break") {
+            if(process && process->is_running()) {
+                auto bp = process->get_breakpoints();
+                for(auto &i : bp) {
+                    std::cout << "breakpoint: 0x" << std::hex << i.first << std::endl;
+                }
+            } else {
+                std::cerr << "No process running..\n";
+            }
+            return true;
         } else if (tokens.size() == 1 && tokens[0] == "list_less") {
             try {
                 std::ostringstream stream;

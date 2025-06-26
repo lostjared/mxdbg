@@ -48,9 +48,9 @@ namespace mx {
         std::string disassemble_instruction(uint64_t address) const;
         std::string get_current_instruction() const;
         void set_breakpoint(uint64_t address);
-        void remove_breakpoint(uint64_t address);
+        bool remove_breakpoint(uint64_t address);
         bool has_breakpoint(uint64_t address) const;
-        std::vector<uint64_t> get_breakpoints() const;
+        std::vector<std::pair<uint64_t, uint64_t>> get_breakpoints() const;
         uint8_t get_original_instruction(uint64_t address) const;
         void handle_breakpoint_continue(uint64_t address);
     private:

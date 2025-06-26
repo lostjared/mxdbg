@@ -491,23 +491,24 @@ namespace mx {
             throw mx::Exception::error("Failed to write breakpoint");
     }
 
-    void Process::remove_breakpoint(uint64_t address) {
+    bool Process::remove_breakpoint(uint64_t address) {
         auto it = breakpoints.find(address);
-        if (it == breakpoints.end()) return;
+        if (it == breakpoints.end()) return false;
         long data = ptrace(PTRACE_PEEKDATA, m_pid, address, nullptr);
         long restored = (data & ~0xFF) | it->second;
         ptrace(PTRACE_POKEDATA, m_pid, address, restored);
         breakpoints.erase(it);
+        return true;
     }
 
     bool Process::has_breakpoint(uint64_t address) const {
         return breakpoints.find(address) != breakpoints.end();
     }
 
-    std::vector<uint64_t> Process::get_breakpoints() const {
-        std::vector<uint64_t> addresses;
+    std::vector<std::pair<uint64_t, uint64_t>> Process::get_breakpoints() const {
+        std::vector<std::pair<uint64_t, uint64_t>> addresses;
         for (const auto& bp : breakpoints) {
-            addresses.push_back(bp.first);
+            addresses.push_back(std::make_pair(bp.first, bp.second));
         }
         return addresses;
     }
