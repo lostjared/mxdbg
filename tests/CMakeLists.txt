@@ -109,6 +109,11 @@ set_target_properties(program_linked_list_asm PROPERTIES
     LINKER_LANGUAGE ASM
     LINK_FLAGS "-nostdlib -static -no-pie"
 )
+add_executable(program_file_asm file_test.s)
+set_target_properties(program_file_asm PROPERTIES
+    LINKER_LANGUAGE ASM
+    LINK_FLAGS "-nostdlib -static -no-pie"
+)
 add_executable(program_array_asm array.s)
 set_target_properties(program_array_asm PROPERTIES
     LINKER_LANGUAGE ASM
