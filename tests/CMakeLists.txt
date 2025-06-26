@@ -94,27 +94,27 @@ set_tests_properties(process_attach PROPERTIES
     PASS_REGULAR_EXPRESSION "Test passed"
 )
 enable_language(ASM)
-add_executable(registers_test_asm registers_test.s)
+add_executable(registers_test_asm asm/registers_test.s)
 set_target_properties(registers_test_asm PROPERTIES
     LINKER_LANGUAGE ASM
     LINK_FLAGS "-nostdlib -static -no-pie"
 )
-add_executable(program_test_asm test_program.s)
+add_executable(program_test_asm asm/test_program.s)
 set_target_properties(program_test_asm PROPERTIES
     LINKER_LANGUAGE ASM
     LINK_FLAGS "-nostdlib -static -no-pie"
 )
-add_executable(program_linked_list_asm linked_list.s)
+add_executable(program_linked_list_asm asm/linked_list.s)
 set_target_properties(program_linked_list_asm PROPERTIES
     LINKER_LANGUAGE ASM
     LINK_FLAGS "-nostdlib -static -no-pie"
 )
-add_executable(program_file_asm file_test.s)
+add_executable(program_file_asm asm/file_test.s)
 set_target_properties(program_file_asm PROPERTIES
     LINKER_LANGUAGE ASM
     LINK_FLAGS "-nostdlib -static -no-pie"
 )
-add_executable(program_array_asm array.s)
+add_executable(program_array_asm asm/array.s)
 set_target_properties(program_array_asm PROPERTIES
     LINKER_LANGUAGE ASM
     LINK_FLAGS "-no-pie"
