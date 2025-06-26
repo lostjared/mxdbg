@@ -10,7 +10,6 @@
 #include<sys/user.h>
 #include<unistd.h>
 
-
 namespace mx {
     class Process {
     public:
@@ -49,17 +48,23 @@ namespace mx {
         std::string get_current_instruction() const;
         void set_breakpoint(uint64_t address);
         bool remove_breakpoint(uint64_t address);
+        bool remove_breakpoint_by_index(size_t index);
         bool has_breakpoint(uint64_t address) const;
         std::vector<std::pair<uint64_t, uint64_t>> get_breakpoints() const;
+        std::vector<std::pair<size_t, uint64_t>> get_breakpoints_with_index() const;
+        uint64_t get_breakpoint_address_by_index(size_t index) const;
+        size_t get_breakpoint_index_by_address(uint64_t address) const;
         uint8_t get_original_instruction(uint64_t address) const;
         void handle_breakpoint_continue(uint64_t address);
     private:
-        Process(pid_t pid) : m_pid(pid) {}    
+        Process(pid_t pid) : m_pid(pid),  index_(0) {}    
         pid_t m_pid;
         bool is_single_stepping = false;
-        std::map<uint64_t, uint8_t> breakpoints;         
+        std::map<uint64_t, uint8_t> breakpoints;
+        std::vector<uint64_t> breakpoint_index;   
         void handle_breakpoint_step(uint64_t address);
-        void set_pc(uint64_t address);        
+        void set_pc(uint64_t address);    
+        size_t index_;    
     };  
 
 } 

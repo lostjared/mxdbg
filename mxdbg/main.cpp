@@ -1,3 +1,4 @@
+#include"mxdbg/version_info.hpp"
 #include"mxdbg/process.hpp"
 #include"mxdbg/debugger.hpp"
 #include"argz.hpp"
@@ -84,6 +85,12 @@ int main(int argc, char **argv) {
     mx::Debugger debugger;
     std::string history_filename;
     try {
+        std::cout << version_info << std::endl;
+        const char *mxdbg_host = getenv("MXDBG_HOST");
+        const char *mxdbg_model = getenv("MXDBG_MODEL");
+        if(mxdbg_host != nullptr && mxdbg_model != nullptr) {
+            std::cout << "Starting up connection to Ollama.. Please be patient.\n";
+        }
         const char *home_folder = getenv("HOME");
         if(home_folder) {
             history_filename = std::string(home_folder) + "/.mxdbg_history";

@@ -782,26 +782,52 @@ namespace mx {
             return true;
         } else if(tokens.size() == 2 && (tokens[0] == "remove" || tokens[0] == "rmv")) {
             if(process && process->is_running()) {
-                uint64_t bp = std::stoull(tokens[1], nullptr, 0);
-                if(process->remove_breakpoint(bp)) {
-                    std::cout << "Breakpoint removed...\n";
+                std::string input = tokens[1];
+                bool removed = false;
+                uint64_t address = 0;
+                if (input.find("0x") == 0 || input.find("0X") == 0) {
+                    address = std::stoull(input, nullptr, 0);
+                    removed = process->remove_breakpoint(address);
+                    if (removed) {
+                        std::cout << "Breakpoint removed at 0x" << std::hex << address << std::dec << std::endl;
+                    } else {
+                        std::cout << "Could not find breakpoint at 0x" << std::hex << address << std::dec << std::endl;
+                    }
                 } else {
-                    std::cout << "Could not find breakpoint...\n";
+                    try {
+                        size_t index = std::stoull(input);
+                        address = process->get_breakpoint_address_by_index(index);
+                        if (address != 0) {
+                            removed = process->remove_breakpoint_by_index(index);
+                            if (removed) {
+                                std::cout << "Breakpoint " << index << " removed (was at 0x" << std::hex << address << std::dec << ")" << std::endl;
+                            } else {
+                                std::cout << "Could not remove breakpoint " << index << std::endl;
+                            }
+                        } else {
+                            std::cout << "Invalid breakpoint index: " << index << std::endl;
+                        }
+                    } catch (const std::exception& e) {
+                        std::cout << "Invalid input. Use breakpoint index (1, 2, 3...) or hex address (0x1234...)" << std::endl;
+                    }
                 }
             } else {
-                std::cerr << "No process running..\n";
+                std::cout << "No process running." << std::endl;
             }
             return true;
-        } else if(tokens.size() == 1 && tokens[0] == "list_break") {
+        } else if(tokens.size() == 1 && (tokens[0] == "list_break" || tokens[0] == "lb")) {
             if(process && process->is_running()) {
-                auto bp = process->get_breakpoints();
-                size_t index = 1;
-                for(auto &i : bp) {
-                    std::cout << "breakpoint: " << std::dec << index << " 0x" << std::hex << i.first << std::endl;
-                    index++;
+                auto breakpoints = process->get_breakpoints_with_index();
+                if(breakpoints.empty()) {
+                    std::cout << "No breakpoints set." << std::endl;
+                } else {
+                    std::cout << "Breakpoints:" << std::endl;
+                    for(const auto& bp : breakpoints) {
+                        std::cout << "  " << bp.first << ": 0x" << std::hex << bp.second << std::dec << std::endl;
+                    }
                 }
             } else {
-                std::cerr << "No process running..\n";
+                std::cout << "No process running." << std::endl;
             }
             return true;
         } else if (tokens.size() == 1 && tokens[0] == "list_less") {
@@ -838,7 +864,6 @@ namespace mx {
                     } else {
                         process->set_register(reg_name, value);
                     }
-                    
                     std::cout << "Register " << reg_name << " set to 0x" << std::hex << value << std::dec << std::endl;
                 } catch (const std::exception& e) {
                     std::cerr << "Error setting register: " << e.what() << std::endl;

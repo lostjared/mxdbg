@@ -469,7 +469,6 @@ namespace mx {
         data = ptrace(PTRACE_PEEKDATA, m_pid, address, nullptr);
         long data_with_int3 = (data & ~0xFF) | 0xCC;
         ptrace(PTRACE_POKEDATA, m_pid, address, data_with_int3);
-        //ptrace(PTRACE_CONT, m_pid, nullptr, 0);
     }
 
     std::string Process::disassemble_instruction(uint64_t address) const {
@@ -486,6 +485,12 @@ namespace mx {
             throw mx::Exception::error("Failed to read memory for breakpoint");
 
         breakpoints[address] = static_cast<uint8_t>(data & 0xFF);
+        
+        auto it = std::find(breakpoint_index.begin(), breakpoint_index.end(), address);
+        if (it == breakpoint_index.end()) {
+            breakpoint_index.push_back(address);
+        }
+        
         long data_with_int3 = (data & ~0xFF) | 0xCC;
         if (ptrace(PTRACE_POKEDATA, m_pid, address, data_with_int3) == -1)
             throw mx::Exception::error("Failed to write breakpoint");
@@ -496,13 +501,44 @@ namespace mx {
         if (it == breakpoints.end()) return false;
         long data = ptrace(PTRACE_PEEKDATA, m_pid, address, nullptr);
         long restored = (data & ~0xFF) | it->second;
-        ptrace(PTRACE_POKEDATA, m_pid, address, restored);
+        ptrace(PTRACE_POKEDATA, m_pid, address, restored);        
         breakpoints.erase(it);
+        auto index_it = std::find(breakpoint_index.begin(), breakpoint_index.end(), address);
+        if (index_it != breakpoint_index.end()) {
+            breakpoint_index.erase(index_it);
+        }
         return true;
     }
 
-    bool Process::has_breakpoint(uint64_t address) const {
-        return breakpoints.find(address) != breakpoints.end();
+    bool Process::remove_breakpoint_by_index(size_t index) {
+        if (index == 0 || index > breakpoint_index.size()) {
+            return false;
+        }
+        uint64_t address = breakpoint_index[index - 1];
+        return remove_breakpoint(address);
+    }
+
+    std::vector<std::pair<size_t, uint64_t>> Process::get_breakpoints_with_index() const {
+        std::vector<std::pair<size_t, uint64_t>> indexed_breakpoints;
+        for (size_t i = 0; i < breakpoint_index.size(); ++i) {
+            indexed_breakpoints.push_back(std::make_pair(i + 1, breakpoint_index[i])); 
+        }
+        return indexed_breakpoints;
+    }
+
+    uint64_t Process::get_breakpoint_address_by_index(size_t index) const {
+        if (index == 0 || index > breakpoint_index.size()) {
+            return 0;
+        }
+        return breakpoint_index[index - 1]; 
+    }
+
+    size_t Process::get_breakpoint_index_by_address(uint64_t address) const {
+        auto it = std::find(breakpoint_index.begin(), breakpoint_index.end(), address);
+        if (it != breakpoint_index.end()) {
+            return std::distance(breakpoint_index.begin(), it) + 1; 
+        }
+        return 0; 
     }
 
     std::vector<std::pair<uint64_t, uint64_t>> Process::get_breakpoints() const {
@@ -511,6 +547,11 @@ namespace mx {
             addresses.push_back(std::make_pair(bp.first, bp.second));
         }
         return addresses;
+    }
+
+    
+    bool Process::has_breakpoint(uint64_t address) const {
+        return breakpoints.find(address) != breakpoints.end();
     }
 
     bool Process::is_running() const {
