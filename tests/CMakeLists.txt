@@ -78,7 +78,7 @@ add_executable(c_test
 set_target_properties(c_test PROPERTIES
     LINK_FLAGS "-no-pie"
 )
-target_include_directories(c_test PRIVATE
+target_include_directories(c_test PRIVATE                         
     ${CMAKE_CURRENT_SOURCE_DIR}/../libmxdbg/include
 )
 target_compile_features(c_test PRIVATE cxx_std_20)
