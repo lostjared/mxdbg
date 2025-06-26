@@ -42,7 +42,7 @@ The project requires the `ollama_gen` library for AI integration. Install it by 
 
 ### Required Environment Variables
 
-%o use the AI integration features, you must export these environment variables to use with ollama
+To use the AI integration features, you must export these environment variables to use with ollama
 
 ```bash
 export MXDBG_HOST="localhost"     # Your Ollama server URL can included port
