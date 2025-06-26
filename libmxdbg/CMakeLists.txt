@@ -5,6 +5,7 @@ add_library(libmxdbg SHARED
     scanner.cpp
     string_buffer.cpp
     types.cpp
+    exception.cpp
 )
 
 set_target_properties(libmxdbg PROPERTIES

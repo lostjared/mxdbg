@@ -290,12 +290,12 @@ namespace mx {
             if(color_)
                 std::cout << Color::BRIGHT_GREEN;
             std::cout << "Breakpoint set at function '" << function_name << "'" << std::endl;
-            std::cout << "  Function offset: 0x" << std::hex << function_offset << std::endl;
+            std::cout << "  Function offset: " << format_hex64(function_offset) << std::endl;
             if (is_pie) {
-                std::cout << "  Base address: 0x" << base_address << std::endl;
-                std::cout << "  File offset: 0x" << file_offset << std::endl;
+                std::cout << "  Base address: " << format_hex64(base_address) << std::endl;
+                std::cout << "  File offset: " << format_hex64(file_offset) << std::endl;
             }
-            std::cout << "  Runtime address: 0x" << runtime_address << std::dec << std::endl;
+            std::cout << "  Runtime address: " << format_hex64(runtime_address) << std::dec << std::endl;
             std::cout << "  PIE executable: " << (is_pie ? "Yes" : "No") << std::endl;
             if(color_)
                 std::cout << Color::RESET;
@@ -364,7 +364,7 @@ namespace mx {
             std::cout << "The result: ";
             if(color_)
                 std::cout << Color::BOLD;
-            std::cout << "0x" << std::hex << result << " | " << std::dec << result << "\n";
+            std::cout << format_hex64(result) << " | " << std::dec << result << "\n";
             if(color_)
                 std::cout << Color::RESET;
         } catch (const std::exception& e) {
@@ -495,7 +495,7 @@ namespace mx {
                 std::string reg_name = tokens[1];
                 try {
                     uint64_t value = process->get_register(reg_name);
-                    std::cout << "Register " << reg_name << ": 0x" << std::hex << value << " | " << std::dec << value << std::endl;
+                    std::cout << "Register " << reg_name << ": " << format_hex64(value) << " | " << std::dec << value << std::endl;
                 } catch (const std::exception& e) {
                     std::cerr << "Error getting register " << reg_name << ": " << e.what() << std::endl;
                 }
@@ -508,7 +508,7 @@ namespace mx {
             if (process && process->is_running()) {
                 try {
                     uint32_t value = process->get_register_32(tokens[1]);
-                    std::cout << "Register " << tokens[1] << " (32-bit): 0x" << std::hex << value << " | " << std::dec << value << std::endl;
+                    std::cout << "Register " << tokens[1] << " (32-bit): " << format_hex32(value) << " | " << std::dec << value << std::endl;
                 } catch (const std::exception& e) {
                     std::cerr << "Error reading register: " << e.what() << std::endl;
                 }
@@ -520,7 +520,7 @@ namespace mx {
             if (process && process->is_running()) {
                 try {
                     uint16_t value = process->get_register_16(tokens[1]);
-                    std::cout << "Register " << tokens[1] << " (16-bit): 0x" << std::hex << value << " | " << std::dec << value << std::endl;
+                    std::cout << "Register " << tokens[1] << " (16-bit): " << format_hex16(value) << " | " << std::dec << value << std::endl;
                 } catch (const std::exception& e) {
                     std::cerr << "Error reading register: " << e.what() << std::endl;
                 }
@@ -532,7 +532,7 @@ namespace mx {
             if (process && process->is_running()) {
                 try {
                     uint8_t value = process->get_register_8(tokens[1]);
-                    std::cout << "Register " << tokens[1] << " (8-bit): 0x" << std::hex << (int)value << " | " << std::dec << (int)value << std::endl;
+                    std::cout << "Register " << tokens[1] << " (8-bit): "  << format_hex8(static_cast<uint8_t>(value)) << " | " << std::dec << (int)value << std::endl;
                 } catch (const std::exception& e) {
                     std::cerr << "Error reading register: " << e.what() << std::endl;
                 }
@@ -643,7 +643,7 @@ namespace mx {
             uint64_t addr = std::stoull(tokens[1], nullptr, 0);
             try {
                 auto data = process->read_memory(addr, 8);
-                std::cout << "Memory at 0x" << std::hex << addr << ": ";
+                std::cout << "Memory at " << format_hex64(addr) << ": ";
                 for (auto byte : data) {
                     std::cout << std::hex << std::setfill('0') << std::setw(2) << (int)byte << " ";
                 }
@@ -662,7 +662,7 @@ namespace mx {
                     data[i] = (value >> (i * 8)) & 0xFF;
                 }
                 process->write_memory(addr, data);
-                std::cout << "Wrote 0x" << std::hex << value << " to memory at 0x" << addr << std::dec << std::endl;
+                std::cout << "Wrote " << format_hex64(value) << " to memory at " << format_hex64(addr) << std::dec << std::endl;
             } catch (const std::exception& e) {
                 std::cerr << "Error writing memory: " << e.what() << std::endl;
             }
@@ -676,8 +676,7 @@ namespace mx {
                     data.push_back(byte);
                 }                
                 process->write_memory(addr, data);
-                std::cout << "Wrote " << data.size() << " bytes to memory at 0x" 
-                          << std::hex << addr << std::dec << std::endl;
+                std::cout << "Wrote " << data.size() << " bytes to memory at: " << format_hex64(addr) << std::dec << std::endl;
             } catch (const std::exception& e) {
                 std::cerr << "Error writing bytes: " << e.what() << std::endl;
             }
@@ -767,7 +766,7 @@ namespace mx {
                 uint64_t addr = std::stoull(tokens[1], nullptr, 0);
                 try {
                     process->set_breakpoint(addr);
-                    std::cout << "Breakpoint set at 0x" << std::hex << addr << std::dec << std::endl;
+                    std::cout << "Breakpoint set at: " << format_hex64(addr) << std::dec << std::endl;
                 } catch (const std::exception& e) { 
                     std::cerr << "Error setting breakpoint: " << e.what() << std::endl;
                 }
@@ -789,9 +788,9 @@ namespace mx {
                     address = std::stoull(input, nullptr, 0);
                     removed = process->remove_breakpoint(address);
                     if (removed) {
-                        std::cout << "Breakpoint removed at 0x" << std::hex << address << std::dec << std::endl;
+                        std::cout << "Breakpoint removed at: " << format_hex64(address) << std::dec << std::endl;
                     } else {
-                        std::cout << "Could not find breakpoint at 0x" << std::hex << address << std::dec << std::endl;
+                        std::cout << "Could not find breakpoint at: " << format_hex64(address) << std::dec << std::endl;
                     }
                 } else {
                     try {
@@ -800,7 +799,7 @@ namespace mx {
                         if (address != 0) {
                             removed = process->remove_breakpoint_by_index(index);
                             if (removed) {
-                                std::cout << "Breakpoint " << index << " removed (was at 0x" << std::hex << address << std::dec << ")" << std::endl;
+                                std::cout << "Breakpoint " << index << " removed (was at: " << format_hex64(address) << std::dec << ")" << std::endl;
                             } else {
                                 std::cout << "Could not remove breakpoint " << index << std::endl;
                             }
@@ -823,7 +822,7 @@ namespace mx {
                 } else {
                     std::cout << "Breakpoints:" << std::endl;
                     for(const auto& bp : breakpoints) {
-                        std::cout << "  " << bp.first << ": 0x" << std::hex << bp.second << std::dec << std::endl;
+                        std::cout << "  " << bp.first << ": " << format_hex64(bp.second) << std::dec << std::endl;
                     }
                 }
             } else {
@@ -853,18 +852,24 @@ namespace mx {
                     
                     if (reg_name.length() == 3 && reg_name[0] == 'r') {
                         process->set_register(reg_name, value);
+                        std::cout << "Register " << reg_name << " set to: " << format_hex64(value) << std::dec << std::endl;
                     } else if (reg_name.length() == 3 && reg_name[0] == 'e') {
                         process->set_register_32(reg_name, static_cast<uint32_t>(value));
+                        std::cout << "Register " << reg_name << " set to: " << format_hex32(value) << std::dec << std::endl;
                     } else if (reg_name.length() == 2 || (reg_name.length() == 3 && reg_name[2] == 'w')) {
                         process->set_register_16(reg_name, static_cast<uint16_t>(value));
+                        std::cout << "Register " << reg_name << " set to: " << format_hex16(value) << std::dec << std::endl;
                     } else if (reg_name.length() == 2 && (reg_name[1] == 'l' || reg_name[1] == 'h')) {
                         process->set_register_8(reg_name, static_cast<uint8_t>(value));
+                        std::cout << "Register " << reg_name << " set to: " << format_hex8(value) << std::dec << std::endl;
                     } else if (reg_name.length() == 3 && reg_name[2] == 'b') {
                         process->set_register_8(reg_name, static_cast<uint8_t>(value));
+                        std::cout << "Register " << reg_name << " set to: " << format_hex8(value) << std::dec << std::endl;
                     } else {
                         process->set_register(reg_name, value);
+                        std::cout << "Register " << reg_name << " set to: " << format_hex64(value) << std::dec << std::endl;
                     }
-                    std::cout << "Register " << reg_name << " set to 0x" << std::hex << value << std::dec << std::endl;
+                    
                 } catch (const std::exception& e) {
                     std::cerr << "Error setting register: " << e.what() << std::endl;
                 }
@@ -965,13 +970,13 @@ namespace mx {
                 instruction_bytes[0] = original_byte;  // Replace CC (int3) with original
                 if(color_)
                     std::cout << Color::YELLOW;
-                std::cout << "Current instruction at 0x" << std::hex << rip << std::dec << " [BREAKPOINT]: ";
+                std::cout << "Current instruction at " << format_hex64(rip) << std::dec << " [BREAKPOINT]: ";
                 if(color_)
                     std::cout << Color::RESET;
                 code.str("");
-                code << "New breakpoint at 0x" << std::hex << "rip:\n" << std::dec;
+                code << "New breakpoint at :" << format_hex64(rip) << "\n";
             } else {
-                std::cout << "Current instruction at 0x" << std::hex << rip << std::dec << ": ";
+                std::cout << "Current instruction at: " << format_hex64(rip) << std::dec << ": ";
             }
 
             std::string  random_name ;
@@ -1085,7 +1090,7 @@ namespace mx {
         try {
             uint64_t base_address = get_base_address();
             if (base_address != 0) {
-                std::cout << "Base address: 0x" << std::hex << base_address << std::dec << std::endl;
+                std::cout << "Base address: " << format_hex64(base_address) << std::dec << std::endl;
             } else {
                 std::cout << "Base address not found." << std::endl;
             }
@@ -1097,7 +1102,7 @@ namespace mx {
         if (process) {
             try {
                 uint64_t pc = process->get_pc();
-                std::cout << "Current PC: 0x" << std::hex << pc << std::dec << std::endl;
+                std::cout << "Current PC: " << format_hex64(pc) << std::dec << std::endl;
             } catch (const std::exception& e) {
                 std::cerr << "Error getting current PC: " << e.what() << std::endl;
             }
