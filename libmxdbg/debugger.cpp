@@ -856,15 +856,15 @@ namespace mx {
                     } else if (reg_name.length() == 3 && reg_name[0] == 'e') {
                         process->set_register_32(reg_name, static_cast<uint32_t>(value));
                         std::cout << "Register " << reg_name << " set to: " << format_hex32(value) << std::dec << std::endl;
-                    } else if (reg_name.length() == 2 || (reg_name.length() == 3 && reg_name[2] == 'w')) {
-                        process->set_register_16(reg_name, static_cast<uint16_t>(value));
-                        std::cout << "Register " << reg_name << " set to: " << format_hex16(value) << std::dec << std::endl;
-                    } else if (reg_name.length() == 2 && (reg_name[1] == 'l' || reg_name[1] == 'h')) {
+                    } else if (reg_name.length() == 2 && (reg_name[1] == 'l' || reg_name[1] == 'h')) {            
                         process->set_register_8(reg_name, static_cast<uint8_t>(value));
                         std::cout << "Register " << reg_name << " set to: " << format_hex8(value) << std::dec << std::endl;
                     } else if (reg_name.length() == 3 && reg_name[2] == 'b') {
                         process->set_register_8(reg_name, static_cast<uint8_t>(value));
                         std::cout << "Register " << reg_name << " set to: " << format_hex8(value) << std::dec << std::endl;
+                    } else if (reg_name.length() == 2 || (reg_name.length() == 3 && reg_name[2] == 'w')) {
+                        process->set_register_16(reg_name, static_cast<uint16_t>(value));
+                        std::cout << "Register " << reg_name << " set to: " << format_hex16(value) << std::dec << std::endl;
                     } else {
                         process->set_register(reg_name, value);
                         std::cout << "Register " << reg_name << " set to: " << format_hex64(value) << std::dec << std::endl;

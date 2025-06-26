@@ -122,10 +122,10 @@ namespace mx {
             if (signal == SIGTRAP) {
                 uint64_t pc = get_pc();           
                 if (breakpoints.find(pc) != breakpoints.end()) {
-                    std::cout << "Breakpoint hit at 0x" << std::hex << pc << std::dec << std::endl;
+                    std::cout << "Breakpoint hit at " << format_hex64(pc) << std::dec << std::endl;
                     return;
                 } else if (breakpoints.find(pc - 1) != breakpoints.end()) {
-                    std::cout << "Breakpoint hit at 0x" << std::hex << (pc - 1) << std::dec << std::endl;
+                    std::cout << "Breakpoint hit at " << format_hex64(pc - 1) << std::dec << std::endl;
                     set_pc(pc - 1);
                     return;
                 } else {
@@ -393,7 +393,7 @@ namespace mx {
         if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
             throw mx::Exception::error("Failed to get registers for process");
         }
-        
+    
         if (reg_name == "al") return regs.rax & 0xFF;
         if (reg_name == "ah") return (regs.rax >> 8) & 0xFF;
         if (reg_name == "bl") return regs.rbx & 0xFF;
@@ -671,6 +671,8 @@ namespace mx {
             throw mx::Exception::error("Failed to get registers for process");
         }
         
+        std::cout << "HERE\n";
+
         if (reg_name == "al") regs.rax = (regs.rax & 0xFFFFFFFFFFFFFF00ULL) | value;
         else if (reg_name == "ah") regs.rax = (regs.rax & 0xFFFFFFFFFFFF00FFULL) | (static_cast<uint64_t>(value) << 8);
         else if (reg_name == "bl") regs.rbx = (regs.rbx & 0xFFFFFFFFFFFFFF00ULL) | value;
