@@ -4,7 +4,7 @@
 #include<sys/types.h>
 #include<string>
 #include<vector>
-#include<unordered_map>
+#include<map>
 #include<memory>
 #include<filesystem>
 #include<sys/user.h>
@@ -57,7 +57,7 @@ namespace mx {
         Process(pid_t pid) : m_pid(pid) {}    
         pid_t m_pid;
         bool is_single_stepping = false;
-        std::unordered_map<uint64_t, uint8_t> breakpoints;         
+        std::map<uint64_t, uint8_t> breakpoints;         
         void handle_breakpoint_step(uint64_t address);
         void set_pc(uint64_t address);        
     };  

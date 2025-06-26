@@ -795,8 +795,10 @@ namespace mx {
         } else if(tokens.size() == 1 && tokens[0] == "list_break") {
             if(process && process->is_running()) {
                 auto bp = process->get_breakpoints();
+                size_t index = 1;
                 for(auto &i : bp) {
-                    std::cout << "breakpoint: 0x" << std::hex << i.first << std::endl;
+                    std::cout << "breakpoint: " << std::dec << index << " 0x" << std::hex << i.first << std::endl;
+                    index++;
                 }
             } else {
                 std::cerr << "No process running..\n";
