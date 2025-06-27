@@ -113,11 +113,11 @@ namespace mx {
             std::cout << "Process exited with code: " << WEXITSTATUS(status) << std::endl;
             return;
         } else if (WIFSIGNALED(status)) {
-            std::cout << "Process killed by signal: " << WTERMSIG(status) << std::endl;
+            std::cout << "Process killed by signal: " << format_signal(WTERMSIG(status)) << std::endl;
             return;
         } else if (WIFSTOPPED(status)) {
             int signal = WSTOPSIG(status);
-            std::cout << "Process stopped by signal: " << signal << std::endl;
+            std::cout << "Process stopped by signal: " << format_signal(signal) << std::endl;
             
             if (signal == SIGTRAP) {
                 uint64_t pc = get_pc();           
