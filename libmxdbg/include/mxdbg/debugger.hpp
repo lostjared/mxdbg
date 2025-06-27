@@ -53,6 +53,7 @@ namespace mx {
         std::string obj_dump();
         std::string user_mode = "programmer";
         std::ostringstream code;
+        std::string functionText(const std::string &text);
     };
 
 } 

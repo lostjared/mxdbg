@@ -541,45 +541,31 @@ namespace mx {
                 std::cerr << "Error running objdump: " << e.what() << std::endl;
             }
             return true;
+        } else  if(tokens.size() == 2 && tokens[0] == "list_function") {
+            std::string function_name = tokens[1];
+            std::string function_code;
+            try {
+                function_code = functionText(function_name);
+            } catch(mx::Exception &e) {
+                std::cerr << "Error: not found..\n";
+            }
+            
+            if (function_code.empty()) {
+                std::cout << "Function '" << function_name << "' not found in disassembly." << std::endl;
+                std::cout << "Available functions can be seen with list_function command." << std::endl;
+                return true;
+            }
+            std::cout << function_code;
+            return true;
         }
         else if(cmd.length() >= 7 && cmd.substr(0, 7) == "explain" && cmd.length() > 7 && cmd[7] == ' ') {
-            std::string function_name = cmd.substr(8); 
-            if (function_name.empty()) {
-                std::cout << "Usage: explain <function_name>" << std::endl;
-                return true;
-            }
-            
-            std::string disassembly;
+            std::string function_name = cmd.substr(cmd.find(' ') + 1);
+            std::string function_code;
             try {
-                disassembly = obj_dump();
+                function_code = functionText(function_name);
             } catch(mx::Exception &e) {
-                std::cerr << "Error running objdump: " << e.what() << std::endl;
-                return true;
+                std::cerr << "Error couldn't find function text.\n";
             }
-            std::ostringstream function_disassembly;
-            bool in_function = false;
-            std::istringstream iss(disassembly);
-            std::string line;
-            
-            while (std::getline(iss, line)) {
-            
-                if (line.find("<" + function_name + ">:") != std::string::npos) {
-                    in_function = true;
-                    function_disassembly << line << "\n";
-                    continue;
-                }
-                
-                if (in_function) {
-                    if (line.find("<") != std::string::npos && line.find(">:") != std::string::npos) {
-                        break;
-                    }
-                    if (!line.empty() && line.find_first_not_of(" \t\n\r") != std::string::npos) {
-                        function_disassembly << line << "\n";
-                    }
-                }
-            }
-            
-            std::string function_code = function_disassembly.str();
             if (function_code.empty()) {
                 std::cout << "Function '" << function_name << "' not found in disassembly." << std::endl;
                 std::cout << "Available functions can be seen with list command" << std::endl;
@@ -1114,6 +1100,32 @@ namespace mx {
             std::cout << "Disassembly completed." << std::endl;
         }
         std::filesystem::remove("/tmp/mxdbg_temp.bin");
+    }
+
+    std::string Debugger::functionText(const std::string &text) {
+        std::string function_name = text; 
+        std::string disassembly = obj_dump();
+        std::ostringstream function_disassembly;
+        bool in_function = false;
+        std::istringstream iss(disassembly);
+        std::string line;
+        
+        while (std::getline(iss, line)) {
+            if (line.find("<" + function_name + ">:") != std::string::npos) {
+                in_function = true;
+                function_disassembly << line << "\n";
+                continue;
+            }
+            if (in_function) {
+                if (line.find("Disassembly") != std::string::npos || line.find("<") != std::string::npos && line.find(">:") != std::string::npos) {
+                    break;
+                }
+                if (!line.empty() && line.find_first_not_of(" \t\n\r") != std::string::npos) {
+                    function_disassembly << line << "\n";
+                }
+            }
+        }
+        return function_disassembly.str();
     }
 
     std::size_t Debugger::get_instruction_length(const std::vector<uint8_t>& bytes, size_t offset) {
