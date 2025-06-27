@@ -95,6 +95,11 @@ namespace mx {
                 return false;
             }
             p_id = process->get_pid();
+            if(request) {
+                request->setPrompt("do not respond to this message");
+                request->generateText();
+                std::cout << "Connection established...\n";
+            }
             std::cout << "Successfully attached to process " << pid << std::endl;
             return true;
         } catch (const std::exception& e) {
@@ -124,22 +129,13 @@ namespace mx {
             }
             p_id = process->get_pid();
             program_name = exe.string();
-            std::cout << "Process launched and stopped at entry point." << std::endl;
-            print_current_instruction();
+            
             if(request) {
-                try {
-                    if(color_)
-                        std::cout << Color::CYAN;
-                    std::string response = request->generateTextWithCallback([](const std::string &chunk) {
-                        std::cout << chunk << std::flush; 
-                    });
-                    if(color_)
-                        std::cout << Color::RESET;
-                    std::cout << "\n";
-                } catch (const mx::ObjectRequestException &e) {
-                    std::cerr << "Error: " << e.what() << std::endl;
-                } 
+                request->setPrompt("Do not respond to this message");
+                request->generateText();
+                std::cout << "Connection established...\n";
             }
+            std::cout << "Process launched and stopped at entry point." << std::endl;
             return true;
         } catch (const std::exception& e) {
             std::cerr << "Error launching process " << exe << ": " << e.what() << std::endl;
@@ -391,21 +387,6 @@ namespace mx {
                     }
                     process->continue_execution();
                     process->wait_for_stop();
-                    print_current_instruction();    
-                    if(request) {
-                        try {
-                            if(color_)
-                                std::cout << Color::CYAN;
-                            std::string response = request->generateTextWithCallback([](const std::string &chunk) {
-                                std::cout << chunk << std::flush; 
-                            });
-                            if(color_)
-                                std::cout << Color::RESET;
-                            std::cout << "\n";
-                        } catch (const mx::ObjectRequestException &e) {
-                            std::cerr << "Error: " << e.what() << std::endl;
-                        } 
-                    }
                 } catch(const mx::Exception &e) {
                     std::cerr << "Error running process: " << e.what() << std::endl;
                 }
@@ -414,7 +395,11 @@ namespace mx {
             }
             return true;
 
-        } else if (cmd == "continue" || cmd == "c") {
+        } else if(cmd == "cur" || cmd == "current") {
+            print_current_instruction();
+            return true;
+        } 
+        else if (cmd == "continue" || cmd == "c") {
             if (process && process->is_running()) {
                 try {
                     uint64_t pc_before = process->get_pc(); 
@@ -741,23 +726,24 @@ namespace mx {
             if(color_)
                 std::cout << Color::YELLOW;
             std::cout << "Available commands:" << std::endl;
-            std::cout << "  continue, c            - Continue process execution" << std::endl;
-            std::cout << "  step, s                - Execute single instruction" << std::endl;
-            std::cout << "  step N, s N            - Execute N instructions" << std::endl;
-            std::cout << "  status, st             - Show process status" << std::endl;
-            std::cout << "  list, list_less        - display disassembly " << std::endl;
-            std::cout << "  registers, regs        - Show all registers" << std::endl;
-            std::cout << "  register <name>        - Show specific register value" << std::endl;
-            std::cout << "  set <reg> <value>      - Set register to value" << std::endl;
-            std::cout << "  break <addr>, b        - Set breakpoint at address" << std::endl;
-            std::cout << "  read <addr>            - Read memory at address" << std::endl;
-            std::cout << "  write <addr> <value>   - Write value to memory at address" << std::endl;
-            std::cout << "  write_bytes <ad> <va>  - Write bytes to address" << std::endl;
-            std::cout << "  explain <function>     - Explain function disassembly with AI" << std::endl;
-            std::cout << "  ask <question>         - Ask the AI a question about the prgoram" << std::endl;
-            std::cout << "  user mode              - User Difficulty level for use with AI" << std::endl;
-            std::cout << "  help, h                - Show this help message" << std::endl;
-            std::cout << "  quit, q, exit          - Exit debugger" << std::endl;
+            std::cout << "  continue, c             - Continue process execution" << std::endl;
+            std::cout << "  cur                     - Print current instruction" << std::endl;
+            std::cout << "  step, s                 - Execute single instruction" << std::endl;
+            std::cout << "  step N, s N             - Execute N instructions" << std::endl;
+            std::cout << "  status, st              - Show process status" << std::endl;
+            std::cout << "  list, list_less         - display disassembly " << std::endl;
+            std::cout << "  registers, regs         - Show all registers" << std::endl;
+            std::cout << "  register 8/16/32 <name> - Show specific register value" << std::endl;
+            std::cout << "  set <reg> <value>       - Set register to value" << std::endl;
+            std::cout << "  break <addr>, b         - Set breakpoint at address" << std::endl;
+            std::cout << "  read <addr>             - Read memory at address" << std::endl;
+            std::cout << "  write <addr> <value>    - Write value to memory at address" << std::endl;
+            std::cout << "  write_bytes <ad> <va>   - Write bytes to address" << std::endl;
+            std::cout << "  explain <function>      - Explain function disassembly with AI" << std::endl;
+            std::cout << "  ask <question>          - Ask the AI a question about the prgoram" << std::endl;
+            std::cout << "  user mode               - User Difficulty level for use with AI" << std::endl;
+            std::cout << "  help, h                 - Show this help message" << std::endl;
+            std::cout << "  quit, q, exit            - Exit debugger" << std::endl;
             if(color_)
                 std::cout << Color::RESET;
             return true;
@@ -917,10 +903,11 @@ namespace mx {
         }
         
         try {
+            print_current_instruction();
             process->single_step();
             process->wait_for_single_step();
             std::cout << "Step completed." << std::endl;
-            print_current_instruction();
+            
             if(request) {
                 try {
                     if(color_)
