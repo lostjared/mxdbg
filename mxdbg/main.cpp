@@ -16,6 +16,7 @@ struct Arguments {
     std::filesystem::path path;
     std::string args_str;
     bool dump_asm = false;
+    bool enable_ollama = true;
 };
 
 Arguments parse_args(int argc, char **argv) {
@@ -28,15 +29,21 @@ Arguments parse_args(int argc, char **argv) {
             .addOptionSingleValue('r', "Path to executable or script to run")
             .addOptionDoubleValue('A', "args", "Additional arguments for the process")
             .addOptionSingleValue('a', "Additional arguments for the process")
-            .addOptionSingleValue('d', "Dump Assembly of the executable")
+            .addOptionSingleValue('e', "Dump Assembly of the executable")
             .addOptionDoubleValue('D', "dump", "Dump Assembly of the executable")
+            .addOptionDouble('O', "disable-ai", "Disable AI")
+            .addOptionSingle('d', "Disable AI")
             ;
 
         int value = 0;
         mx::Argument<std::string> arg;
         while((value = parser.proc(arg)) != -1) {
             switch(value) {
+                case 'O':
                 case 'd':
+                    args.enable_ollama = false;
+                    break;
+                case 'e':
                 case 'D':
                     args.dump_asm = true;
                     args.path = std::filesystem::path(arg.arg_value);
@@ -82,14 +89,16 @@ Arguments parse_args(int argc, char **argv) {
 
 int main(int argc, char **argv) {
     Arguments args = parse_args(argc, argv);
-    mx::Debugger debugger;
+    mx::Debugger debugger(args.enable_ollama);
     std::string history_filename;
     try {
         std::cout << version_info << std::endl;
-        const char *mxdbg_host = getenv("MXDBG_HOST");
-        const char *mxdbg_model = getenv("MXDBG_MODEL");
-        if(mxdbg_host != nullptr && mxdbg_model != nullptr) {
-            std::cout << "Starting up connection to Ollama.. Please be patient.\n";
+        if(args.enable_ollama) {
+            const char *mxdbg_host = getenv("MXDBG_HOST");
+            const char *mxdbg_model = getenv("MXDBG_MODEL");
+            if(mxdbg_host != nullptr && mxdbg_model != nullptr) {
+                std::cout << "Starting up connection to Ollama.. Please be patient.\n";
+            }
         }
         const char *home_folder = getenv("HOME");
         if(home_folder) {

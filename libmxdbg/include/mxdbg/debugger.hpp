@@ -16,7 +16,7 @@ namespace mx {
     
     class Debugger {
     public:
-        Debugger();
+        Debugger(bool ai = true);
         ~Debugger();
 
         bool attach(pid_t pid);

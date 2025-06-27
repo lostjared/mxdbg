@@ -69,14 +69,16 @@ namespace mx {
         return oss.str();
     }
 
-    Debugger::Debugger() : p_id(-1) {
-        char *host = getenv("MXDBG_HOST");
-        char *model = getenv("MXDBG_MODEL");
-        if (host != nullptr && model != nullptr) {
-            std::string host_str(host);
-            std::string model_str(model);
-            if (!host_str.empty() && !model_str.empty()) {
-                request = std::make_unique<mx::ObjectRequest>(host_str, model_str);
+    Debugger::Debugger(bool ai) : p_id(-1) {
+        if(ai) {
+            char *host = getenv("MXDBG_HOST");
+            char *model = getenv("MXDBG_MODEL");
+            if (host != nullptr && model != nullptr) {
+                std::string host_str(host);
+                std::string model_str(model);
+                if (!host_str.empty() && !model_str.empty()) {
+                    request = std::make_unique<mx::ObjectRequest>(host_str, model_str);
+                }
             }
         }
     }
