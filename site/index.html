@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mxdbg - Debugger with AI Integration for Linux ELF x86_64 </title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <h1 class="logo">mxdbg</h1>
+            <nav class="nav">
+                <a href="#overview">Overview</a>
+                <a href="#features">Features</a>
+                <a href="#installation">Installation</a>
+                <a href="#usage">Usage</a>
+                <a href="#commands">Commands</a>
+                <a href="#ai-integration">AI Integration</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <section id="hero" class="hero">
+            <div class="container">
+                <h1>Debugger with AI Integration for Linux ELF x86_64 executables</h1>
+                <p class="hero-subtitle">A powerful C++ debugger built with ptrace that integrates with Ollama for AI-powered code analysis and explanation.</p>
+                <div class="color-key">
+                    <h3>Color Key:</h3>
+                    <div class="color-items">
+                        <span class="color-item cyan">Cyan for AI responses</span>
+                        <span class="color-item red">Red for machine code/disassembly</span>
+                        <span class="color-item white">White for debugger text</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="overview" class="section">
+            <div class="container">
+                <h2>Project Overview</h2>
+                <p>mxdbg is a modern C++ debugger that provides comprehensive debugging capabilities for x86_64 Linux systems. Built using ptrace system calls, it offers traditional debugging features enhanced with AI-powered code analysis through Ollama integration.</p>
+                
+                <div class="warning">
+                    <strong>Note:</strong> This project is currently in development. Some features are still being implemented.
+                </div>
+            </div>
+        </section>
+
+        <section id="features" class="section">
+            <div class="container">
+                <h2>Features</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <h3>Process Control</h3>
+                        <p>Launch or attach to processes with full debugging capabilities</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>Register Manipulation</h3>
+                        <p>Read and write 64-bit, 32-bit, 16-bit, and 8-bit registers</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>Memory Operations</h3>
+                        <p>Read and write process memory with byte-level precision</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>Breakpoint Management</h3>
+                        <p>Set, remove, and handle breakpoints efficiently</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>Single Stepping</h3>
+                        <p>Execute instructions one at a time with full control</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>Disassembly</h3>
+                        <p>View disassembled code using objdump integration</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>AI Integration</h3>
+                        <p>Get AI-powered explanations of disassembly and code behavior</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>Interactive Shell</h3>
+                        <p>Readline-based command interface with history</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="installation" class="section">
+            <div class="container">
+                <h2>Installation</h2>
+                
+                <h3>Dependencies</h3>
+                <ul class="deps-list">
+                    <li><strong>CMake 3.20+:</strong> Build system</li>
+                    <li><strong>C++20 compatible compiler:</strong> GCC 10+ or Clang 10+</li>
+                    <li><strong>readline:</strong> For interactive command line interface</li>
+                    <li><strong>ollama_gen:</strong> AI integration library for Ollama communication</li>
+                    <li><strong>Standard Linux tools:</strong> objdump, ptrace support</li>
+                </ul>
+
+                <h3>Environment Setup</h3>
+                <p>To use AI integration features, export these environment variables:</p>
+                <div class="code-block">
+                    <pre><code>export MXDBG_HOST="localhost"    # Your Ollama server URL
+export MXDBG_MODEL="llama2"      # Your preferred Ollama model</code></pre>
+                </div>
+
+                <h3>Building</h3>
+                <div class="code-block">
+                    <pre><code>git clone https://github.com/lostjared/ollama_gen.git
+git clone https://github.com/lostjared/mxdbg.git 
+cd ollama_gen
+mkdir build
+cd build
+cmake ..
+cmake --build .
+sudo cmake --install .
+cd ../../
+cd mxdbg
+mkdir build
+cd build
+cmake ..
+cmake --build .
+sudo cmake --install .
+cd ../../
+<div class="">
+</code></pre>
+                </div>
+
+                <h3>Installation</h3>
+                <div class="code-block">
+                    <pre><code>sudo cmake --install  .</code></pre>
+                </div>
+
+                <h3>Uninstall</h3>
+                <div class="code-block">
+                    <pre><code>sudo make uninstall</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="usage" class="section">
+            <div class="container">
+                <h2>Usage</h2>
+                
+                <h3>Basic Usage</h3>
+                <div class="code-block">
+                    <pre><code># Launch a program for debugging
+mxdbg /path/to/program
+
+# Attach to an existing process
+mxdbg -p &lt;PID&gt;
+
+# Dump assembly of a binary
+mxdbg -d /path/to/binary</code></pre>
+                </div>
+
+                <h3>Command Line Options</h3>
+                <ul class="options-list">
+                    <li><code>-p &lt;PID&gt;</code>: Attach to process with given PID</li>
+                    <li><code>-P &lt;PID&gt;</code>: Same as -p (long form)</li>
+                    <li><code>-R &lt;path&gt;</code>: Launch executable at path</li>
+                    <li><code>-r &lt;path&gt;</code>: Same as -R (short form)</li>
+                    <li><code>-A &lt;args&gt;</code>: Additional arguments for the launched process</li>
+                    <li><code>-a &lt;args&gt;</code>: Same as -A (short form)</li>
+                    <li><code>-d</code>: Dump assembly of executable</li>
+                    <li><code>-D</code>: Same as -d (long form)</li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="commands" class="section">
+            <div class="container">
+                <h2>Interactive Commands</h2>
+                <p>Once in the debugger shell (<code>mx $&gt;</code>), you can use the following commands:</p>
+
+                <div class="commands-grid">
+                    <div class="command-category">
+                        <h3>Process Control</h3>
+                        <div class="command-list">
+                            <div class="command">
+                                <code>continue, c</code>
+                                <span>Continue process execution</span>
+                            </div>
+                            <div class="command">
+                                <code>step, s</code>
+                                <span>Execute single instruction</span>
+                            </div>
+                            <div class="command">
+                                <code>step N, s N</code>
+                                <span>Execute N instructions</span>
+                            </div>
+                            <div class="command">
+                                <code>run, r</code>
+                                <span>Start or restart the program</span>
+                            </div>
+                            <div class="command">
+                                <code>start, restart</code>
+                                <span>Restart the program from beginning</span>
+                            </div>
+                            <div class="command">
+                                <code>quit, q, exit</code>
+                                <span>Exit debugger</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="command-category">
+                        <h3>Register Operations</h3>
+                        <div class="command-list">
+                            <div class="command">
+                                <code>registers, regs</code>
+                                <span>Show all registers</span>
+                            </div>
+                            <div class="command">
+                                <code>register &lt;name&gt;</code>
+                                <span>Show specific 64-bit register</span>
+                            </div>
+                            <div class="command">
+                                <code>register32 &lt;name&gt;</code>
+                                <span>Show 32-bit register</span>
+                            </div>
+                            <div class="command">
+                                <code>register16 &lt;name&gt;</code>
+                                <span>Show 16-bit register</span>
+                            </div>
+                            <div class="command">
+                                <code>register8 &lt;name&gt;</code>
+                                <span>Show 8-bit register</span>
+                            </div>
+                            <div class="command">
+                                <code>set &lt;reg&gt; &lt;value&gt;</code>
+                                <span>Set register value</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="command-category">
+                        <h3>Memory Operations</h3>
+                        <div class="command-list">
+                            <div class="command">
+                                <code>read &lt;address&gt;</code>
+                                <span>Read 8 bytes from memory address</span>
+                            </div>
+                            <div class="command">
+                                <code>write &lt;address&gt; &lt;value&gt;</code>
+                                <span>Write value to memory address</span>
+                            </div>
+                            <div class="command">
+                                <code>write_bytes &lt;address&gt; &lt;bytes&gt;</code>
+                                <span>Write byte sequence to memory</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="command-category">
+                        <h3>Breakpoints</h3>
+                        <div class="command-list">
+                            <div class="command">
+                                <code>break &lt;address&gt;, b &lt;address&gt;</code>
+                                <span>Set breakpoint at address</span>
+                            </div>
+                            <div class="command">
+                                <code>function &lt;name&gt;</code>
+                                <span>Set breakpoint at function</span>
+                            </div>
+                            <div class="command">
+                                <code>list_break, lb</code>
+                                <span>List all breakpoints</span>
+                            </div>
+                            <div class="command">
+                                <code>remove &lt;address&gt;, rmv &lt;address&gt;</code>
+                                <span>Remove breakpoint at address</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="command-category">
+                        <h3>Analysis</h3>
+                        <div class="command-list">
+                            <div class="command">
+                                <code>list</code>
+                                <span>Disassemble current program</span>
+                            </div>
+                            <div class="command">
+                                <code>list_function &lt;name&gt;</code>
+                                <span>Disassemble specific function</span>
+                            </div>
+                            <div class="command">
+                                <code>list_less</code>
+                                <span>Show condensed disassembly</span>
+                            </div>
+                            <div class="command">
+                                <code>cur, current</code>
+                                <span>Show current instruction</span>
+                            </div>
+                            <div class="command">
+                                <code>base</code>
+                                <span>Show process base address</span>
+                            </div>
+                            <div class="command">
+                                <code>status, st</code>
+                                <span>Show process status</span>
+                            </div>
+                            <div class="command">
+                                <code>search &lt;term&gt;, find &lt;term&gt;</code>
+                                <span>Search for term in disassembly</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="command-category">
+                        <h3>AI Integration</h3>
+                        <div class="command-list">
+                            <div class="command">
+                                <code>explain</code>
+                                <span>Get AI explanation of program behavior</span>
+                            </div>
+                            <div class="command">
+                                <code>explain &lt;function&gt;</code>
+                                <span>Get AI explanation of specific function</span>
+                            </div>
+                            <div class="command">
+                                <code>ask &lt;question&gt;</code>
+                                <span>Ask AI a question about the code</span>
+                            </div>
+                            <div class="command">
+                                <code>mode &lt;level&gt;</code>
+                                <span>Set user experience level (beginner/intermediate/expert)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="command-category">
+                        <h3>Utility</h3>
+                        <div class="command-list">
+                            <div class="command">
+                                <code>help, h</code>
+                                <span>Show available commands</span>
+                            </div>
+                            <div class="command">
+                                <code>expr &lt;expression&gt;</code>
+                                <span>Evaluate expression</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="ai-integration" class="section">
+            <div class="container">
+                <h2>AI Integration</h2>
+                <p>When <code>MXDBG_HOST</code> and <code>MXDBG_MODEL</code> are set, the debugger provides:</p>
+                
+                <div class="ai-features">
+                    <div class="ai-feature">
+                        <h3>AI Explanations</h3>
+                        <p>Get detailed explanations of code behavior when stepping through programs</p>
+                    </div>
+                    <div class="ai-feature">
+                        <h3>Disassembly Analysis</h3>
+                        <p>Analyze disassembly output with the <code>explain</code> command</p>
+                    </div>
+                    <div class="ai-feature">
+                        <h3>Context-Aware Assistance</h3>
+                        <p>Ask questions about the code using the <code>ask</code> command</p>
+                    </div>
+                    <div class="ai-feature">
+                        <h3>Adaptive Learning</h3>
+                        <p>Set your experience level to get explanations tailored to your knowledge</p>
+                    </div>
+                </div>
+
+                <h3>Supported Registers</h3>
+                <div class="registers-grid">
+                    <div class="register-type">
+                        <h4>64-bit Registers</h4>
+                        <p>rax, rbx, rcx, rdx, rsi, rdi, rbp, rsp, rip, r8-r15</p>
+                    </div>
+                    <div class="register-type">
+                        <h4>32-bit Registers</h4>
+                        <p>eax, ebx, ecx, edx, esi, edi, ebp, esp, r8d-r15d</p>
+                    </div>
+                    <div class="register-type">
+                        <h4>16-bit Registers</h4>
+                        <p>ax, bx, cx, dx, si, di, bp, sp, r8w-r15w</p>
+                    </div>
+                    <div class="register-type">
+                        <h4>8-bit Registers</h4>
+                        <p>al, ah, bl, bh, cl, ch, dl, dh, sil, dil, bpl, spl, r8b-r15b</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="examples" class="section">
+            <div class="container">
+                <h2>Examples</h2>
+                
+                <h3>Debug a Simple Program</h3>
+                <div class="code-block">
+                    <pre><code># Compile a test program
+gcc -g -o test test.c
+
+# Launch in debugger
+mxdbg ./test
+
+# In debugger shell:
+mx $> run
+mx $> step
+mx $> step
+mx $> registers
+mx $> read 0x400000</code></pre>
+                </div>
+
+                <h3>Attach to Running Process</h3>
+               <div class="code-block">
+               <pre><code># Find process ID
+ps aux | grep myprogram
+
+# Attach debugger
+mxdbg -p 1234
+
+# Debug the running process
+mx $> registers
+mx $> step
+mx $> list
+mx $> explain main  </code></pre>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 mxdbg - Debugger with AI Integration</p>
+            <p>Licensed under GPL v3</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
