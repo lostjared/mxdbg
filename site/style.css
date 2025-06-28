@@ -1,0 +1,395 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'FixedSys', monospace;
+    background-color: #0a0a0a;
+    color: #ffffff;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* Header */
+.header {
+    background-color: #1a0000;
+    border-bottom: 2px solid #cc0000;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.header .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 20px;
+}
+
+.logo {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #cc0000;
+    text-shadow: 0 0 10px #cc0000;
+}
+
+.nav {
+    display: flex;
+    gap: 2rem;
+}
+
+.nav a {
+    color: #ffffff;
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.nav a:hover {
+    background-color: #cc0000;
+    color: #ffffff;
+    box-shadow: 0 0 10px #cc0000;
+}
+
+/* Hero Section */
+.hero {
+    background: linear-gradient(135deg, #1a0000 0%, #0a0a0a 100%);
+    padding: 4rem 0;
+    text-align: center;
+    border-bottom: 1px solid #333;
+}
+
+.hero h1 {
+    font-size: 3.5rem;
+    margin-bottom: 1rem;
+    color: #cc0000;
+    text-shadow: 0 0 20px #cc0000;
+}
+
+.hero-subtitle {
+    font-size: 1.3rem;
+    margin-bottom: 2rem;
+    color: #cccccc;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.color-key {
+    margin-top: 2rem;
+}
+
+.color-key h3 {
+    color: #cc0000;
+    margin-bottom: 1rem;
+}
+
+.color-items {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.color-item {
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+.color-item.cyan {
+    background-color: #008b8b;
+    color: #ffffff;
+}
+
+.color-item.red {
+    background-color: #cc0000;
+    color: #ffffff;
+}
+
+.color-item.white {
+    background-color: #ffffff;
+    color: #000000;
+}
+
+/* Sections */
+.section {
+    padding: 4rem 0;
+    border-bottom: 1px solid #333;
+}
+
+.section h2 {
+    font-size: 2.5rem;
+    margin-bottom: 2rem;
+    color: #cc0000;
+    text-align: center;
+}
+
+.section h3 {
+    font-size: 1.8rem;
+    margin-bottom: 1rem;
+    color: #ffffff;
+}
+
+.section h4 {
+    font-size: 1.4rem;
+    margin-bottom: 0.5rem;
+    color: #cc0000;
+}
+
+.section p {
+    margin-bottom: 1rem;
+    color: #cccccc;
+}
+
+/* Warning */
+.warning {
+    background-color: #cc0000;
+    color: #ffffff;
+    padding: 1rem;
+    border-radius: 4px;
+    margin: 2rem 0;
+    border-left: 4px solid #ff0000;
+}
+
+/* Features Grid */
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.feature-card {
+    background-color: #1a1a1a;
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid #333;
+    transition: all 0.3s ease;
+}
+
+.feature-card:hover {
+    border-color: #cc0000;
+    box-shadow: 0 0 15px rgba(204, 0, 0, 0.3);
+}
+
+.feature-card h3 {
+    color: #cc0000;
+    margin-bottom: 1rem;
+}
+
+/* Code Blocks */
+.code-block {
+    background-color: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 4px;
+    margin: 1rem 0;
+    overflow-x: auto;
+}
+
+.code-block pre {
+    padding: 1rem;
+    margin: 0;
+}
+
+.code-block code {
+    font-family: 'Courier New', monospace;
+    color: #00ff00;
+    font-size: 0.9rem;
+}
+
+/* Lists */
+.deps-list, .options-list {
+    list-style: none;
+    margin: 1rem 0;
+}
+
+.deps-list li, .options-list li {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #333;
+    color: #cccccc;
+}
+
+.deps-list li:last-child, .options-list li:last-child {
+    border-bottom: none;
+}
+
+/* Commands Grid */
+.commands-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.command-category {
+    background-color: #1a1a1a;
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid #333;
+}
+
+.command-category h3 {
+    color: #cc0000;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid #cc0000;
+    padding-bottom: 0.5rem;
+}
+
+.command-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.command {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    background-color: #0a0a0a;
+    border-radius: 4px;
+    border-left: 3px solid #cc0000;
+}
+
+.command code {
+    font-weight: bold;
+    color: #00ff00;
+    font-family: 'Courier New', monospace;
+    min-width: 150px;
+}
+
+.command span {
+    color: #cccccc;
+    font-size: 0.9rem;
+}
+
+/* AI Features */
+.ai-features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    margin: 2rem 0;
+}
+
+.ai-feature {
+    background-color: #1a1a1a;
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid #333;
+    text-align: center;
+}
+
+.ai-feature h3 {
+    color: #cc0000;
+    margin-bottom: 1rem;
+}
+
+/* Registers Grid */
+.registers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    margin: 2rem 0;
+}
+
+.register-type {
+    background-color: #1a1a1a;
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid #333;
+}
+
+.register-type h4 {
+    margin-bottom: 1rem;
+}
+
+.register-type p {
+    font-family: 'Courier New', monospace;
+    color: #00ff00;
+    font-size: 0.9rem;
+}
+
+/* Footer */
+.footer {
+    background-color: #1a0000;
+    padding: 2rem 0;
+    text-align: center;
+    border-top: 2px solid #cc0000;
+}
+
+.footer p {
+    color: #cccccc;
+    margin: 0.5rem 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .header .container {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .nav {
+        gap: 1rem;
+    }
+
+    .hero h1 {
+        font-size: 2.5rem;
+    }
+
+    .hero-subtitle {
+        font-size: 1.1rem;
+    }
+
+    .color-items {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .commands-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .command {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .command code {
+        min-width: unset;
+    }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #cc0000;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #ff0000;
+}
+
+/* Selection */
+::selection {
+    background-color: #cc0000;
+    color: #ffffff;
+}
