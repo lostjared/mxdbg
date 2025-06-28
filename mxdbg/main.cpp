@@ -88,11 +88,11 @@ Arguments parse_args(int argc, char **argv) {
 }
 
 int main(int argc, char **argv) {
+    std::cout << version_info << std::endl;
     Arguments args = parse_args(argc, argv);
     mx::Debugger debugger(args.enable_ollama);
     std::string history_filename;
     try {
-        std::cout << version_info << std::endl;
         if(args.enable_ollama) {
             const char *mxdbg_host = getenv("MXDBG_HOST");
             const char *mxdbg_model = getenv("MXDBG_MODEL");
