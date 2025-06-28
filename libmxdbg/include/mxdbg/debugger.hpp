@@ -41,7 +41,6 @@ namespace mx {
         bool setfunction_breakpoint(const std::string &function_name);
     private:
         void print_current_instruction(); 
-        std::size_t get_instruction_length(const std::vector<uint8_t>& bytes, size_t offset);
         std::unique_ptr<Process> process;
         std::string_view args;
         pid_t p_id;
