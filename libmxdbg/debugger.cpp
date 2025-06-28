@@ -1084,24 +1084,8 @@ namespace mx {
         } else {
             std::cout << "No process attached or running." << std::endl;
         }
-
     }
-
-    void Debugger::disasm_bytes(std::vector<uint8_t> &bytes) {
-        std::ofstream temp("/tmp/mxdbg_temp.bin", std::ios::binary);
-        temp.write(reinterpret_cast<const char*>(bytes.data()), bytes.size());
-        temp.close();
-        std::string cmd = "objdump -D -b binary -m i386:x86-64 /tmp/mxdbg_temp.bin";
-        std::cout << "Running command: " << cmd << std::endl;
-        int result = system(cmd.c_str());
-        if (result != 0) {
-            std::cerr << "Failed to execute objdump command." << std::endl;
-        } else {
-            std::cout << "Disassembly completed." << std::endl;
-        }
-        std::filesystem::remove("/tmp/mxdbg_temp.bin");
-    }
-
+    
     std::string Debugger::functionText(const std::string &text) {
         std::string function_name = text; 
         std::string disassembly = obj_dump();
