@@ -14,6 +14,7 @@
 #include<chrono>
 #include<fstream>
 #include<iomanip>
+#include<random>
 
 namespace mx {
     
@@ -134,12 +135,13 @@ namespace mx {
                                     const auto& wp = watchpoints_[i];
                                     std::string type_name = (wp.type == WatchType::READ) ? "read" :
                                                         (wp.type == WatchType::WRITE) ? "write" : "access";
-                                    
-                                    std::cout << "Watchpoint hit at " << format_hex64(wp.address) 
-                                            << " (" << wp.size << " bytes, " << type_name << ")" << std::endl;
+                                    std::cout << "=== WATCHPOINT HIT ===" << std::endl;
+                                    std::cout << "Address: " << format_hex64(wp.address) 
+                                            << " (" << wp.size << " bytes, " << type_name << " access)" << std::endl;
+                                    std::cout << "Instruction at watchpoint address: " << wp.disassembly << std::endl;
+                                    std::cout << "Current PC after watchpoint: " << format_hex64(pc) << std::endl;
                                     watchpoint_hit = true;
                                 }
-                                
                                 ptrace(PTRACE_POKEUSER, m_pid, offsetof(user, u_debugreg[6]), 0);
                                 break;
                             }
@@ -164,6 +166,70 @@ namespace mx {
                     std::cout << "Debug trap at " << format_hex64(pc) << std::endl;
                 }
             }
+        }
+    }
+
+    std::string Process::disassemble_instruction(uint64_t address, const std::vector<uint8_t>& bytes) {
+        try {
+            // Create temporary file for disassembly
+            std::string random_name;
+            std::random_device rd;
+            std::mt19937 gen(rd());
+            std::uniform_int_distribution<> dis(0, 25);  
+            for(size_t i = 0; i < 10; ++i) {
+                random_name += 'a' + dis(gen);
+            }
+            std::string temp_file = "/tmp/mxdbg_watchpoint_" + random_name + ".bin";
+            class FileRemoval {
+            public:
+                FileRemoval(const std::string &text) : fn(text) {}
+                ~FileRemoval() {
+                    if(std::filesystem::exists(fn)) {
+                        std::filesystem::remove(fn);
+                    }
+                }
+            private:
+                std::string fn;
+            };
+            std::ofstream temp(temp_file, std::ios::binary);
+            temp.write(reinterpret_cast<const char*>(bytes.data()), std::min(bytes.size(), (size_t)15));
+            temp.close();
+            FileRemoval rmv_file(temp_file);
+            std::string cmd = "objdump -D -b binary -m i386:x86-64 " + temp_file + " 2>/dev/null";
+            FILE* pipe = popen(cmd.c_str(), "r");
+            std::string result = "<unknown instruction>";
+            if (pipe) {
+                char buffer[512];
+                std::string output;
+                while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+                    output += buffer;
+                }
+                pclose(pipe);
+                std::istringstream ss(output);
+                std::string line;
+                while (std::getline(ss, line)) {
+                    if (line.find("   0:") != std::string::npos) {
+                        size_t colon_pos = line.find(":");
+                        size_t tab_pos = line.find('\t', colon_pos);
+                        
+                        if (colon_pos != std::string::npos && tab_pos != std::string::npos) {
+                            std::string hex_part = line.substr(colon_pos + 1, tab_pos - colon_pos - 1);
+                            std::string instr_part = line.substr(tab_pos + 1);
+                            if (!instr_part.empty() && instr_part.back() == '\n') {
+                                instr_part.pop_back();
+                            }               
+                            result = hex_part + " -> " + instr_part;
+                        }
+                        break;
+                    }
+                }
+            }
+            if(std::filesystem::exists(temp_file)) {
+                std::filesystem::remove(temp_file);
+            }
+            return result;       
+        } catch (const std::exception& e) {
+            return "<disassembly failed: " + std::string(e.what()) + ">";
         }
     }
 
@@ -896,13 +962,25 @@ namespace mx {
                 throw Exception("Failed to set DR7 register");
             }
         
+            std::vector<uint8_t> instruction_bytes;
+            std::string disassembly;
+            
+            try {
+                instruction_bytes = read_memory(address, 15);
+                disassembly = disassemble_instruction(address, instruction_bytes);
+            } catch (const std::exception& e) {
+                instruction_bytes.clear();
+                disassembly = "<could not read instruction: " + std::string(e.what()) + ">";
+            }
+
             Watchpoint wp;
             wp.address = address;
             wp.size = size;
             wp.type = type;
             wp.description = "Watchpoint at " + format_hex64(address);
+            wp.instruction_bytes = instruction_bytes;
+            wp.disassembly = disassembly;
             watchpoints_.push_back(wp);
-            
             return true;
             
         } catch (const std::exception& e) {

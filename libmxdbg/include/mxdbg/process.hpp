@@ -23,6 +23,8 @@ namespace mx {
         size_t size;
         WatchType type;
         std::string description;
+        std::vector<uint8_t> instruction_bytes;  
+        std::string disassembly;  
     };
 
     class Process {
@@ -32,7 +34,6 @@ namespace mx {
         Process& operator=(const Process&) = delete;
         Process(Process&&);
         Process& operator=(Process&&);
-
         static std::unique_ptr<Process> launch(const std::filesystem::path &exe, const std::vector<std::string> &args = {});
         static std::unique_ptr<Process> attach(pid_t pid);
         void continue_execution();
@@ -75,6 +76,7 @@ namespace mx {
         bool remove_watchpoint(uint64_t address);
         std::vector<Watchpoint> get_watchpoints() const;
         bool has_watchpoint_at(uint64_t address) const;
+        std::string disassemble_instruction(uint64_t address, const std::vector<uint8_t>& bytes);
     private:
         Process(pid_t pid) : m_pid(pid),  index_(0) {}    
         pid_t m_pid;
