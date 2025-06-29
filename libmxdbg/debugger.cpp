@@ -863,8 +863,7 @@ namespace mx {
             if (program_name.empty()) {
                 std::cout << "No program to restart. Use launch command first or provide a program path." << std::endl;
                 return true;
-            }
-            
+            }  
             std::cout << "Restarting program: " << program_name << std::endl;
             if (process) {
                 try {
