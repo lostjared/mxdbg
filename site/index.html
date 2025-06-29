@@ -162,17 +162,18 @@ mxdbg -p &lt;PID&gt;
 # Dump assembly of a binary
 mxdbg -d /path/to/binary</code></pre>
                 </div>
-
                 <h3>Command Line Options</h3>
                 <ul class="options-list">
                     <li><code>-p &lt;PID&gt;</code>: Attach to process with given PID</li>
-                    <li><code>-P &lt;PID&gt;</code>: Same as -p (long form)</li>
-                    <li><code>-R &lt;path&gt;</code>: Launch executable at path</li>
+                    <li><code>--pid &lt;PID&gt;</code>: Same as -p (long form)</li>
+                    <li><code>--path &lt;path&gt;</code>: Launch executable at path</li>
                     <li><code>-r &lt;path&gt;</code>: Same as -R (short form)</li>
-                    <li><code>-A &lt;args&gt;</code>: Additional arguments for the launched process</li>
+                    <li><code>--args &lt;args&gt;</code>: Additional arguments for the launched process</li>
                     <li><code>-a &lt;args&gt;</code>: Same as -A (short form)</li>
-                    <li><code>-d</code>: Dump assembly of executable</li>
-                    <li><code>-D</code>: Same as -d (long form)</li>
+                    <li><code>-e</code>: Dump assembly of executable</li>
+                    <li><code>-d</code>: Disable AI</li>
+                    <li><code>--disable-ai</code>: Disable AI</li>
+
                 </ul>
             </div>
         </section>
