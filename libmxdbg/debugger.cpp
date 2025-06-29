@@ -431,7 +431,7 @@ namespace mx {
                 try {
                     std::string var_name = tokens[1];
                     std::string offset_val = tokens[2];
-                    uint64_t offset_v = std::stoull(offset_val);
+                    uint64_t offset_v = std::stoull(offset_val, nullptr, 0);
                     uint64_t address = calculate_variable_address(var_name, offset_v);
                     std::cout << "variable address: " << format_hex64(address) << "\n";
                     
