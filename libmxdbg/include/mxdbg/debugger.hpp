@@ -55,6 +55,7 @@ namespace mx {
         void print_backtrace() const;
         std::vector<uint64_t> get_stack_frames() const;
         std::string resolve_symbol(uint64_t address) const;
+        bool is_at_function_entry() const;
     };
 
 } 

@@ -186,125 +186,136 @@ namespace mx {
         return full_disassembly.str();
     }
 
-    bool Debugger::setfunction_breakpoint(const std::string &filename) {
+   bool Debugger::setfunction_breakpoint(const std::string &function_name) {
         if (!process || !process->is_running()) {
             std::cout << "No process attached or running." << std::endl;
             return false;
         }
         
-        std::string function_name = filename;
         if (function_name.empty()) {
             std::cout << "Usage: function <function_name>" << std::endl;
             return false;
         }
         
         try {
-            std::string disassembly = obj_dump();
-            std::istringstream iss(disassembly);
-            std::string line;
-            uint64_t function_offset = 0;   
+            std::ostringstream nm_cmd;
+            nm_cmd << "nm " << program_name << " | grep -w '" << function_name << "' | grep ' T '";
             
-            while (std::getline(iss, line)) {
-                if (line.find("<" + function_name + ">:") != std::string::npos) {
-                    size_t space_pos = line.find(' ');
-                    if (space_pos != std::string::npos) {
-                        std::string addr_str = line.substr(0, space_pos);
+            FILE* pipe = popen(nm_cmd.str().c_str(), "r");
+            uint64_t function_offset = 0;
+            
+            if (pipe) {
+                char buffer[256];
+                if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+                    std::string line(buffer);
+                    std::istringstream iss(line);
+                    std::string addr_str, type, symbol_name;
+                    if (iss >> addr_str >> type >> symbol_name && symbol_name == function_name) {
                         function_offset = std::stoull(addr_str, nullptr, 16);
-                        break;
+                    }
+                }
+                pclose(pipe);
+            }
+            
+            if (function_offset == 0) {
+                std::string disassembly = obj_dump();
+                std::istringstream iss(disassembly);
+                std::string line;
+                
+                while (std::getline(iss, line)) {
+                    if (line.find("<" + function_name + ">:") != std::string::npos) {
+                        size_t space_pos = line.find(' ');
+                        if (space_pos != std::string::npos) {
+                            std::string addr_str = line.substr(0, space_pos);
+                            try {
+                                function_offset = std::stoull(addr_str, nullptr, 16);
+                                break;
+                            } catch (const std::exception& e) {
+                                std::cerr << "Error parsing address: " << addr_str << std::endl;
+                                continue;
+                            }
+                        }
                     }
                 }
             }
             
             if (function_offset == 0) {
-                std::cout << "Function '" << function_name << "' not found in disassembly." << std::endl;
+                std::cout << "Function '" << function_name << "' not found." << std::endl;
                 return false;
             }
             
             bool is_pie = false;
-            uint64_t base_address = 0;
-            uint64_t file_offset = 0;
-            uint64_t runtime_address = function_offset; 
             
-            std::fstream file;
-            file.open(std::string("/proc/") + std::to_string(get_pid()) + std::string("/maps"), std::ios::in);
-            if (!file.is_open()) {
-                std::cerr << "Failed to open /proc/maps" << std::endl;
-                return false;
+            uint64_t runtime_address = function_offset;
+            uint64_t current_pc = process->get_pc();
+            bool at_entry_point = (current_pc < 0x400000 || current_pc > 0x500000);
+            
+            if (at_entry_point) {
+                std::cout << "Setting breakpoint on function '" << function_name 
+                        << "' at address " << format_hex64(runtime_address) << std::endl;
+                std::cout << "Note: Process is at entry point. This breakpoint will be hit when the program reaches this function." << std::endl;
             }
             
-            std::filesystem::path program_path = std::filesystem::absolute(program_name);
-            std::string maps_line;
-            while (std::getline(file, maps_line)) {
-                if (maps_line.find("r-xp") != std::string::npos && 
-                    maps_line.find(program_path.filename().string()) != std::string::npos) {
+            try {
+                process->set_breakpoint(runtime_address);
+                
+                if(color_)
+                    std::cout << Color::BRIGHT_BLUE;
+                std::cout << (is_pie ? "Detected PIE executable" : "Detected non-PIE executable") << std::endl;
+                if(color_)
+                    std::cout << Color::RESET;
                     
-                    std::istringstream iss(maps_line);
-                    std::string addr_range, permissions, offset_str;
-                    iss >> addr_range >> permissions >> offset_str;
-                    
-                    auto dash_pos = addr_range.find('-');
-                    if (dash_pos != std::string::npos) {
-                        std::string base_addr_str = addr_range.substr(0, dash_pos);
-                        base_address = std::stoull(base_addr_str, nullptr, 16);
+                if(color_)
+                    std::cout << Color::BRIGHT_GREEN;
+                std::cout << "Breakpoint set at function '" << function_name << "'" << std::endl;
+                std::cout << "  Function offset: " << format_hex64(function_offset) << std::endl;
+                std::cout << "  Runtime address: " << format_hex64(runtime_address) << std::endl;
+                std::cout << "  PIE executable: " << (is_pie ? "Yes" : "No") << std::endl;
+                if(color_)
+                    std::cout << Color::RESET;
+                
+                return true;
+            } catch (const std::exception& e) {
+                std::cout << "Could not set breakpoint directly. Setting breakpoint at program entry instead." << std::endl;
+                
+                uint64_t main_offset = 0;
+                std::ostringstream main_cmd;
+                main_cmd << "nm " << program_name << " | grep -w 'main' | grep ' T '";
+                
+                pipe = popen(main_cmd.str().c_str(), "r");
+                if (pipe) {
+                    char buffer[256];
+                    if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+                        std::string line(buffer);
+                        std::istringstream iss(line);
+                        std::string addr_str, type, symbol_name;
+                        if (iss >> addr_str >> type >> symbol_name && symbol_name == "main") {
+                            main_offset = std::stoull(addr_str, nullptr, 16);
+                        }
                     }
-                    
-                    file_offset = std::stoull(offset_str, nullptr, 16);
-                    
-                    if (base_address < 0x400000 || base_address > 0x500000) {
-                        is_pie = true;
-                    } else {
-                        is_pie = false;
+                    pclose(pipe);
+                }
+                
+                if (main_offset > 0) {
+                    try {
+                        process->set_breakpoint(main_offset);
+                        std::cout << "Set temporary breakpoint at main() instead." << std::endl;
+                        std::cout << "After hitting main, try setting your function breakpoint again." << std::endl;
+                        return false;
+                    } catch (...) {
+                        std::cout << "Couldn't set any breakpoints. Run 'continue' to start the program, then try again." << std::endl;
+                        return false;
                     }
-                    break;
+                } else {
+                    std::cout << "Couldn't find main() either. Run 'continue' to start the program, then try again." << std::endl;
+                    return false;
                 }
             }
-            file.close();
-            
-            if (base_address == 0) {
-                std::cout << "Could not find base address in /proc/maps" << std::endl;
-                return false;
-            }
-            
-            if (is_pie) {
-                runtime_address = base_address + (function_offset - file_offset);
-                
-                if(color_)
-                    std::cout << Color::BRIGHT_BLUE;
-                std::cout << "Detected PIE executable" << std::endl;
-                if(color_)
-                    std::cout << Color::RESET;
-            } else {
-                runtime_address = function_offset;
-                
-                if(color_)
-                    std::cout << Color::BRIGHT_BLUE;
-                std::cout << "Detected non-PIE executable" << std::endl;
-                if(color_)
-                    std::cout << Color::RESET;
-            }
-            
-            process->set_breakpoint(runtime_address);
-            
-            if(color_)
-                std::cout << Color::BRIGHT_GREEN;
-            std::cout << "Breakpoint set at function '" << function_name << "'" << std::endl;
-            std::cout << "  Function offset: " << format_hex64(function_offset) << std::endl;
-            if (is_pie) {
-                std::cout << "  Base address: " << format_hex64(base_address) << std::endl;
-                std::cout << "  File offset: " << format_hex64(file_offset) << std::endl;
-            }
-            std::cout << "  Runtime address: " << format_hex64(runtime_address) << std::dec << std::endl;
-            std::cout << "  PIE executable: " << (is_pie ? "Yes" : "No") << std::endl;
-            if(color_)
-                std::cout << Color::RESET;
-            
         } catch (const std::exception& e) {
-            std::cerr << "Error setting breakpoint: " << e.what() << std::endl;
+            std::cerr << "Error setting function breakpoint: " << e.what() << std::endl;
+            return false;
         }
-        
-        return true;
     }
-
     void Debugger::detach() {
         if (process) {
             try {
@@ -426,23 +437,6 @@ namespace mx {
                     } else {
                         process->continue_execution();
                         process->wait_for_stop();
-                    }
-                    if(process && process->is_running()) {    
-                        print_current_instruction();
-                        if(request) {
-                            try {
-                                if(color_)
-                                    std::cout << Color::CYAN;
-                                std::string response = request->generateTextWithCallback([](const std::string &chunk) {
-                                    std::cout << chunk << std::flush; 
-                                });
-                                if(color_)
-                                    std::cout << Color::RESET;
-                                std::cout << "\n";
-                            } catch (const mx::ObjectRequestException &e) {
-                                std::cerr << "Error: " << e.what() << std::endl;
-                            } 
-                        }
                     }
                 } catch (const std::exception& e) {
                     std::cerr << "Error during continue: " << e.what() << std::endl;
@@ -1168,8 +1162,26 @@ namespace mx {
             uint64_t rbp = process->get_register("rbp");
             uint64_t rip = process->get_register("rip");
             uint64_t rsp = process->get_register("rsp");
-            
             frames.push_back(rip);
+            if (rbp == 0 || rbp < rsp || rbp > 0x7fffffffffff) {
+                std::cout << "Warning: Invalid or uninitialized frame pointer (RBP=" 
+                        << format_hex64(rbp) << ")" << std::endl;
+                std::cout << "This usually means the function prologue hasn't executed yet." << std::endl;
+                try {
+                    std::vector<uint8_t> ret_data = process->read_memory(rsp, 8);
+                    uint64_t return_address = 0;
+                    std::memcpy(&return_address, ret_data.data(), 8);
+                    if (return_address >= 0x400000 && return_address <= 0x500000) {
+                        frames.push_back(return_address);
+                        std::cout << "Found potential return address on stack: " 
+                                << format_hex64(return_address) << std::endl;
+                    }
+                } catch (const std::exception& e) {
+                    std::cout << "Could not read return address from stack: " << e.what() << std::endl;
+                }
+                
+                return frames;
+            }
             
             uint64_t current_rbp = rbp;
             const size_t max_frames = 20;
@@ -1177,6 +1189,7 @@ namespace mx {
             for (size_t i = 0; i < max_frames && current_rbp != 0; ++i) {
                 try {
                     if (current_rbp < rsp || current_rbp > 0x7fffffffffff) {
+                        std::cout << "RBP validation failed: " << format_hex64(current_rbp) << std::endl;
                         break;
                     }
                     
@@ -1188,14 +1201,14 @@ namespace mx {
                     uint64_t return_address = 0;
                     std::memcpy(&return_address, ret_data.data(), 8);
                     
-                    if (return_address < 0x400000 || return_address > 0x7fffffffffff) {
-                        std::cerr << "Invalid return address: " << std::hex << return_address << std::dec << std::endl;
+                    if (return_address < 0x400000 || return_address > 0x500000) {
+                        std::cout << "Invalid return address: " << format_hex64(return_address) 
+                                << " (outside program space)" << std::endl;
                         break;
                     }
                     
-                    if (next_rbp != 0 && next_rbp <= current_rbp) {
-                        std::cerr << "Stack frame chain broken: next_rbp=" << std::hex << next_rbp 
-                                << " current_rbp=" << current_rbp << std::dec << std::endl;
+                    if (next_rbp != 0 && (next_rbp <= current_rbp || next_rbp > 0x7fffffffffff)) {
+                        std::cout << "Stack frame chain validation failed" << std::endl;
                         break;
                     }
                     
@@ -1203,7 +1216,7 @@ namespace mx {
                     current_rbp = next_rbp;
                     
                 } catch (const std::exception& e) {
-                    std::cerr << "Error reading stack frame " << i << ": " << e.what() << std::endl;
+                    std::cout << "Error reading stack frame " << i << ": " << e.what() << std::endl;
                     break;
                 }
             }
@@ -1288,6 +1301,23 @@ namespace mx {
             
         } catch (const std::exception& e) {
             return "<unknown>";
+        }
+    }
+
+    bool Debugger::is_at_function_entry() const {
+        try {
+            uint64_t rip = process->get_register("rip");
+            std::vector<uint8_t> code = process->read_memory(rip, 8);
+            if (code.size() >= 4 && 
+                code[0] == 0xf3 && code[1] == 0x0f && code[2] == 0x1e && code[3] == 0xfa) {
+                return true; 
+            }
+            if (code.size() >= 1 && code[0] == 0x55) {
+                return true; 
+            }
+            return false;
+        } catch (const std::exception& e) {
+            return false;
         }
     }
 }
