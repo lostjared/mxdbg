@@ -2,6 +2,9 @@ find_package(ollama_gen REQUIRED)
 add_executable(process_continue_test
     process_continue.cpp
 )
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
+set(CMAKE_C_FLAGS_DEBUG "-g -O0")
+
 target_link_libraries(process_continue_test PRIVATE
     libmxdbg
     ollama_gen

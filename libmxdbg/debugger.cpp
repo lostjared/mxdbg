@@ -391,6 +391,41 @@ namespace mx {
             std::string e = cmd.substr(cmd.find(' ') + 1);
             expression(e);
             return true;
+        } else if (tokens.size() >= 2 && tokens[0] == "read_bytes") {
+            if (process && process->is_running()) {
+                try {
+                    uint64_t addr = std::stoull(tokens[1], nullptr, 0);
+                    size_t size = 4; 
+                    if (tokens.size() >= 3) {
+                        size = std::stoull(tokens[2]);
+                    }
+                    
+                    auto data = process->read_memory(addr, size);
+                    
+                    std::cout << "Memory at " << format_hex64(addr) << " (" << size << " bytes): ";
+                    for (auto byte : data) {
+                        std::cout << std::hex << std::setfill('0') << std::setw(2) << (int)byte << " ";
+                    }
+                    
+                    if (size == 4 && data.size() >= 4) {
+                        uint32_t int_val = 0;
+                        std::memcpy(&int_val, data.data(), 4);
+                        std::cout << "| int32: " << std::dec << int_val;
+                    } else if (size == 8 && data.size() >= 8) {
+                        uint64_t int_val = 0;
+                        std::memcpy(&int_val, data.data(), 8);
+                        std::cout << "| int64: " << std::dec << int_val;
+                    }
+                    
+                    std::cout << std::endl;
+                    
+                } catch (const std::exception& e) {
+                    std::cerr << "Error reading memory: " << e.what() << std::endl;
+                }
+            } else {
+                std::cout << "No process running." << std::endl;
+            }
+            return true;
         } else if (tokens.size() >= 3 && tokens[0] == "local") {
             if (process && process->is_running()) {
                 try {
