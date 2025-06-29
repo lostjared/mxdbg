@@ -110,38 +110,33 @@ sudo make uninstall
 
 Once in the debugger shell (`mx $>`), you can use:
 
-#### Process Control
-- `continue`, `c`: Continue process execution
-- `step`, `s`: Execute single instruction
-- `step N`, `s N`: Execute N instructions
-- `quit`, `q`, `exit`: Exit debugger
+## Available Commands
 
-#### Register Operations
-- `registers`, `regs`: Show all registers
-- `register <name>`: Show specific register (64-bit)
-- `register32 <name>`: Show 32-bit register
-- `register16 <name>`: Show 16-bit register  
-- `register8 <name>`: Show 8-bit register
-- `set <reg> <value>`: Set register value
-
-#### Memory Operations
-- `read <address>`: Read 8 bytes from memory address
-- `write <address> <value>`: Write value to memory address
-
-#### Breakpoints
-- `break <address>`, `b <address>`: Set breakpoint
-- `breakpoints`: List all breakpoints
-- `function`: set a breakpoint at the given function
-
-#### Analysis
-- `list`: Disassemble the current program
-- `explain`: Get AI explanation of program behavior (requires Ollama)
-- `search <term>`: Search for term in disassembly
-- `base`: Show process base address
-- `status`, `st`: Show process status
-
-#### Help
-- `help`, `h`: Show available commands
+| Command | Aliases | Description |
+|---------|---------|-------------|
+| `continue` | `c` | Continue process execution |
+| `cur` | | Print current instruction |
+| `step` | `s` | Execute single instruction |
+| `step N` | `s N` | Execute N instructions |
+| `status` | `st` | Show process status |
+| `list` | `list_less` | Display disassembly |
+| `registers` | `regs` | Show all registers |
+| `register 8/16/32 <name>` | | Show specific register value |
+| `set <reg> <value>` | | Set register to value |
+| `break <addr>` | `b` | Set breakpoint at address |
+| `watch <addr> <size> [type]` | | Set watchpoint (type: read/write/access) |
+| `unwatch <addr>` | | Remove watchpoint at address |
+| `watchpoints` | | List watch points |
+| `read <addr>` | | Read memory at address |
+| `read_bytes <address> <size>` | | Read bytes at address |
+| `write <addr> <value>` | | Write value to memory at address |
+| `write_bytes <ad> <va>` | | Write bytes to address |
+| `local <reg> <ad> <size>` | | Local variable on stack |
+| `explain <function>` | | Explain function disassembly with AI |
+| `ask <question>` | | Ask the AI a question about the program |
+| `user mode` | | User difficulty level for use with AI |
+| `help` | `h` | Show this help message |
+| `quit` | `q`, `exit` | Exit debugger |
 
 ## AI Integration
 
