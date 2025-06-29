@@ -921,19 +921,18 @@ namespace mx {
             std::cerr << "No process attached or launched." << std::endl;
             return;
         }
-        
         std::cout << "Stepping " << count << " instructions..." << std::endl;
-        
         for (int i = 0; i < count; ++i) {
             try {
+                print_current_instruction();
                 process->single_step();
                 process->wait_for_single_step();
-                std::cout << "Step " << (i + 1) << " completed." << std::endl;
             } catch (const std::exception& e) {
                 std::cerr << "Error during step " << (i + 1) << ": " << e.what() << std::endl;
                 break;
             }
         }
+        std::cout << "Steps completed...\n";
     }
 
     void Debugger::print_current_instruction() {
