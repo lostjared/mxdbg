@@ -138,8 +138,6 @@ namespace mx {
                                     std::cout << "=== WATCHPOINT HIT ===" << std::endl;
                                     std::cout << "Address: " << format_hex64(wp.address) 
                                             << " (" << wp.size << " bytes, " << type_name << " access)" << std::endl;
-                                    std::cout << "Instruction at watchpoint address: " << wp.disassembly << std::endl;
-                                    std::cout << "Current PC after watchpoint: " << format_hex64(pc) << std::endl;
                                     watchpoint_hit = true;
                                 }
                                 ptrace(PTRACE_POKEUSER, m_pid, offsetof(user, u_debugreg[6]), 0);
@@ -171,7 +169,6 @@ namespace mx {
 
     std::string Process::disassemble_instruction(uint64_t address, const std::vector<uint8_t>& bytes) {
         try {
-            // Create temporary file for disassembly
             std::string random_name;
             std::random_device rd;
             std::mt19937 gen(rd());
@@ -961,25 +958,12 @@ namespace mx {
                     offsetof(user, u_debugreg[7]), dr7) == -1) {
                 throw Exception("Failed to set DR7 register");
             }
-        
-            std::vector<uint8_t> instruction_bytes;
-            std::string disassembly;
-            
-            try {
-                instruction_bytes = read_memory(address, 15);
-                disassembly = disassemble_instruction(address, instruction_bytes);
-            } catch (const std::exception& e) {
-                instruction_bytes.clear();
-                disassembly = "<could not read instruction: " + std::string(e.what()) + ">";
-            }
-
+    
             Watchpoint wp;
             wp.address = address;
             wp.size = size;
             wp.type = type;
             wp.description = "Watchpoint at " + format_hex64(address);
-            wp.instruction_bytes = instruction_bytes;
-            wp.disassembly = disassembly;
             watchpoints_.push_back(wp);
             return true;
             
