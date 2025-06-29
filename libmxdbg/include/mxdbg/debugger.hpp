@@ -39,6 +39,7 @@ namespace mx {
         
         uint64_t get_base_address() const;
         bool setfunction_breakpoint(const std::string &function_name);
+        uint64_t calculate_variable_address(const std::string &r, uint64_t value);
     private:
         void print_current_instruction(); 
         std::unique_ptr<Process> process;

@@ -14,6 +14,7 @@ namespace mx {
     std::string format_hex16(uint16_t value);
     std::string format_hex8(uint8_t value);
     std::string format_signal(uint32_t sig);
+    std::string format_hex_no_prefix(uint64_t value);
 
     class Exception: public std::runtime_error {
     public:

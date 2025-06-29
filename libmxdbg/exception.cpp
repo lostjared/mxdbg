@@ -30,6 +30,13 @@ namespace mx {
         return oss.str();
     }
 
+    std::string format_hex_no_prefix(uint64_t value) {
+        std::ostringstream stream;
+        stream << std::hex << std::uppercase << value;
+        return stream.str();
+    }
+
+
     std::string format_signal(uint32_t sig) {
         switch (sig) {
             case SIGHUP:  return "SIGHUP (Hangup)";

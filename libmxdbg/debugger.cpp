@@ -391,7 +391,23 @@ namespace mx {
             std::string e = cmd.substr(cmd.find(' ') + 1);
             expression(e);
             return true;
-        } 
+        } else if (tokens.size() >= 3 && tokens[0] == "local") {
+            if (process && process->is_running()) {
+                try {
+                    std::string var_name = tokens[1];
+                    std::string offset_val = tokens[2];
+                    uint64_t offset_v = std::stoull(offset_val);
+                    uint64_t address = calculate_variable_address(var_name, offset_v);
+                    std::cout << "variable address: " << format_hex64(address) << "\n";
+                    
+                } catch (const std::exception& e) {
+                    std::cerr << "Error setting variable watchpoint: " << e.what() << std::endl;
+                }
+            } else {
+                std::cout << "No process running." << std::endl;
+            }
+            return true;
+         }
         else if (tokens.size() >= 3 && tokens[0] == "watch") {
             if (process && process->is_running()) {
                 try {
@@ -1023,7 +1039,7 @@ namespace mx {
 
             if (process->has_breakpoint(rip)) {
                 uint8_t original_byte = process->get_original_instruction(rip);
-                instruction_bytes[0] = original_byte;  // Replace CC (int3) with original
+                instruction_bytes[0] = original_byte;  
                 if(color_)
                     std::cout << Color::YELLOW;
                 std::cout << "Current instruction at " << format_hex64(rip) << std::dec << " [BREAKPOINT]: ";
@@ -1147,7 +1163,7 @@ namespace mx {
         std::string maps_path = "/proc/" + std::to_string(process->get_pid()) + "/maps";
         maps.open(maps_path, std::ios::in);        
         if (!maps.is_open()) {
-            return address >= 0x400000 && address < 0x8000000000000000ULL; // Fallback
+            return address >= 0x400000 && address < 0x8000000000000000ULL; 
         }
         
         std::string line;
@@ -1429,6 +1445,28 @@ namespace mx {
         } catch (const std::exception& e) {
             return false;
         }
-    }
-}
+    }   
 
+    uint64_t Debugger::calculate_variable_address(const std::string &reg_name, uint64_t offset) {
+        try {
+            uint64_t reg_value = process->get_register(reg_name);
+            if (reg_name == "rbp") {
+                return reg_value - offset;
+            }
+            else if (reg_name == "rsp") {
+                return reg_value - offset;
+            }
+            else if (reg_name == "rip") {
+                return reg_value + offset;
+            }
+            else {
+                return reg_value + offset;
+            }        
+        } catch (const std::exception& e) {
+            std::cerr << "Error getting register '" << reg_name << "': " << e.what() << std::endl;
+            throw mx::Exception("Failed to calculate variable address for register: " + reg_name);
+        }
+        return 0;
+    }
+
+}
