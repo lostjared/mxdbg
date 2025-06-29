@@ -433,8 +433,24 @@ namespace mx {
                     std::string offset_val = tokens[2];
                     uint64_t offset_v = std::stoull(offset_val, nullptr, 0);
                     uint64_t address = calculate_variable_address(var_name, offset_v);
-                    std::cout << "variable address: " << format_hex64(address) << "\n";
-                    
+                    std::cout << "Variable address: " << format_hex64(address) << "\n";
+                    if(tokens.size()>=4) {
+                        uint64_t s = std::stoull(tokens[3], nullptr, 0);
+                        auto val = process->read_memory(address, s);
+                        for (auto byte : val) {
+                            std::cout << std::hex << std::setfill('0') << std::setw(2) << (int)byte << " ";
+                        }
+                        if (s == 4 && val.size() >= 4) {
+                            uint32_t int_val = 0;
+                            std::memcpy(&int_val, val.data(), 4);
+                            std::cout << "| int32: " << std::dec << int_val;
+                        } else if (s == 8 && val.size() >= 8) {
+                            uint64_t int_val = 0;
+                            std::memcpy(&int_val, val.data(), 8);
+                            std::cout << "| int64: " << std::dec << int_val;
+                        }
+                        std::cout << std::endl;
+                    }
                 } catch (const std::exception& e) {
                     std::cerr << "Error setting variable watchpoint: " << e.what() << std::endl;
                 }
@@ -846,27 +862,29 @@ namespace mx {
             if(color_)
                 std::cout << Color::YELLOW;
             std::cout << "Available commands:" << std::endl;
-            std::cout << "  continue, c             - Continue process execution" << std::endl;
-            std::cout << "  cur                     - Print current instruction" << std::endl;
-            std::cout << "  step, s                 - Execute single instruction" << std::endl;
-            std::cout << "  step N, s N             - Execute N instructions" << std::endl;
-            std::cout << "  status, st              - Show process status" << std::endl;
-            std::cout << "  list, list_less         - display disassembly " << std::endl;
-            std::cout << "  registers, regs         - Show all registers" << std::endl;
-            std::cout << "  register 8/16/32 <name> - Show specific register value" << std::endl;
-            std::cout << "  set <reg> <value>       - Set register to value" << std::endl;
-            std::cout << "  break <addr>, b         - Set breakpoint at address" << std::endl;
-            std::cout << "  watch <addr> <size> [type] - Set watchpoint (type: read/write/access)" << std::endl;
-            std::cout << "  unwatch <addr>          - Remove watchpoint at address" << std::endl;
-            std::cout << "  watchpoints             - list watch points" << std::endl;
-            std::cout << "  read <addr>             - Read memory at address" << std::endl;
-            std::cout << "  write <addr> <value>    - Write value to memory at address" << std::endl;
-            std::cout << "  write_bytes <ad> <va>   - Write bytes to address" << std::endl;
-            std::cout << "  explain <function>      - Explain function disassembly with AI" << std::endl;
-            std::cout << "  ask <question>          - Ask the AI a question about the prgoram" << std::endl;
-            std::cout << "  user mode               - User Difficulty level for use with AI" << std::endl;
-            std::cout << "  help, h                 - Show this help message" << std::endl;
-            std::cout << "  quit, q, exit            - Exit debugger" << std::endl;
+            std::cout << "  continue, c                 - Continue process execution" << std::endl;
+            std::cout << "  cur                         - Print current instruction" << std::endl;
+            std::cout << "  step, s                     - Execute single instruction" << std::endl;
+            std::cout << "  step N, s N                 - Execute N instructions" << std::endl;
+            std::cout << "  status, st                  - Show process status" << std::endl;
+            std::cout << "  list, list_less             - display disassembly " << std::endl;
+            std::cout << "  registers, regs             - Show all registers" << std::endl;
+            std::cout << "  register 8/16/32 <name>     - Show specific register value" << std::endl;
+            std::cout << "  set <reg> <value>           - Set register to value" << std::endl;
+            std::cout << "  break <addr>, b             - Set breakpoint at address" << std::endl;
+            std::cout << "  watch <addr> <size> [type]  - Set watchpoint (type: read/write/access)" << std::endl;
+            std::cout << "  unwatch <addr>              - Remove watchpoint at address" << std::endl;
+            std::cout << "  watchpoints                 - list watch points" << std::endl;
+            std::cout << "  read <addr>                 - Read memory at address" << std::endl;
+            std::cout << "  read_bytes <address> <size> - Read bytes at address" << std::endl;
+            std::cout << "  write <addr> <value>        - Write value to memory at address" << std::endl;
+            std::cout << "  write_bytes <ad> <va>       - Write bytes to address" << std::endl;
+            std::cout << "  local <reg> <ad> <size>     - Local variable on stack " << std::endl;
+            std::cout << "  explain <function>          - Explain function disassembly with AI" << std::endl;
+            std::cout << "  ask <question>              - Ask the AI a question about the prgoram" << std::endl;
+            std::cout << "  user mode                   - User Difficulty level for use with AI" << std::endl;
+            std::cout << "  help, h                     - Show this help message" << std::endl;
+            std::cout << "  quit, q, exit               - Exit debugger" << std::endl;
             if(color_)
                 std::cout << Color::RESET;
             return true;
