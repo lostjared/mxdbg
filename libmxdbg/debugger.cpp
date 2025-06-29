@@ -1062,6 +1062,37 @@ namespace mx {
         return 0;
     }
 
+    bool Debugger::is_valid_code_address(uint64_t address) const {
+        std::fstream maps;
+        std::string maps_path = "/proc/" + std::to_string(process->get_pid()) + "/maps";
+        maps.open(maps_path, std::ios::in);        
+        if (!maps.is_open()) {
+            return address >= 0x400000 && address < 0x8000000000000000ULL; // Fallback
+        }
+        
+        std::string line;
+        while (std::getline(maps, line)) {
+            if (line.find("r-xp") != std::string::npos || line.find("r-x") != std::string::npos) {
+                size_t dash_pos = line.find('-');
+                if (dash_pos != std::string::npos) {
+                    std::string start_str = line.substr(0, dash_pos);
+                    std::string end_str = line.substr(dash_pos + 1, line.find(' ') - dash_pos - 1);
+                    
+                    try {
+                        uint64_t start_addr = std::stoull(start_str, nullptr, 16);
+                        uint64_t end_addr = std::stoull(end_str, nullptr, 16);
+                        
+                        if (address >= start_addr && address < end_addr) {
+                            return true;
+                        }
+                    } catch (...) {
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
     void Debugger::print_address() const {     
         try {
             uint64_t base_address = get_base_address();
@@ -1200,10 +1231,9 @@ namespace mx {
                     std::vector<uint8_t> ret_data = process->read_memory(current_rbp + 8, 8);
                     uint64_t return_address = 0;
                     std::memcpy(&return_address, ret_data.data(), 8);
-                    
-                    if (return_address < 0x400000 || return_address > 0x500000) {
-                        std::cout << "Invalid return address: " << format_hex64(return_address) 
-                                << " (outside program space)" << std::endl;
+
+                    if (!is_valid_code_address(return_address)) {
+                        std::cout << "Return address not in executable memory: " << format_hex64(return_address) << std::endl;
                         break;
                     }
                     
