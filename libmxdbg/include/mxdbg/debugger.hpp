@@ -52,6 +52,9 @@ namespace mx {
         std::string user_mode = "programmer";
         std::ostringstream code;
         std::string functionText(const std::string &text);
+        void print_backtrace() const;
+        std::vector<uint64_t> get_stack_frames() const;
+        std::string resolve_symbol(uint64_t address) const;
     };
 
 } 

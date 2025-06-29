@@ -709,7 +709,15 @@ namespace mx {
                 std::cout << "Invalid mode. Available modes: beginner, programmer, expert." << std::endl;
             }
             return true;
-        }
+        } else if (cmd == "backtrace" || cmd == "bt" || cmd == "where") {
+        
+            if (process && process->is_running()) {
+                print_backtrace();
+            } else {
+                std::cout << "No process attached or running." << std::endl;
+            }
+            return true;
+        } 
         else if (cmd == "help" || cmd == "h") {
             if(color_)
                 std::cout << Color::YELLOW;
@@ -1111,4 +1119,177 @@ namespace mx {
         }
         return function_disassembly.str();
     }
- }
+
+    void Debugger::print_backtrace() const {
+        if (!process || !process->is_running()) {
+            std::cout << "No process attached or running." << std::endl;
+            return;
+        }
+
+        try {
+            uint64_t rip = process->get_register("rip");
+            uint64_t rbp = process->get_register("rbp");
+            uint64_t rsp = process->get_register("rsp");
+            
+            std::cout << "Debug: RIP=" << format_hex64(rip) << ", RBP=" << format_hex64(rbp) 
+                    << ", RSP=" << format_hex64(rsp) << std::endl;
+            
+            std::vector<uint64_t> frames = get_stack_frames();
+            
+            if(color_)
+                std::cout << Color::BRIGHT_YELLOW;
+            std::cout << "Backtrace:" << std::endl;
+            if(color_)
+                std::cout << Color::RESET;
+                
+            for (size_t i = 0; i < frames.size(); ++i) {
+                std::string symbol = resolve_symbol(frames[i]);
+                
+                if(color_)
+                    std::cout << Color::CYAN;
+                std::cout << "#" << i << "  ";
+                if(color_)
+                    std::cout << Color::WHITE;
+                std::cout << format_hex64(frames[i]) << std::dec;
+                if(color_)
+                    std::cout << Color::GREEN;
+                std::cout << " in " << symbol << std::endl;
+                if(color_)
+                    std::cout << Color::RESET;
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Error generating backtrace: " << e.what() << std::endl;
+        }
+    }
+
+    std::vector<uint64_t> Debugger::get_stack_frames() const {
+        std::vector<uint64_t> frames;
+        
+        try {
+            uint64_t rbp = process->get_register("rbp");
+            uint64_t rip = process->get_register("rip");
+            uint64_t rsp = process->get_register("rsp");
+            
+            frames.push_back(rip);
+            
+            uint64_t current_rbp = rbp;
+            const size_t max_frames = 20;
+            
+            for (size_t i = 0; i < max_frames && current_rbp != 0; ++i) {
+                try {
+                    if (current_rbp < rsp || current_rbp > 0x7fffffffffff) {
+                        break;
+                    }
+                    
+                    std::vector<uint8_t> rbp_data = process->read_memory(current_rbp, 8);
+                    uint64_t next_rbp = 0;
+                    std::memcpy(&next_rbp, rbp_data.data(), 8);
+                    
+                    std::vector<uint8_t> ret_data = process->read_memory(current_rbp + 8, 8);
+                    uint64_t return_address = 0;
+                    std::memcpy(&return_address, ret_data.data(), 8);
+                    
+                    if (return_address < 0x400000 || return_address > 0x7fffffffffff) {
+                        std::cerr << "Invalid return address: " << std::hex << return_address << std::dec << std::endl;
+                        break;
+                    }
+                    
+                    if (next_rbp != 0 && next_rbp <= current_rbp) {
+                        std::cerr << "Stack frame chain broken: next_rbp=" << std::hex << next_rbp 
+                                << " current_rbp=" << current_rbp << std::dec << std::endl;
+                        break;
+                    }
+                    
+                    frames.push_back(return_address);
+                    current_rbp = next_rbp;
+                    
+                } catch (const std::exception& e) {
+                    std::cerr << "Error reading stack frame " << i << ": " << e.what() << std::endl;
+                    break;
+                }
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Error walking stack: " << e.what() << std::endl;
+        }
+        
+        return frames;
+    }
+
+    std::string Debugger::resolve_symbol(uint64_t address) const {
+        try {
+            std::ostringstream addr2line_cmd;
+            addr2line_cmd << "addr2line -f -C -e " << program_name << " 0x" << std::hex << address << " 2>/dev/null";
+            
+            FILE* pipe = popen(addr2line_cmd.str().c_str(), "r");
+            if (pipe) {
+                char buffer[256];
+                std::string result;
+                if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+                    result = buffer;
+                    if (!result.empty() && result.back() == '\n') {
+                        result.pop_back();
+                    }
+                    fgets(buffer, sizeof(buffer), pipe);
+                }
+                pclose(pipe);
+                
+                if (!result.empty() && result != "??" && result.find("??") == std::string::npos) {
+                    return result;
+                }
+            }
+            
+            std::ostringstream nm_cmd;
+            nm_cmd << "nm -C " << program_name << " 2>/dev/null | grep -E '^[0-9a-fA-F]+ [tT]' | sort";
+            
+            pipe = popen(nm_cmd.str().c_str(), "r");
+            if (!pipe) {
+                return "<unknown>";
+            }
+            
+            std::vector<std::pair<uint64_t, std::string>> symbols;
+            char buffer[512];
+            while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+                std::string line(buffer);
+                if (line.empty()) continue;
+                
+                std::istringstream iss(line);
+
+                std::string addr_str, type, symbol_name;
+                if (iss >> addr_str >> type >> symbol_name) {
+                    try {
+                        uint64_t symbol_addr = std::stoull(addr_str, nullptr, 16);
+                        symbols.push_back({symbol_addr, symbol_name});
+                    } catch (...) {
+                        continue;
+                    }
+                }
+            }
+            pclose(pipe);
+            
+            std::string best_symbol = "<unknown>";
+            uint64_t best_addr = 0;
+            
+            for (const auto& sym : symbols) {
+                if (sym.first <= address && sym.first > best_addr) {
+                    best_addr = sym.first;
+
+                    best_symbol = sym.second;
+                }
+            }
+            
+            if (best_addr > 0 && best_symbol != "<unknown>") {
+                uint64_t offset = address - best_addr;
+                if (offset > 0) {
+                    return best_symbol + "+" + std::to_string(offset);
+                } else {
+                    return best_symbol;
+                }
+            }
+            return "<unknown>";
+            
+        } catch (const std::exception& e) {
+            return "<unknown>";
+        }
+    }
+}
+
