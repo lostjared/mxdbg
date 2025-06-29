@@ -391,6 +391,71 @@ namespace mx {
             std::string e = cmd.substr(cmd.find(' ') + 1);
             expression(e);
             return true;
+        } 
+        else if (tokens.size() >= 3 && tokens[0] == "watch") {
+            if (process && process->is_running()) {
+                try {
+                    uint64_t addr = std::stoull(tokens[1], nullptr, 0);
+                    size_t size = std::stoull(tokens[2]);
+                    
+                    WatchType type = WatchType::ACCESS; 
+                    if (tokens.size() >= 4) {
+                        std::string type_str = tokens[3];
+                        if (type_str == "read") {
+                            type = WatchType::READ;
+                        } else if (type_str == "write") {
+                            type = WatchType::WRITE;
+                        } else if (type_str == "access") {
+                            type = WatchType::ACCESS;
+                        } else {
+                            std::cout << "Invalid watchpoint type. Use: read, write, or access" << std::endl;
+                            return true;
+                        }
+                    }
+                    if (process->set_watchpoint(addr, size, type)) {
+                        std::string type_name = (type == WatchType::READ) ? "read" :
+                                              (type == WatchType::WRITE) ? "write" : "access";
+                        if(color_)
+                            std::cout << Color::BRIGHT_GREEN;
+                        std::cout << "Watchpoint set at " << format_hex64(addr) 
+                                 << " (" << size << " bytes, " << type_name << ")" << std::endl;
+                        if(color_)
+                            std::cout << Color::RESET;
+                    } else {
+                        std::cout << "Failed to set watchpoint (may already exist)" << std::endl;
+                    }
+                } catch (const std::exception& e) {
+                    std::cerr << "Error setting watchpoint: " << e.what() << std::endl;
+                }
+            } else {
+                std::cout << "No process running." << std::endl;
+            }
+            return true;
+        } else if (tokens.size() == 1 && (tokens[0] == "watchpoints" || tokens[0] == "wp")) {
+            if (process && process->is_running()) {
+                auto watchpoints = process->get_watchpoints();
+                if (watchpoints.empty()) {
+                    std::cout << "No watchpoints set." << std::endl;
+                } else {
+                    if(color_)
+                        std::cout << Color::BRIGHT_CYAN;
+                    std::cout << "Active watchpoints:" << std::endl;
+                    if(color_)
+                        std::cout << Color::RESET;
+                    
+                    for (size_t i = 0; i < watchpoints.size(); ++i) {
+                        const auto& wp = watchpoints[i];
+                        std::string type_name = (wp.type == WatchType::READ) ? "read" :
+                                              (wp.type == WatchType::WRITE) ? "write" : "access";
+                        
+                        std::cout << "  " << (i + 1) << ": " << format_hex64(wp.address) 
+                                 << " (" << wp.size << " bytes, " << type_name << ")" << std::endl;
+                    }
+                }
+            } else {
+                std::cout << "No process running." << std::endl;
+            }
+            return true;
         } else if(cmd == "run" || cmd == "r") {
             if(process  && process->is_running()) {
                 try {
@@ -410,6 +475,20 @@ namespace mx {
 
         } else if(cmd == "cur" || cmd == "current") {
             print_current_instruction();
+            if(request) {
+                try {
+                    if(color_)
+                        std::cout << Color::CYAN;
+                    std::string response = request->generateTextWithCallback([](const std::string &chunk) {
+                        std::cout << chunk << std::flush; 
+                    });
+                    if(color_)
+                        std::cout << Color::RESET;
+                    std::cout << "\n";
+                } catch (const mx::ObjectRequestException &e) {
+                    std::cerr << "Error: " << e.what() << std::endl;
+                } 
+            }
             return true;
         } 
         else if (cmd == "continue" || cmd == "c") {
@@ -726,6 +805,9 @@ namespace mx {
             std::cout << "  register 8/16/32 <name> - Show specific register value" << std::endl;
             std::cout << "  set <reg> <value>       - Set register to value" << std::endl;
             std::cout << "  break <addr>, b         - Set breakpoint at address" << std::endl;
+            std::cout << "  watch <addr> <size> [type] - Set watchpoint (type: read/write/access)" << std::endl;
+            std::cout << "  unwatch <addr>          - Remove watchpoint at address" << std::endl;
+            std::cout << "  watchpoints             - list watch points" << std::endl;
             std::cout << "  read <addr>             - Read memory at address" << std::endl;
             std::cout << "  write <addr> <value>    - Write value to memory at address" << std::endl;
             std::cout << "  write_bytes <ad> <va>   - Write bytes to address" << std::endl;
@@ -896,7 +978,6 @@ namespace mx {
             process->single_step();
             process->wait_for_single_step();
             std::cout << "Step completed." << std::endl;
-            
             if(request) {
                 try {
                     if(color_)

@@ -3,6 +3,7 @@
 #include"mxdbg/exception.hpp"
 #include<sys/ptrace.h>
 #include<sys/wait.h>
+#include<sys/user.h>
 #include<unistd.h>
 #include<stdexcept>
 #include<cstring>
@@ -103,7 +104,7 @@ namespace mx {
         return std::unique_ptr<Process>(new Process(pid));
     }
 
-    void Process::wait_for_stop() {
+   void Process::wait_for_stop() {
         int status;
         if (waitpid(m_pid, &status, 0) == -1) {
             throw mx::Exception::error("Failed to wait for process");
@@ -120,7 +121,38 @@ namespace mx {
             std::cout << "Process stopped by signal: " << format_signal(signal) << std::endl;
             
             if (signal == SIGTRAP) {
-                uint64_t pc = get_pc();           
+                uint64_t pc = get_pc();
+                try {
+                    unsigned long dr6;
+                    if ((dr6 = ptrace(PTRACE_PEEKUSER, m_pid, 
+                                    offsetof(user, u_debugreg[6]), nullptr)) != -1) {
+                        
+                        bool watchpoint_hit = false;
+                        for (int i = 0; i < 4; ++i) {
+                            if (dr6 & (1UL << i)) {
+                                if (i < static_cast<int>(watchpoints_.size())) {
+                                    const auto& wp = watchpoints_[i];
+                                    std::string type_name = (wp.type == WatchType::READ) ? "read" :
+                                                        (wp.type == WatchType::WRITE) ? "write" : "access";
+                                    
+                                    std::cout << "Watchpoint hit at " << format_hex64(wp.address) 
+                                            << " (" << wp.size << " bytes, " << type_name << ")" << std::endl;
+                                    watchpoint_hit = true;
+                                }
+                                
+                                ptrace(PTRACE_POKEUSER, m_pid, offsetof(user, u_debugreg[6]), 0);
+                                break;
+                            }
+                        }
+                        
+                        if (watchpoint_hit) {
+                            return;
+                        }
+                    }
+                } catch (const std::exception& e) {
+                    std::cerr << "Warning: Could not check watchpoints: " << e.what() << std::endl;
+                }
+                
                 if (breakpoints.find(pc) != breakpoints.end()) {
                     std::cout << "Breakpoint hit at " << format_hex64(pc) << std::dec << std::endl;
                     return;
@@ -129,7 +161,7 @@ namespace mx {
                     set_pc(pc - 1);
                     return;
                 } else {
-                    
+                    std::cout << "Debug trap at " << format_hex64(pc) << std::endl;
                 }
             }
         }
@@ -797,5 +829,141 @@ namespace mx {
                   << "  R15B: 0x" << std::hex << std::setw(2) << (regs.r15 & 0xFF) << std::dec << std::endl;
         
         std::cout << std::setw(8) << "EFLAGS:" << "0x" << std::hex << std::setfill('0') << std::setw(8) << regs.eflags << std::dec << std::endl;
+    }
+
+    bool Process::set_watchpoint(uint64_t address, size_t size, WatchType type) {
+        for (const auto& wp : watchpoints_) {
+            if (wp.address == address) {
+                return false; 
+            }
+        }
+        
+        try {
+            if (watchpoints_.size() >= 4) {
+                throw Exception("Maximum number of hardware watchpoints (4) exceeded");
+            }
+            
+            user_regs_struct regs;
+            if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
+                throw Exception("Failed to get registers for watchpoint");
+            }
+            
+            int dr_slot = watchpoints_.size(); 
+            unsigned long dr_addr = address;
+            
+            unsigned long dr_offset;
+            switch (dr_slot) {
+                case 0: dr_offset = offsetof(user, u_debugreg[0]); break;
+                case 1: dr_offset = offsetof(user, u_debugreg[1]); break;
+                case 2: dr_offset = offsetof(user, u_debugreg[2]); break;
+                case 3: dr_offset = offsetof(user, u_debugreg[3]); break;
+                default: throw Exception("Invalid debug register slot");
+            }
+            
+            if (ptrace(PTRACE_POKEUSER, m_pid, dr_offset, dr_addr) == -1) {
+                throw Exception("Failed to set debug address register");
+            }
+            
+            unsigned long dr7;
+            if ((dr7 = ptrace(PTRACE_PEEKUSER, m_pid, 
+                            offsetof(user, u_debugreg[7]), nullptr)) == -1) {
+                throw Exception("Failed to read DR7 register");
+            }
+            
+            unsigned long dr7_config = 0;
+            dr7_config |= (3UL << (dr_slot * 2)); 
+            unsigned long rw_bits = 0;
+            switch (type) {
+                case WatchType::WRITE: rw_bits = 1; break;  
+                case WatchType::READ:  rw_bits = 3; break;  
+                case WatchType::ACCESS: rw_bits = 3; break; 
+            }
+            dr7_config |= (rw_bits << (16 + dr_slot * 4));
+            unsigned long len_bits = 0;
+            switch (size) {
+                case 1: len_bits = 0; break; 
+                case 2: len_bits = 1; break; 
+                case 4: len_bits = 3; break; 
+                case 8: len_bits = 2; break; 
+                default: throw Exception("Invalid watchpoint size");
+            }
+            dr7_config |= (len_bits << (18 + dr_slot * 4));
+            
+            dr7 |= dr7_config;
+            
+            if (ptrace(PTRACE_POKEUSER, m_pid, 
+                    offsetof(user, u_debugreg[7]), dr7) == -1) {
+                throw Exception("Failed to set DR7 register");
+            }
+        
+            Watchpoint wp;
+            wp.address = address;
+            wp.size = size;
+            wp.type = type;
+            wp.description = "Watchpoint at " + format_hex64(address);
+            watchpoints_.push_back(wp);
+            
+            return true;
+            
+        } catch (const std::exception& e) {
+            throw Exception("Failed to set watchpoint: " + std::string(e.what()));
+        }
+    }
+
+    bool Process::remove_watchpoint(uint64_t address) {
+        auto it = std::find_if(watchpoints_.begin(), watchpoints_.end(),
+                            [address](const Watchpoint& wp) { 
+                                return wp.address == address; 
+                            });
+        
+        if (it == watchpoints_.end()) {
+            return false;
+        }
+        
+        try {
+            int slot = std::distance(watchpoints_.begin(), it);
+            unsigned long dr_offset;
+            switch (slot) {
+                case 0: dr_offset = offsetof(user, u_debugreg[0]); break;
+                case 1: dr_offset = offsetof(user, u_debugreg[1]); break;
+                case 2: dr_offset = offsetof(user, u_debugreg[2]); break;
+                case 3: dr_offset = offsetof(user, u_debugreg[3]); break;
+                default: throw Exception("Invalid debug register slot");
+            }
+            
+            if (ptrace(PTRACE_POKEUSER, m_pid, dr_offset, 0) == -1) {
+                throw Exception("Failed to clear debug address register");
+            }
+            
+            unsigned long dr7;
+            if ((dr7 = ptrace(PTRACE_PEEKUSER, m_pid, 
+                            offsetof(user, u_debugreg[7]), nullptr)) == -1) {
+                throw Exception("Failed to read DR7 register");
+            }
+            
+            dr7 &= ~(3UL << (slot * 2));
+            
+            if (ptrace(PTRACE_POKEUSER, m_pid, 
+                    offsetof(user, u_debugreg[7]), dr7) == -1) {
+                throw Exception("Failed to update DR7 register");
+            }
+            
+            watchpoints_.erase(it);
+            return true;
+            
+        } catch (const std::exception& e) {
+            throw Exception("Failed to remove watchpoint: " + std::string(e.what()));
+        }
+    }
+    std::vector<Watchpoint> Process::get_watchpoints() const {
+        return watchpoints_;
+    }
+
+    bool Process::has_watchpoint_at(uint64_t address) const {
+        return std::any_of(watchpoints_.begin(), watchpoints_.end(),
+                        [address](const Watchpoint& wp) { 
+                            return wp.address <= address && 
+                                    address < wp.address + wp.size; 
+                        });
     }
 }

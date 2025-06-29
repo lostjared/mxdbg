@@ -11,6 +11,20 @@
 #include<unistd.h>
 
 namespace mx {
+
+    enum class WatchType {
+        READ = 1,
+        WRITE = 2,
+        ACCESS = 3  
+    };
+
+    struct Watchpoint {
+        uint64_t address;
+        size_t size;
+        WatchType type;
+        std::string description;
+    };
+
     class Process {
     public:
         Process(const Process&) = delete;
@@ -56,6 +70,11 @@ namespace mx {
         size_t get_breakpoint_index_by_address(uint64_t address) const;
         uint8_t get_original_instruction(uint64_t address) const;
         void handle_breakpoint_continue(uint64_t address);
+
+        bool set_watchpoint(uint64_t address, size_t size, WatchType type);
+        bool remove_watchpoint(uint64_t address);
+        std::vector<Watchpoint> get_watchpoints() const;
+        bool has_watchpoint_at(uint64_t address) const;
     private:
         Process(pid_t pid) : m_pid(pid),  index_(0) {}    
         pid_t m_pid;
@@ -65,6 +84,7 @@ namespace mx {
         void handle_breakpoint_step(uint64_t address);
         void set_pc(uint64_t address);    
         size_t index_;    
+        std::vector<Watchpoint> watchpoints_;
     };  
 
 } 
