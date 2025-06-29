@@ -463,7 +463,7 @@ namespace mx {
             if (process && process->is_running()) {
                 try {
                     uint64_t addr = std::stoull(tokens[1], nullptr, 0);
-                    size_t size = std::stoull(tokens[2]);
+                    size_t size = std::stoull(tokens[2], nullptr, 0);
                     
                     WatchType type = WatchType::ACCESS; 
                     if (tokens.size() >= 4) {
@@ -921,7 +921,7 @@ namespace mx {
                     }
                 } else {
                     try {
-                        size_t index = std::stoull(input);
+                        size_t index = std::stoull(input, nullptr, 0);
                         address = process->get_breakpoint_address_by_index(index);
                         if (address != 0) {
                             removed = process->remove_breakpoint_by_index(index);
