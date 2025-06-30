@@ -435,6 +435,37 @@ namespace mx {
             std::string e = cmd.substr(cmd.find(' ') + 1);
             expression(e);
             return true;
+        } else if(tokens.size() >= 2 && tokens[0] == "setval") {
+            std::string name = tokens[1];
+            if (tokens.size() >= 3) {
+                std::string value = cmd.substr(cmd.find(tokens[1]) + tokens[1].length());
+                value.erase(0, value.find_first_not_of(" \t"));
+                try {
+                    uint64_t val = std::stoull(value, nullptr, 0);
+                    expr_parser::vars[name] = val;
+                    if(color_)
+                        std::cout << Color::BRIGHT_YELLOW;
+                    std::cout << "Set variable " << name << " = " << format_hex64(val) << " | " << std::dec << val << std::endl;
+                    if(color_)
+                        std::cout << Color::RESET;
+                        
+                } catch (const std::exception& e) {
+                    std::cerr << "Error: Invalid value format: " << value << std::endl;
+                }
+            } else {
+                std::cout << "Usage: setval <name> <value>" << std::endl;
+            }
+            return true;
+        } else if(cmd == "listval") {
+            for(auto &i : expr_parser::vars) {
+                if(color_)
+                    std::cout << Color::BRIGHT_YELLOW;
+                    std::cout << std::setw(15) << std::left;
+                std::cout <<  i.first << ": " << format_hex64(i.second) << " | " << std::dec << i.second << std::endl;
+                if(color_)
+                    std::cout << Color::RESET;
+            }
+            return true;
         } else if (tokens.size() == 2 && tokens[0] == "debug_thread") {
             if (process && process->is_running()) {
                 pid_t tid = std::stoi(tokens[1]);
