@@ -1046,36 +1046,75 @@ namespace mx {
             if(color_)
                 std::cout << Color::YELLOW;
             std::cout << "Available commands:" << std::endl;
-            std::cout << "  expr <e>                    - Evalulate expression " << std::endl;
-            std::cout << "  setval <name> <value>       - Set Variable to value " << std::endl;
-            std::cout << "  listval                     - List varaibles "         << std::endl;
-            std::cout << "  thread / thread <id>        - List Current/Switch thread context " << std::endl;
-            std::cout << "  threads                     - list all running threads " << std::endl;
+            std::cout << "=== Expression & Variables ===" << std::endl;
+            std::cout << "  expr <e>                    - Evaluate expression" << std::endl;
+            std::cout << "  setval <name> <value>       - Set variable to value" << std::endl;
+            std::cout << "  listval                     - List variables" << std::endl;
+
+            std::cout << "=== Process Control ===" << std::endl;
+            std::cout << "  run, r                      - Run program (sets main breakpoint)" << std::endl;
             std::cout << "  continue, c                 - Continue process execution" << std::endl;
-            std::cout << "  cur                         - Print current instruction" << std::endl;
             std::cout << "  step, s                     - Execute single instruction" << std::endl;
             std::cout << "  step N, s N                 - Execute N instructions" << std::endl;
             std::cout << "  status, st                  - Show process status" << std::endl;
-            std::cout << "  list, list_less             - display disassembly " << std::endl;
+            std::cout << "  start, restart              - Restart the program" << std::endl;
+
+            std::cout << "=== Threading ===" << std::endl;
+            std::cout << "  thread                      - Show current thread" << std::endl;
+            std::cout << "  thread <id>                 - Switch to thread context" << std::endl;
+            std::cout << "  threads                     - List all running threads" << std::endl;
+            std::cout << "  debug_thread <id>           - Debug specific thread" << std::endl;
+
+            std::cout << "=== Code Analysis ===" << std::endl;
+            std::cout << "  cur, current                - Print current instruction" << std::endl;
+            std::cout << "  list                        - Display full disassembly" << std::endl;
+            std::cout << "  list_less                   - Display disassembly with pager" << std::endl;
+            std::cout << "  list_function <name>        - Show specific function disassembly" << std::endl;
+            std::cout << "  base                        - Show base address and current PC" << std::endl;
+            std::cout << "  backtrace, bt, where        - Show call stack backtrace" << std::endl;
+
+            std::cout << "=== Registers ===" << std::endl;
             std::cout << "  registers, regs             - Show all registers" << std::endl;
-            std::cout << "  register 8/16/32 <name>     - Show specific register value" << std::endl;
+            std::cout << "  register <name>, reg <name> - Show specific register value" << std::endl;
+            std::cout << "  register32 <name>           - Show 32-bit register" << std::endl;
+            std::cout << "  register16 <name>           - Show 16-bit register" << std::endl;
+            std::cout << "  register8 <name>            - Show 8-bit register" << std::endl;
             std::cout << "  set <reg> <value>           - Set register to value" << std::endl;
-            std::cout << "  break <addr>, b             - Set breakpoint at address" << std::endl;
+
+            std::cout << "=== Breakpoints & Watchpoints ===" << std::endl;
+            std::cout << "  break <addr>, b <addr>      - Set breakpoint at address" << std::endl;
+            std::cout << "  function <name>             - Set breakpoint at function" << std::endl;
+            std::cout << "  list_break, lb              - List all breakpoints" << std::endl;
+            std::cout << "  remove <addr/index>, rmv    - Remove breakpoint" << std::endl;
             std::cout << "  watch <addr> <size> [type]  - Set watchpoint (type: read/write/access)" << std::endl;
-            std::cout << "  unwatch <addr>              - Remove watchpoint at address" << std::endl;
-            std::cout << "  watchpoints                 - list watch points" << std::endl;
-            std::cout << "  read <addr>                 - Read memory at address" << std::endl;
+            std::cout << "  watchpoints, wp             - List watchpoints" << std::endl;
+
+            std::cout << "=== Memory Operations ===" << std::endl;
+            std::cout << "  read <addr>                 - Read 8 bytes from memory address" << std::endl;
+            std::cout << "  read_bytes <addr> <size>    - Read specific number of bytes" << std::endl;
+            std::cout << "  write <addr> <value>        - Write value to memory address" << std::endl;
+            std::cout << "  write_bytes <addr> <bytes>  - Write byte sequence to memory" << std::endl;
+            std::cout << "  maps, memory_maps           - Show memory map" << std::endl;
+            std::cout << "  local <reg> <offset> <size> - Read local variable on stack" << std::endl;
+
+            std::cout << "=== Memory Search ===" << std::endl;
             std::cout << "  search int <value>          - Search for 32-bit integer in memory" << std::endl;
             std::cout << "  search int64 <value>        - Search for 64-bit integer in memory" << std::endl;
             std::cout << "  search string <text>        - Search for string in memory" << std::endl;
             std::cout << "  search bytes <hex bytes>    - Search for byte pattern" << std::endl;
-            std::cout << "  read_bytes <address> <size> - Read bytes at address" << std::endl;
-            std::cout << "  write <addr> <value>        - Write value to memory at address" << std::endl;
-            std::cout << "  write_bytes <ad> <va>       - Write bytes to address" << std::endl;
-            std::cout << "  local <reg> <ad> <size>     - Local variable on stack " << std::endl;
+            std::cout << "  search pattern <pattern>    - Search with wildcards (e.g., 41??43)" << std::endl;
+
+            std::cout << "=== Stack Analysis ===" << std::endl;
+            std::cout << "  stack_frame                 - Analyze current stack frame" << std::endl;
+
+            std::cout << "=== AI Features ===" << std::endl;
             std::cout << "  explain <function>          - Explain function disassembly with AI" << std::endl;
-            std::cout << "  ask <question>              - Ask the AI a question about the prgoram" << std::endl;
-            std::cout << "  user mode                   - User Difficulty level for use with AI" << std::endl;
+            std::cout << "  ask <question>              - Ask the AI a question about the program" << std::endl;
+            std::cout << "  mode <level>, user <level>  - Set AI difficulty (beginner/programmer/expert)" << std::endl;
+
+            std::cout << "=== Utility ===" << std::endl;
+            std::cout << "  find <text>                 - Find text in disassembly using grep" << std::endl;
+            std::cout << "  debug_state                 - Show detailed debug state" << std::endl;
             std::cout << "  help, h                     - Show this help message" << std::endl;
             std::cout << "  quit, q, exit               - Exit debugger" << std::endl;
             if(color_)

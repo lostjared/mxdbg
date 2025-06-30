@@ -112,34 +112,69 @@ Once in the debugger shell (`mx $>`), you can use:
 
 ## Available Commands
 
+## Available Commands
+
 | Command | Aliases | Description |
 |---------|---------|-------------|
-| `expr <e>` | ` ` | Evalaulate expression |
-| `setval <name> <value>` | ` ` | Set variable value |
-| `listval` | ` ` | List all variables |
-| `thread, thread <id>` | ` ` | thread list current / set thread context |
-| `threads` | ` ` | List all running threads in process |
+| **Expression & Variables** | | |
+| `expr <e>` | | Evaluate expression |
+| `setval <name> <value>` | | Set variable to value |
+| `listval` | | List variables |
+| **Process Control** | | |
+| `run` | `r` | Run program (sets main breakpoint) |
 | `continue` | `c` | Continue process execution |
-| `cur` | | Print current instruction |
 | `step` | `s` | Execute single instruction |
 | `step N` | `s N` | Execute N instructions |
 | `status` | `st` | Show process status |
-| `list` | `list_less` | Display disassembly |
+| `start` | `restart` | Restart the program |
+| **Threading** | | |
+| `thread` | | Show current thread |
+| `thread <id>` | | Switch to thread context |
+| `threads` | | List all running threads |
+| `debug_thread <id>` | | Debug specific thread |
+| **Code Analysis** | | |
+| `cur` | `current` | Print current instruction |
+| `list` | | Display full disassembly |
+| `list_less` | | Display disassembly with pager |
+| `list_function <name>` | | Show specific function disassembly |
+| `base` | | Show base address and current PC |
+| `backtrace` | `bt`, `where` | Show call stack backtrace |
+| **Registers** | | |
 | `registers` | `regs` | Show all registers |
-| `register 8/16/32 <name>` | | Show specific register value |
+| `register <name>` | `reg <name>` | Show specific register value |
+| `register32 <name>` | | Show 32-bit register |
+| `register16 <name>` | | Show 16-bit register |
+| `register8 <name>` | | Show 8-bit register |
 | `set <reg> <value>` | | Set register to value |
-| `break <addr>` | `b` | Set breakpoint at address |
+| **Breakpoints & Watchpoints** | | |
+| `break <addr>` | `b <addr>` | Set breakpoint at address |
+| `function <name>` | | Set breakpoint at function |
+| `list_break` | `lb` | List all breakpoints |
+| `remove <addr/index>` | `rmv` | Remove breakpoint |
 | `watch <addr> <size> [type]` | | Set watchpoint (type: read/write/access) |
-| `unwatch <addr>` | | Remove watchpoint at address |
-| `watchpoints` | | List watch points |
-| `read <addr>` | | Read memory at address |
-| `read_bytes <address> <size>` | | Read bytes at address |
-| `write <addr> <value>` | | Write value to memory at address |
-| `write_bytes <ad> <va>` | | Write bytes to address |
-| `local <reg> <ad> <size>` | | Local variable on stack |
+| `watchpoints` | `wp` | List watchpoints |
+| **Memory Operations** | | |
+| `read <addr>` | | Read 8 bytes from memory address |
+| `read_bytes <addr> <size>` | | Read specific number of bytes |
+| `write <addr> <value>` | | Write value to memory address |
+| `write_bytes <addr> <bytes>` | | Write byte sequence to memory |
+| `maps` | `memory_maps` | Show memory map |
+| `local <reg> <offset> <size>` | | Read local variable on stack |
+| **Memory Search** | | |
+| `search int <value>` | | Search for 32-bit integer in memory |
+| `search int64 <value>` | | Search for 64-bit integer in memory |
+| `search string <text>` | | Search for string in memory |
+| `search bytes <hex bytes>` | | Search for byte pattern |
+| `search pattern <pattern>` | | Search with wildcards (e.g., 41??43) |
+| **Stack Analysis** | | |
+| `stack_frame` | | Analyze current stack frame |
+| **AI Features** | | |
 | `explain <function>` | | Explain function disassembly with AI |
 | `ask <question>` | | Ask the AI a question about the program |
-| `user mode` | | User difficulty level for use with AI |
+| `mode <level>` | `user <level>` | Set AI difficulty (beginner/programmer/expert) |
+| **Utility** | | |
+| `find <text>` | | Find text in disassembly using grep |
+| `debug_state` | | Show detailed debug state |
 | `help` | `h` | Show this help message |
 | `quit` | `q`, `exit` | Exit debugger |
 

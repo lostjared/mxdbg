@@ -185,8 +185,30 @@ mxdbg -d /path/to/binary</code></pre>
 
                 <div class="commands-grid">
                     <div class="command-category">
+                        <h3>Expression & Variables</h3>
+                        <div class="command-list">
+                            <div class="command">
+                                <code>expr &lt;e&gt;</code>
+                                <span>Evaluate expression</span>
+                            </div>
+                            <div class="command">
+                                <code>setval &lt;name&gt; &lt;value&gt;</code>
+                                <span>Set variable to value</span>
+                            </div>
+                            <div class="command">
+                                <code>listval</code>
+                                <span>List variables</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="command-category">
                         <h3>Process Control</h3>
                         <div class="command-list">
+                            <div class="command">
+                                <code>run, r</code>
+                                <span>Run program (sets main breakpoint)</span>
+                            </div>
                             <div class="command">
                                 <code>continue, c</code>
                                 <span>Continue process execution</span>
@@ -200,30 +222,78 @@ mxdbg -d /path/to/binary</code></pre>
                                 <span>Execute N instructions</span>
                             </div>
                             <div class="command">
-                                <code>run, r</code>
-                                <span>Start or restart the program</span>
+                                <code>status, st</code>
+                                <span>Show process status</span>
                             </div>
                             <div class="command">
                                 <code>start, restart</code>
-                                <span>Restart the program from beginning</span>
-                            </div>
-                            <div class="command">
-                                <code>quit, q, exit</code>
-                                <span>Exit debugger</span>
+                                <span>Restart the program</span>
                             </div>
                         </div>
                     </div>
 
                     <div class="command-category">
-                        <h3>Register Operations</h3>
+                        <h3>Threading</h3>
+                        <div class="command-list">
+                            <div class="command">
+                                <code>thread</code>
+                                <span>Show current thread</span>
+                            </div>
+                            <div class="command">
+                                <code>thread &lt;id&gt;</code>
+                                <span>Switch to thread context</span>
+                            </div>
+                            <div class="command">
+                                <code>threads</code>
+                                <span>List all running threads</span>
+                            </div>
+                            <div class="command">
+                                <code>debug_thread &lt;id&gt;</code>
+                                <span>Debug specific thread</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="command-category">
+                        <h3>Code Analysis</h3>
+                        <div class="command-list">
+                            <div class="command">
+                                <code>cur, current</code>
+                                <span>Print current instruction</span>
+                            </div>
+                            <div class="command">
+                                <code>list</code>
+                                <span>Display full disassembly</span>
+                            </div>
+                            <div class="command">
+                                <code>list_less</code>
+                                <span>Display disassembly with pager</span>
+                            </div>
+                            <div class="command">
+                                <code>list_function &lt;name&gt;</code>
+                                <span>Show specific function disassembly</span>
+                            </div>
+                            <div class="command">
+                                <code>base</code>
+                                <span>Show base address and current PC</span>
+                            </div>
+                            <div class="command">
+                                <code>backtrace, bt, where</code>
+                                <span>Show call stack backtrace</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="command-category">
+                        <h3>Registers</h3>
                         <div class="command-list">
                             <div class="command">
                                 <code>registers, regs</code>
                                 <span>Show all registers</span>
                             </div>
                             <div class="command">
-                                <code>register &lt;name&gt;</code>
-                                <span>Show specific 64-bit register</span>
+                                <code>register &lt;name&gt;, reg &lt;name&gt;</code>
+                                <span>Show specific register value</span>
                             </div>
                             <div class="command">
                                 <code>register32 &lt;name&gt;</code>
@@ -239,34 +309,16 @@ mxdbg -d /path/to/binary</code></pre>
                             </div>
                             <div class="command">
                                 <code>set &lt;reg&gt; &lt;value&gt;</code>
-                                <span>Set register value</span>
+                                <span>Set register to value</span>
                             </div>
                         </div>
                     </div>
 
                     <div class="command-category">
-                        <h3>Memory Operations</h3>
+                        <h3>Breakpoints & Watchpoints</h3>
                         <div class="command-list">
                             <div class="command">
-                                <code>read &lt;address&gt;</code>
-                                <span>Read 8 bytes from memory address</span>
-                            </div>
-                            <div class="command">
-                                <code>write &lt;address&gt; &lt;value&gt;</code>
-                                <span>Write value to memory address</span>
-                            </div>
-                            <div class="command">
-                                <code>write_bytes &lt;address&gt; &lt;bytes&gt;</code>
-                                <span>Write byte sequence to memory</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="command-category">
-                        <h3>Breakpoints</h3>
-                        <div class="command-list">
-                            <div class="command">
-                                <code>break &lt;address&gt;, b &lt;address&gt;</code>
+                                <code>break &lt;addr&gt;, b &lt;addr&gt;</code>
                                 <span>Set breakpoint at address</span>
                             </div>
                             <div class="command">
@@ -278,68 +330,100 @@ mxdbg -d /path/to/binary</code></pre>
                                 <span>List all breakpoints</span>
                             </div>
                             <div class="command">
-                                <code>backtrace, bt</code>
-                                <span>Show backtrace</span>
+                                <code>remove &lt;addr/index&gt;, rmv</code>
+                                <span>Remove breakpoint</span>
                             </div>
                             <div class="command">
-                                <code>remove &lt;address&gt;, rmv &lt;address&gt;</code>
-                                <span>Remove breakpoint at address</span>
+                                <code>watch &lt;addr&gt; &lt;size&gt; [type]</code>
+                                <span>Set watchpoint (type: read/write/access)</span>
+                            </div>
+                            <div class="command">
+                                <code>watchpoints, wp</code>
+                                <span>List watchpoints</span>
                             </div>
                         </div>
                     </div>
 
                     <div class="command-category">
-                        <h3>Analysis</h3>
+                        <h3>Memory Operations</h3>
                         <div class="command-list">
                             <div class="command">
-                                <code>list</code>
-                                <span>Disassemble current program</span>
+                                <code>read &lt;addr&gt;</code>
+                                <span>Read 8 bytes from memory address</span>
                             </div>
                             <div class="command">
-                                <code>list_function &lt;name&gt;</code>
-                                <span>Disassemble specific function</span>
+                                <code>read_bytes &lt;addr&gt; &lt;size&gt;</code>
+                                <span>Read specific number of bytes</span>
                             </div>
                             <div class="command">
-                                <code>list_less</code>
-                                <span>Show condensed disassembly</span>
+                                <code>write &lt;addr&gt; &lt;value&gt;</code>
+                                <span>Write value to memory address</span>
                             </div>
                             <div class="command">
-                                <code>cur, current</code>
-                                <span>Show current instruction</span>
+                                <code>write_bytes &lt;addr&gt; &lt;bytes&gt;</code>
+                                <span>Write byte sequence to memory</span>
                             </div>
                             <div class="command">
-                                <code>base</code>
-                                <span>Show process base address</span>
+                                <code>maps, memory_maps</code>
+                                <span>Show memory map</span>
                             </div>
                             <div class="command">
-                                <code>status, st</code>
-                                <span>Show process status</span>
-                            </div>
-                            <div class="command">
-                                <code>search &lt;term&gt;, find &lt;term&gt;</code>
-                                <span>Search for term in disassembly</span>
+                                <code>local &lt;reg&gt; &lt;offset&gt; &lt;size&gt;</code>
+                                <span>Read local variable on stack</span>
                             </div>
                         </div>
                     </div>
 
                     <div class="command-category">
-                        <h3>AI Integration</h3>
+                        <h3>Memory Search</h3>
                         <div class="command-list">
                             <div class="command">
-                                <code>explain</code>
-                                <span>Get AI explanation of program behavior</span>
+                                <code>search int &lt;value&gt;</code>
+                                <span>Search for 32-bit integer in memory</span>
                             </div>
+                            <div class="command">
+                                <code>search int64 &lt;value&gt;</code>
+                                <span>Search for 64-bit integer in memory</span>
+                            </div>
+                            <div class="command">
+                                <code>search string &lt;text&gt;</code>
+                                <span>Search for string in memory</span>
+                            </div>
+                            <div class="command">
+                                <code>search bytes &lt;hex bytes&gt;</code>
+                                <span>Search for byte pattern</span>
+                            </div>
+                            <div class="command">
+                                <code>search pattern &lt;pattern&gt;</code>
+                                <span>Search with wildcards (e.g., 41??43)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="command-category">
+                        <h3>Stack Analysis</h3>
+                        <div class="command-list">
+                            <div class="command">
+                                <code>stack_frame</code>
+                                <span>Analyze current stack frame</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="command-category">
+                        <h3>AI Features</h3>
+                        <div class="command-list">
                             <div class="command">
                                 <code>explain &lt;function&gt;</code>
-                                <span>Get AI explanation of specific function</span>
+                                <span>Explain function disassembly with AI</span>
                             </div>
                             <div class="command">
                                 <code>ask &lt;question&gt;</code>
-                                <span>Ask AI a question about the code</span>
+                                <span>Ask the AI a question about the program</span>
                             </div>
                             <div class="command">
-                                <code>mode &lt;level&gt;</code>
-                                <span>Set user experience level (beginner/intermediate/expert)</span>
+                                <code>mode &lt;level&gt;, user &lt;level&gt;</code>
+                                <span>Set AI difficulty (beginner/programmer/expert)</span>
                             </div>
                         </div>
                     </div>
@@ -348,38 +432,20 @@ mxdbg -d /path/to/binary</code></pre>
                         <h3>Utility</h3>
                         <div class="command-list">
                             <div class="command">
+                                <code>find &lt;text&gt;</code>
+                                <span>Find text in disassembly using grep</span>
+                            </div>
+                            <div class="command">
+                                <code>debug_state</code>
+                                <span>Show detailed debug state</span>
+                            </div>
+                            <div class="command">
                                 <code>help, h</code>
-                                <span>Show available commands</span>
+                                <span>Show this help message</span>
                             </div>
                             <div class="command">
-                                <code>expr &lt;expression&gt;</code>
-                                <span>Evaluate expression</span>
-                            </div>
-                            <div class="command">
-                                <code>setval &lt;name&gt; &lt;value&gt;</code>
-                                <span>Set variable to value</span>
-                            </div>
-                            <div class="command">
-                                <code>listval</code>
-                                <span>List variables</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="command-category">
-                        <h3>Threading</h3>
-                        <div class="command-list">
-                            <div class="command">
-                                <code>thread</code>
-                                <span>Show current thread context</span>
-                            </div>
-                            <div class="command">
-                                <code>thread &lt;id&gt;</code>
-                                <span>Switch to thread context</span>
-                            </div>
-                            <div class="command">
-                                <code>threads</code>
-                                <span>List all running threads</span>
+                                <code>quit, q, exit</code>
+                                <span>Exit debugger</span>
                             </div>
                         </div>
                     </div>
