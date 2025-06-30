@@ -411,8 +411,12 @@ namespace mx {
                             std::vector<std::string> byte_tokens(tokens.begin() + 2, tokens.end());
                             search_memory_for_bytes(byte_tokens);
                         } else if (tokens[1] == "pattern") {
-                            std::string pattern = tokens[2];
-                            search_memory_for_pattern(pattern);
+                            if (tokens.size() >= 3) {
+                                std::string full_pattern = cmd.substr(cmd.find("pattern ") + 8);
+                                search_memory_for_pattern(full_pattern);
+                            } else {
+                                std::cerr << "Syntax Error: use search pattern [pattern]\n";
+                            }
                         } else {
                             std::cout << "Usage: search <type> <value>" << std::endl;
                             std::cout << "Types: int, int64, string, bytes, pattern" << std::endl;
@@ -1935,9 +1939,164 @@ namespace mx {
         return matches;
     }
 
-    void Debugger::search_memory_for_pattern(const std::string& pattern) {       
-        std::cout << "Pattern search with wildcards not fully implemented yet." << std::endl;
-        std::cout << "Use 'search bytes' with hex values for now." << std::endl;
-        std::cout << "Example: search bytes 41 ?? 43  (for A?C pattern)" << std::endl;
+
+    void Debugger::search_memory_for_pattern(const std::string& pattern) {
+        std::vector<std::pair<uint8_t, bool>> parsed_pattern; 
+        std::string clean_pattern;
+        for (char c : pattern) {
+            if (c != ' ' && c != '\t') {
+                clean_pattern += std::toupper(c);
+            }
+        }
+        
+        
+        if (!parse_pattern(clean_pattern, parsed_pattern)) {
+            std::cout << "Invalid pattern format. Use hex bytes with ?? for wildcards." << std::endl;
+            std::cout << "Examples:" << std::endl;
+            std::cout << "  41 ?? 43    (hex bytes with wildcard)" << std::endl;
+            std::cout << "  A?B         (short hex notation)" << std::endl;
+            std::cout << "  48 8B ??    (mix of hex and wildcards)" << std::endl;
+            return;
+        }
+        
+        if (parsed_pattern.empty()) {
+            std::cout << "Empty pattern." << std::endl;
+            return;
+        }
+        
+        auto regions = get_searchable_memory_regions();
+        
+        if (color_) std::cout << Color::BRIGHT_CYAN;
+        std::cout << "Searching for pattern: ";
+        for (const auto& p : parsed_pattern) {
+            if (p.second) {
+                std::cout << "?? ";
+            } else {
+                std::cout << std::hex << std::setfill('0') << std::setw(2) << (int)p.first << " ";
+            }
+        }
+        std::cout << std::dec << std::endl;
+        if (color_) std::cout << Color::RESET;
+        
+        int found_count = 0;
+        
+        for (const auto& region : regions) {
+            try {
+                size_t region_size = region.end - region.start;
+                if (region_size > 10 * 1024 * 1024) continue;
+                
+                auto memory = process->read_memory(region.start, region_size);
+                auto matches = find_pattern_in_memory(memory, parsed_pattern);
+                
+                for (size_t offset : matches) {
+                    uint64_t address = region.start + offset;
+                    
+                    std::string hex_context;
+                    size_t context_start = (offset > 8) ? offset - 8 : 0;
+                    size_t context_end = std::min(offset + parsed_pattern.size() + 8, memory.size());
+                    
+                    for (size_t i = context_start; i < context_end; ++i) {
+                        if (i == offset) hex_context += "[";
+                        hex_context += format_hex8(memory[i]);
+                        if (i == offset + parsed_pattern.size() - 1) hex_context += "]";
+                        hex_context += " ";
+                    }
+                    
+                    if (color_) std::cout << Color::BRIGHT_GREEN;
+                    std::cout << "Found at: " << format_hex64(address);
+                    if (color_) std::cout << Color::YELLOW;
+                    std::cout << " [" << region.permissions << "] ";
+                    if (color_) std::cout << Color::WHITE;
+                    std::cout << "Context: " << hex_context;
+                    if (color_) std::cout << Color::CYAN;
+                    std::cout << region.pathname << std::endl;
+                    if (color_) std::cout << Color::RESET;
+                    
+                    found_count++;
+                    if (found_count >= 20) {
+                        std::cout << "... (limiting output to first 20 matches)" << std::endl;
+                        return;
+                    }
+                }
+            } catch (const std::exception& e) {
+                continue; 
+            }
+        }
+        
+        if (found_count == 0) {
+            std::cout << "Pattern not found in readable memory." << std::endl;
+        } else {
+            std::cout << "Total matches found: " << found_count << std::endl;
+        }
+    }
+
+    bool Debugger::parse_pattern(const std::string& pattern, std::vector<std::pair<uint8_t, bool>>& parsed_pattern) {
+        parsed_pattern.clear();
+        if (pattern.find(' ') != std::string::npos) {
+            std::istringstream iss(pattern);
+            std::string token;
+            while (iss >> token) {
+                if (token == "??" || token == "?") {
+                    parsed_pattern.push_back({0, true}); 
+                } else {
+                    try {
+                        if (token.length() == 2) {
+                            uint8_t byte = static_cast<uint8_t>(std::stoull(token, nullptr, 16));
+                            parsed_pattern.push_back({byte, false});
+                        } else {
+                            return false; 
+                        }
+                    } catch (...) {
+                        return false;
+                    }
+                }
+            }
+            return !parsed_pattern.empty();
+        }
+
+        for (size_t i = 0; i < pattern.length(); ) {
+            if (i + 1 < pattern.length() && pattern[i] == '?' && pattern[i + 1] == '?') {
+                parsed_pattern.push_back({0, true}); 
+                i += 2;
+            } else if (pattern[i] == '?') {
+                parsed_pattern.push_back({0, true});
+                i += 1;
+            } else if (i + 1 < pattern.length() && std::isxdigit(pattern[i]) && std::isxdigit(pattern[i + 1])) {
+                try {
+                    std::string hex_str = pattern.substr(i, 2);
+                    uint8_t byte = static_cast<uint8_t>(std::stoull(hex_str, nullptr, 16));
+                    parsed_pattern.push_back({byte, false});
+                    i += 2;
+                } catch (...) {
+                    return false;
+                }
+            } else {
+                return false; 
+            }
+        }
+        return !parsed_pattern.empty();
+    }
+
+    std::vector<size_t> Debugger::find_pattern_in_memory(const std::vector<uint8_t>& memory,                                                         const std::vector<std::pair<uint8_t, bool>>& pattern) {
+        std::vector<size_t> matches;
+        if (pattern.empty() || memory.size() < pattern.size()) {
+            return matches;
+        }
+        
+        for (size_t i = 0; i <= memory.size() - pattern.size(); ++i) {
+            bool found = true;
+            for (size_t j = 0; j < pattern.size(); ++j) {
+                if (!pattern[j].second) { 
+                    if (memory[i + j] != pattern[j].first) {
+                        found = false;
+                        break;
+                    }
+                }
+            }
+            if (found) {
+                matches.push_back(i);
+            }
+        }
+       return matches;
     }
 }

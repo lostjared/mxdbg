@@ -78,6 +78,8 @@ namespace mx {
         std::vector<MemoryRegion> get_searchable_memory_regions();
         bool match_pattern(const std::vector<uint8_t>& data, const std::string& pattern, size_t offset);
         std::vector<size_t> find_in_memory(const std::vector<uint8_t>& haystack, const std::vector<uint8_t>& needle);
+        bool parse_pattern(const std::string& pattern, std::vector<std::pair<uint8_t, bool>>& parsed_pattern);
+        std::vector<size_t> find_pattern_in_memory(const std::vector<uint8_t>& memory, const std::vector<std::pair<uint8_t, bool>>& pattern);
     };
 
 } 
