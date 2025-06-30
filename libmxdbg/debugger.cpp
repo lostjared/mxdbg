@@ -391,6 +391,47 @@ namespace mx {
             std::string e = cmd.substr(cmd.find(' ') + 1);
             expression(e);
             return true;
+        }  else if (tokens.size() >= 2 && tokens[0] == "search") {
+            if (process && process->is_running()) {
+                try {
+                    if (tokens.size() >= 3) {
+                        if (tokens[1] == "int") {
+                            int32_t value = std::stoi(tokens[2]);
+                            search_memory_for_int32(value);
+                        } else if (tokens[1] == "int64") {
+                            int64_t value = std::stoll(tokens[2]);
+                            search_memory_for_int64(value);
+                        } else if (tokens[1] == "string") {
+                            if (tokens.size() >= 2) {
+                                std::string full_pattern = cmd.substr(cmd.find("string") + 6);
+                                full_pattern = full_pattern.substr(full_pattern.find_first_not_of(" \t"));
+                                search_memory_for_string(full_pattern);
+                            }
+                        } else if (tokens[1] == "bytes") {
+                            std::vector<std::string> byte_tokens(tokens.begin() + 2, tokens.end());
+                            search_memory_for_bytes(byte_tokens);
+                        } else if (tokens[1] == "pattern") {
+                            std::string pattern = tokens[2];
+                            search_memory_for_pattern(pattern);
+                        } else {
+                            std::cout << "Usage: search <type> <value>" << std::endl;
+                            std::cout << "Types: int, int64, string, bytes, pattern" << std::endl;
+                        }
+                    } else {
+                        std::cout << "Usage: search <type> <value>" << std::endl;
+                        std::cout << "Examples:" << std::endl;
+                        std::cout << "  search int 42" << std::endl;
+                        std::cout << "  search string hello" << std::endl;
+                        std::cout << "  search bytes 41 42 43" << std::endl;
+                        std::cout << "  search pattern 'A?B*'" << std::endl;
+                    }
+                } catch (const std::exception& e) {
+                    std::cerr << "Error during search: " << e.what() << std::endl;
+                }
+            } else {
+                std::cout << "No process running." << std::endl;
+            }
+            return true;
         } else if(tokens.size() == 1 && tokens[0] == "stack_frame") {
             if(process && process->is_running())  {
                 analyze_current_frame();
@@ -841,7 +882,7 @@ namespace mx {
             }
             return true;
         }
-        else if(tokens.size() == 2 && (tokens[0] == "search" || tokens[0] == "find")) {
+        else if(tokens.size() == 2 && (tokens[0] == "find")) {
             std::string value = cmd.substr(cmd.find(' ') + 1);
             std::ostringstream stream;
             stream << "objdump -d " << program_name << " | grep '" << value << "'";
@@ -890,6 +931,10 @@ namespace mx {
             std::cout << "  unwatch <addr>              - Remove watchpoint at address" << std::endl;
             std::cout << "  watchpoints                 - list watch points" << std::endl;
             std::cout << "  read <addr>                 - Read memory at address" << std::endl;
+            std::cout << "  search int <value>          - Search for 32-bit integer in memory" << std::endl;
+            std::cout << "  search int64 <value>        - Search for 64-bit integer in memory" << std::endl;
+            std::cout << "  search string <text>        - Search for string in memory" << std::endl;
+            std::cout << "  search bytes <hex bytes>    - Search for byte pattern" << std::endl;
             std::cout << "  read_bytes <address> <size> - Read bytes at address" << std::endl;
             std::cout << "  write <addr> <value>        - Write value to memory at address" << std::endl;
             std::cout << "  write_bytes <ad> <va>       - Write bytes to address" << std::endl;
@@ -1598,5 +1643,301 @@ namespace mx {
         } catch (const std::exception& e) {
             std::cerr << "Error analyzing frame: " << e.what() << std::endl;
         }
+    }
+
+    std::vector<MemoryRegion> Debugger::get_searchable_memory_regions() {
+        std::vector<MemoryRegion> regions;
+        
+        std::ifstream maps("/proc/" + std::to_string(process->get_pid()) + "/maps");
+        if (!maps.is_open()) {
+            throw mx::Exception("Could not open memory maps");
+        }
+        
+        std::string line;
+        while (std::getline(maps, line)) {
+            std::istringstream iss(line);
+            std::string addr_range, perms, offset, dev, inode, pathname;
+            
+            if (iss >> addr_range >> perms >> offset >> dev >> inode) {
+                std::getline(iss, pathname); 
+                if (perms[0] != 'r') continue;
+                size_t dash_pos = addr_range.find('-');
+                if (dash_pos != std::string::npos) {
+                    std::string start_str = addr_range.substr(0, dash_pos);
+                    std::string end_str = addr_range.substr(dash_pos + 1);
+                    
+                    try {
+                        uint64_t start = std::stoull(start_str, nullptr, 16);
+                        uint64_t end = std::stoull(end_str, nullptr, 16);
+                        
+                        if (end - start > 100 * 1024 * 1024) continue; 
+                        
+                        regions.push_back({start, end, perms, pathname});
+                    } catch (...) {
+                        continue;
+                    }
+                }
+            }
+        }
+        
+        return regions;
+    }
+
+    void Debugger::search_memory_for_int32(int32_t value) {
+        auto regions = get_searchable_memory_regions();
+        std::vector<uint8_t> search_bytes(4);
+        std::memcpy(search_bytes.data(), &value, 4);
+        
+        if (color_) std::cout << Color::BRIGHT_CYAN;
+        std::cout << "Searching for int32 value: " << value << " (0x" << std::hex << value << std::dec << ")" << std::endl;
+        if (color_) std::cout << Color::RESET;
+        
+        int found_count = 0;
+        
+        for (const auto& region : regions) {
+            try {
+                size_t region_size = region.end - region.start;
+                if (region_size > 10 * 1024 * 1024) continue; 
+                
+                auto memory = process->read_memory(region.start, region_size);
+                auto matches = find_in_memory(memory, search_bytes);
+                
+                for (size_t offset : matches) {
+                    uint64_t address = region.start + offset;
+                    
+                    if (color_) std::cout << Color::BRIGHT_GREEN;
+                    std::cout << "Found at: " << format_hex64(address);
+                    if (color_) std::cout << Color::YELLOW;
+                    std::cout << " [" << region.permissions << "] ";
+                    if (color_) std::cout << Color::CYAN;
+                    std::cout << region.pathname << std::endl;
+                    if (color_) std::cout << Color::RESET;
+                    
+                    found_count++;
+                    if (found_count >= 20) {
+                        std::cout << "... (limiting output to first 20 matches)" << std::endl;
+                        return;
+                    }
+                }
+            } catch (const std::exception& e) {
+                continue;
+            }
+        }
+        
+        if (found_count == 0) {
+            std::cout << "Value not found in readable memory." << std::endl;
+        } else {
+            std::cout << "Total matches found: " << found_count << std::endl;
+        }
+    }
+
+    void Debugger::search_memory_for_int64(int64_t value) {
+        auto regions = get_searchable_memory_regions();
+        std::vector<uint8_t> search_bytes(8);
+        std::memcpy(search_bytes.data(), &value, 8);
+        
+        if (color_) std::cout << Color::BRIGHT_CYAN;
+        std::cout << "Searching for int64 value: " << value << " (0x" << std::hex << value << std::dec << ")" << std::endl;
+        if (color_) std::cout << Color::RESET;
+        
+        int found_count = 0;
+        
+        for (const auto& region : regions) {
+            try {
+                size_t region_size = region.end - region.start;
+                if (region_size > 10 * 1024 * 1024) continue;
+                
+                auto memory = process->read_memory(region.start, region_size);
+                auto matches = find_in_memory(memory, search_bytes);
+                
+                for (size_t offset : matches) {
+                    uint64_t address = region.start + offset;
+                    
+                    if (color_) std::cout << Color::BRIGHT_GREEN;
+                    std::cout << "Found at: " << format_hex64(address);
+                    if (color_) std::cout << Color::YELLOW;
+                    std::cout << " [" << region.permissions << "] ";
+                    if (color_) std::cout << Color::CYAN;
+                    std::cout << region.pathname << std::endl;
+                    if (color_) std::cout << Color::RESET;
+                    
+                    found_count++;
+                    if (found_count >= 20) {
+                        std::cout << "... (limiting output to first 20 matches)" << std::endl;
+                        return;
+                    }
+                }
+            } catch (const std::exception& e) {
+                continue;
+            }
+        }
+        
+        if (found_count == 0) {
+            std::cout << "Value not found in readable memory." << std::endl;
+        } else {
+            std::cout << "Total matches found: " << found_count << std::endl;
+        }
+    }
+
+    void Debugger::search_memory_for_string(const std::string& pattern) {
+        auto regions = get_searchable_memory_regions();
+        std::vector<uint8_t> search_bytes(pattern.begin(), pattern.end());
+        
+        if (color_) std::cout << Color::BRIGHT_CYAN;
+        std::cout << "Searching for string: \"" << pattern << "\"" << std::endl;
+        if (color_) std::cout << Color::RESET;
+        
+        int found_count = 0;
+        
+        for (const auto& region : regions) {
+            try {
+                size_t region_size = region.end - region.start;
+                if (region_size > 10 * 1024 * 1024) continue;
+                
+                auto memory = process->read_memory(region.start, region_size);
+                auto matches = find_in_memory(memory, search_bytes);
+                
+                for (size_t offset : matches) {
+                    uint64_t address = region.start + offset;
+                    
+                    std::string context;
+                    try {
+                        size_t context_start = (offset > 20) ? offset - 20 : 0;
+                        size_t context_end = std::min(offset + pattern.length() + 20, memory.size());
+                        
+                        for (size_t i = context_start; i < context_end; ++i) {
+                            char c = static_cast<char>(memory[i]);
+                            if (std::isprint(c)) {
+                                context += c;
+                            } else {
+                                context += '.';
+                            }
+                        }
+                    } catch (...) {
+                        context = "(context unavailable)";
+                    }
+                    
+                    if (color_) std::cout << Color::BRIGHT_GREEN;
+                    std::cout << "Found at: " << format_hex64(address);
+                    if (color_) std::cout << Color::YELLOW;
+                    std::cout << " [" << region.permissions << "] ";
+                    if (color_) std::cout << Color::WHITE;
+                    std::cout << "Context: \"" << context << "\"";
+                    if (color_) std::cout << Color::CYAN;
+                    std::cout << " " << region.pathname << std::endl;
+                    if (color_) std::cout << Color::RESET;
+                    
+                    found_count++;
+                    if (found_count >= 10) {
+                        std::cout << "... (limiting output to first 10 matches)" << std::endl;
+                        return;
+                    }
+                }
+            } catch (const std::exception& e) {
+                continue;
+            }
+        }
+        
+        if (found_count == 0) {
+            std::cout << "String not found in readable memory." << std::endl;
+        } else {
+            std::cout << "Total matches found: " << found_count << std::endl;
+        }
+    }
+
+    void Debugger::search_memory_for_bytes(const std::vector<std::string>& byte_tokens) {
+        std::vector<uint8_t> search_bytes;
+        
+        for (const std::string& token : byte_tokens) {
+            try {
+                uint8_t byte = static_cast<uint8_t>(std::stoull(token, nullptr, 16));
+                search_bytes.push_back(byte);
+            } catch (...) {
+                std::cout << "Invalid hex byte: " << token << std::endl;
+                return;
+            }
+        }
+        
+        if (search_bytes.empty()) {
+            std::cout << "No valid bytes to search for." << std::endl;
+            return;
+        }
+        
+        auto regions = get_searchable_memory_regions();
+        
+        if (color_) std::cout << Color::BRIGHT_CYAN;
+        std::cout << "Searching for byte pattern: ";
+        for (uint8_t b : search_bytes) {
+            std::cout << std::hex << std::setfill('0') << std::setw(2) << (int)b << " ";
+        }
+        std::cout << std::dec << std::endl;
+        if (color_) std::cout << Color::RESET;
+        
+        int found_count = 0;
+        
+        for (const auto& region : regions) {
+            try {
+                size_t region_size = region.end - region.start;
+                if (region_size > 10 * 1024 * 1024) continue;
+                
+                auto memory = process->read_memory(region.start, region_size);
+                auto matches = find_in_memory(memory, search_bytes);
+                
+                for (size_t offset : matches) {
+                    uint64_t address = region.start + offset;
+                    
+                    if (color_) std::cout << Color::BRIGHT_GREEN;
+                    std::cout << "Found at: " << format_hex64(address);
+                    if (color_) std::cout << Color::YELLOW;
+                    std::cout << " [" << region.permissions << "] ";
+                    if (color_) std::cout << Color::CYAN;
+                    std::cout << region.pathname << std::endl;
+                    if (color_) std::cout << Color::RESET;
+                    
+                    found_count++;
+                    if (found_count >= 20) {
+                        std::cout << "... (limiting output to first 20 matches)" << std::endl;
+                        return;
+                    }
+                }
+            } catch (const std::exception& e) {
+                continue;
+            }
+        }
+        
+        if (found_count == 0) {
+            std::cout << "Byte pattern not found in readable memory." << std::endl;
+        } else {
+            std::cout << "Total matches found: " << found_count << std::endl;
+        }
+    }
+
+    std::vector<size_t> Debugger::find_in_memory(const std::vector<uint8_t>& haystack, const std::vector<uint8_t>& needle) {
+        std::vector<size_t> matches;
+        
+        if (needle.empty() || haystack.size() < needle.size()) {
+            return matches;
+        }
+        
+        for (size_t i = 0; i <= haystack.size() - needle.size(); ++i) {
+            bool found = true;
+            for (size_t j = 0; j < needle.size(); ++j) {
+                if (haystack[i + j] != needle[j]) {
+                    found = false;
+                    break;
+                }
+            }
+            if (found) {
+                matches.push_back(i);
+            }
+        }
+        
+        return matches;
+    }
+
+    void Debugger::search_memory_for_pattern(const std::string& pattern) {       
+        std::cout << "Pattern search with wildcards not fully implemented yet." << std::endl;
+        std::cout << "Use 'search bytes' with hex values for now." << std::endl;
+        std::cout << "Example: search bytes 41 ?? 43  (for A?C pattern)" << std::endl;
     }
 }

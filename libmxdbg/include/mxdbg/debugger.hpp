@@ -14,6 +14,16 @@ namespace mx {
     std::vector<std::string> split_command(const std::string &cmd);
     std::string join(size_t start, size_t stop, std::vector<std::string>  &tokens, const std::string &delimiter);
     
+    struct MemoryRegion {
+        uint64_t start;
+        uint64_t end;
+        std::string permissions;
+        std::string pathname;
+        bool is_readable() const { return permissions[0] == 'r'; }
+        bool is_writable() const { return permissions[1] == 'w'; }
+        bool is_executable() const { return permissions[2] == 'x'; }
+    };
+
     class Debugger {
     public:
         Debugger(bool ai = true);
@@ -59,7 +69,15 @@ namespace mx {
         bool is_at_function_entry() const;
         bool is_valid_code_address(uint64_t address) const;
         void analyze_current_frame() const;
-        void print_memory_maps() const;
+        void print_memory_maps() const;    
+        void search_memory_for_int32(int32_t value);
+        void search_memory_for_int64(int64_t value);
+        void search_memory_for_string(const std::string& pattern);
+        void search_memory_for_bytes(const std::vector<std::string>& byte_tokens);
+        void search_memory_for_pattern(const std::string& pattern);
+        std::vector<MemoryRegion> get_searchable_memory_regions();
+        bool match_pattern(const std::vector<uint8_t>& data, const std::string& pattern, size_t offset);
+        std::vector<size_t> find_in_memory(const std::vector<uint8_t>& haystack, const std::vector<uint8_t>& needle);
     };
 
 } 
