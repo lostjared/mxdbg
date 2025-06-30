@@ -391,7 +391,48 @@ namespace mx {
             std::string e = cmd.substr(cmd.find(' ') + 1);
             expression(e);
             return true;
-        }  else if (tokens.size() >= 2 && tokens[0] == "search") {
+        } else if (tokens.size() == 2 && tokens[0] == "debug_thread") {
+            if (process && process->is_running()) {
+                pid_t tid = std::stoi(tokens[1]);
+                std::cout << "Debugging thread " << tid << ":" << std::endl;
+                std::string task_path = "/proc/" + std::to_string(process->get_pid()) + "/task/" + std::to_string(tid);
+                std::cout << "Task path exists: " << (std::filesystem::exists(task_path) ? "YES" : "NO") << std::endl;
+                struct user_regs_struct regs;
+                if (ptrace(PTRACE_GETREGS, tid, nullptr, &regs) == 0) {
+                    std::cout << "Direct ptrace works: RIP = " << format_hex64(regs.rip) << std::endl;
+                } else {
+                    std::cout << "Direct ptrace failed: " << strerror(errno) << std::endl;
+                }
+                std::ifstream stat_file(task_path + "/stat");
+                std::string stat_line;
+                if (std::getline(stat_file, stat_line)) {
+                    std::cout << "Thread stat: " << stat_line << std::endl;
+                }
+        }
+        return true;
+        } else if (cmd == "threads" || cmd == "info threads") {
+            list_threads();
+            return true;
+        } else if (tokens.size() == 2 && tokens[0] == "thread") {
+            try {
+                switch_thread(std::stoi(tokens[1]));
+            } catch(const mx::Exception &e) {
+                std::cerr << "Error: " << e.what() << "\n";
+            }
+            return true;
+        } else if(cmd == "thread") {
+            if(color_)
+                std::cout << Color::BRIGHT_MAGENTA;
+            if(process && process->is_running()) {
+                std::cout << "Current Thread: " << process->get_current_thread() << "\n";
+            } else {
+                std::cout << "No process running..\n";
+            }
+            if(color_)
+                std::cout << Color::RESET;
+            return true;
+        }
+         else if (tokens.size() >= 2 && tokens[0] == "search") {
             if (process && process->is_running()) {
                 try {
                     if (tokens.size() >= 3) {
@@ -616,33 +657,42 @@ namespace mx {
                 } 
             }
             return true;
-        } 
+        } else if (cmd == "debug_state") {
+            if (process && process->is_running()) {
+                std::cout << "=== DEBUG STATE ===" << std::endl;
+                std::cout << "Main PID: " << process->get_pid() << std::endl;
+                std::cout << "Current Thread: " << process->get_current_thread() << std::endl;
+                try {
+                    uint64_t rip = process->get_register("rip");
+                    std::cout << "Current thread RIP: " << format_hex64(rip) << std::endl;
+                } catch (const std::exception& e) {
+                    std::cout << "Cannot read current thread registers: " << e.what() << std::endl;
+                }
+                std::string task_dir = "/proc/" + std::to_string(process->get_pid()) + "/task";
+                std::cout << "All threads:" << std::endl;
+                for (const auto& entry : std::filesystem::directory_iterator(task_dir)) {
+                    if (entry.is_directory()) {
+                        pid_t tid = std::stoi(entry.path().filename().string());
+                        struct user_regs_struct regs;
+                        bool accessible = (ptrace(PTRACE_GETREGS, tid, nullptr, &regs) == 0);
+                        std::cout << "  TID " << tid << ": " << (accessible ? "ACCESSIBLE" : "NOT ACCESSIBLE") << std::endl;
+                    }
+                }
+            } else {
+                std::cout << "No process running." << std::endl;
+            }
+            return true;
+        }
         else if (cmd == "continue" || cmd == "c") {
             if (process && process->is_running()) {
                 try {
                     uint64_t pc_before = process->get_pc(); 
                     if (process->has_breakpoint(pc_before)) {
-                        uint8_t original_byte = process->get_original_instruction(pc_before);
-                        long data = ptrace(PTRACE_PEEKDATA, process->get_pid(), pc_before, nullptr);
-                        long restored = (data & ~0xFF) | original_byte;
-                        ptrace(PTRACE_POKEDATA, process->get_pid(), pc_before, restored);
-                        
-                        
-                        process->single_step();
-                        process->wait_for_single_step();
-                        
-                        
-                        data = ptrace(PTRACE_PEEKDATA, process->get_pid(), pc_before, nullptr);
-                        long data_with_int3 = (data & ~0xFF) | 0xCC;
-                        ptrace(PTRACE_POKEDATA, process->get_pid(), pc_before, data_with_int3);
-                        
-                        
-                        process->continue_execution();
-                        process->wait_for_stop();
+                        process->handle_breakpoint_continue(pc_before);
                     } else {
                         process->continue_execution();
-                        process->wait_for_stop();
                     }
+                    process->wait_for_stop();
                 } catch (const std::exception& e) {
                     std::cerr << "Error during continue: " << e.what() << std::endl;
                 }
@@ -1916,30 +1966,6 @@ namespace mx {
         }
     }
 
-    std::vector<size_t> Debugger::find_in_memory(const std::vector<uint8_t>& haystack, const std::vector<uint8_t>& needle) {
-        std::vector<size_t> matches;
-        
-        if (needle.empty() || haystack.size() < needle.size()) {
-            return matches;
-        }
-        
-        for (size_t i = 0; i <= haystack.size() - needle.size(); ++i) {
-            bool found = true;
-            for (size_t j = 0; j < needle.size(); ++j) {
-                if (haystack[i + j] != needle[j]) {
-                    found = false;
-                    break;
-                }
-            }
-            if (found) {
-                matches.push_back(i);
-            }
-        }
-        
-        return matches;
-    }
-
-
     void Debugger::search_memory_for_pattern(const std::string& pattern) {
         std::vector<std::pair<uint8_t, bool>> parsed_pattern; 
         std::string clean_pattern;
@@ -2097,6 +2123,97 @@ namespace mx {
                 matches.push_back(i);
             }
         }
-       return matches;
+       return matches;  
+    }
+
+    void Debugger::list_threads() {
+        if (!process || !process->is_running()) {
+            std::cout << "No process running." << std::endl;
+            return;
+        }
+        
+        std::string task_dir = "/proc/" + std::to_string(process->get_pid()) + "/task";
+        
+        if (color_) std::cout << Color::BRIGHT_CYAN;
+        std::cout << "Threads for PID " << process->get_pid() << ":" << std::endl;
+        std::cout << "  TID    State   RIP              Name" << std::endl;
+        std::cout << "================================================" << std::endl;
+        if (color_) std::cout << Color::RESET;
+        
+        try {
+            for (const auto& entry : std::filesystem::directory_iterator(task_dir)) {
+                if (entry.is_directory()) {
+                    std::string tid_str = entry.path().filename().string();
+                    pid_t tid = std::stoi(tid_str);
+                    
+                    
+                    std::ifstream stat_file(entry.path() / "stat");
+                    std::string stat_line;
+                    if (std::getline(stat_file, stat_line)) {
+                        std::istringstream iss(stat_line);
+                        std::string dummy, state;
+                        iss >> dummy >> dummy >> state; 
+                        
+                        uint64_t rip = 0;
+                        try {
+                            struct user_regs_struct regs;
+                            if (ptrace(PTRACE_GETREGS, tid, nullptr, &regs) == 0) {
+                                rip = regs.rip;
+                            }
+                        } catch (...) {}
+                        
+                        std::string name = "thread-" + tid_str;
+                        std::ifstream comm_file(entry.path() / "comm");
+                        std::getline(comm_file, name);
+                        
+                        if (color_) std::cout << Color::WHITE;
+                        std::cout << std::setw(6) << tid << "  " 
+                                << std::setw(6) << state << "  "
+                                << format_hex64(rip) << "  " << name << std::endl;
+                        if (color_) std::cout << Color::RESET;
+                    }
+                }
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Error listing threads: " << e.what() << std::endl;
+        }
+    }
+
+    void Debugger::switch_thread(pid_t tid) {
+        if (!process || !process->is_running()) {
+            std::cout << "No process running." << std::endl;
+            return;
+        }
+        std::string task_path = "/proc/" + std::to_string(process->get_pid()) + "/task/" + std::to_string(tid);
+        if (!std::filesystem::exists(task_path)) {
+            std::cout << "Thread " << tid << " does not exist." << std::endl;
+            return;
+        }
+        try {
+            process->switch_to_thread(tid);  
+            std::cout << "Switched to thread " << tid << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "Error switching to thread " << tid << ": " << e.what() << std::endl;
+        }
+    }
+
+    std::vector<size_t> Debugger::find_in_memory(const std::vector<uint8_t>& haystack, const std::vector<uint8_t>& needle) {
+        std::vector<size_t> matches;        
+        if (needle.empty() || haystack.size() < needle.size()) {
+            return matches;
+        }
+        for (size_t i = 0; i <= haystack.size() - needle.size(); ++i) {
+            bool found = true;
+            for (size_t j = 0; j < needle.size(); ++j) {
+                if (haystack[i + j] != needle[j]) {
+                    found = false;
+                    break;
+                }
+            }
+            if (found) {
+                matches.push_back(i);
+            }
+        }
+        return matches;
     }
 }

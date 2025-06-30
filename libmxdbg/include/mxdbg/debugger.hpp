@@ -24,6 +24,13 @@ namespace mx {
         bool is_executable() const { return permissions[2] == 'x'; }
     };
 
+    struct ThreadInfo {
+        pid_t tid;
+        std::string state;
+        uint64_t rip;
+        std::string name;
+    };
+
     class Debugger {
     public:
         Debugger(bool ai = true);
@@ -62,6 +69,8 @@ namespace mx {
         std::string obj_dump();
         std::string user_mode = "programmer";
         std::ostringstream code;
+
+
         std::string functionText(const std::string &text);
         void print_backtrace() const;
         std::vector<uint64_t> get_stack_frames() const;
@@ -80,6 +89,9 @@ namespace mx {
         std::vector<size_t> find_in_memory(const std::vector<uint8_t>& haystack, const std::vector<uint8_t>& needle);
         bool parse_pattern(const std::string& pattern, std::vector<std::pair<uint8_t, bool>>& parsed_pattern);
         std::vector<size_t> find_pattern_in_memory(const std::vector<uint8_t>& memory, const std::vector<std::pair<uint8_t, bool>>& pattern);
+        void list_threads();
+        void switch_thread(pid_t id);
+
     };
 
 } 

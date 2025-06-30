@@ -2,7 +2,10 @@
 #include"mxdbg/pipe.hpp"
 #include"mxdbg/exception.hpp"
 #include<sys/ptrace.h>
-#include<sys/wait.h>
+#include <sys/wait.h>
+#ifndef __WALL
+#define __WALL 0x40000000
+#endif
 #include<sys/user.h>
 #include<unistd.h>
 #include<stdexcept>
@@ -18,14 +21,21 @@
 
 namespace mx {
     
-    Process::Process(Process&& proc) : m_pid(proc.m_pid) {
-        proc.m_pid = -1; 
+    
+    Process::Process(Process&& proc) : m_pid(proc.m_pid), current_thread_id(proc.current_thread_id), index_(proc.index_) {
+        proc.m_pid = -1;
+        proc.current_thread_id = -1;
+        proc.index_ = 0;
     }
    
     Process &Process::operator=(Process&& other) {
         if (this != &other) {
             m_pid = other.m_pid;
+            current_thread_id = other.current_thread_id;
+            index_ = other.index_;
             other.m_pid = -1; 
+            other.current_thread_id = -1;
+            other.index_ = 0;
         }
         return *this;
     }
@@ -81,6 +91,10 @@ namespace mx {
             if (!WIFSTOPPED(status)) {
                 throw mx::Exception("Child process did not stop as expected");
             }
+            if (ptrace(PTRACE_SETOPTIONS, pid, nullptr, 
+                      PTRACE_O_TRACECLONE | PTRACE_O_TRACEEXEC | PTRACE_O_TRACEFORK) == -1) {
+                std::cerr << "Warning: Could not enable thread tracing" << std::endl;
+            }
             return std::unique_ptr<Process>(new Process(pid));
         } else {
             throw mx::Exception::error("Failed to fork");
@@ -101,72 +115,150 @@ namespace mx {
         if (result == -1) {
             ptrace(PTRACE_DETACH, pid, nullptr, nullptr);
             throw mx::Exception::error("Failed to wait for attached process");
-        }        
+        }      
+         if (ptrace(PTRACE_SETOPTIONS, pid, nullptr, PTRACE_O_TRACECLONE) == -1) {
+            std::cerr << "Warning: Could not enable thread tracing" << std::endl;
+        }  
         return std::unique_ptr<Process>(new Process(pid));
     }
 
-   void Process::wait_for_stop() {
+    void Process::wait_for_stop() {
         int status;
-        if (waitpid(m_pid, &status, 0) == -1) {
+        pid_t waited_pid;
+        if ((waited_pid = waitpid(-1, &status, __WALL)) == -1) {
             throw mx::Exception::error("Failed to wait for process");
         }
         
         if (WIFEXITED(status)) {
-            std::cout << "Process exited with code: " << WEXITSTATUS(status) << std::endl;
+            std::cout << "Process/Thread " << waited_pid << " exited with code: " << WEXITSTATUS(status) << std::endl;
+          
+            if (waited_pid == m_pid) {
+                return;
+            }
+          
+            wait_for_stop();
             return;
-        } else if (WIFSIGNALED(status)) {
-            std::cout << "Process killed by signal: " << format_signal(WTERMSIG(status)) << std::endl;
+        } 
+        else if (WIFSIGNALED(status)) {
+            std::cout << "Process/Thread " << waited_pid << " killed by signal: " << format_signal(WTERMSIG(status)) << std::endl;
+            if (waited_pid == m_pid) {
+                return;
+            }
+            wait_for_stop();
             return;
-        } else if (WIFSTOPPED(status)) {
+        } 
+        else if (WIFSTOPPED(status)) {
             int signal = WSTOPSIG(status);
-            std::cout << "Process stopped by signal: " << format_signal(signal) << std::endl;
-            
             if (signal == SIGTRAP) {
-                uint64_t pc = get_pc();
-                try {
-                    unsigned long dr6;
-                    if ((dr6 = ptrace(PTRACE_PEEKUSER, m_pid, 
-                                    offsetof(user, u_debugreg[6]), nullptr)) != -1) {
-                        
-                        bool watchpoint_hit = false;
-                        for (int i = 0; i < 4; ++i) {
-                            if (dr6 & (1UL << i)) {
-                                if (i < static_cast<int>(watchpoints_.size())) {
-                                    const auto& wp = watchpoints_[i];
-                                    std::string type_name = (wp.type == WatchType::READ) ? "read" :
-                                                        (wp.type == WatchType::WRITE) ? "write" : "access";
-                                    std::cout << "=== WATCHPOINT HIT ===" << std::endl;
-                                    std::cout << "Address: " << format_hex64(wp.address) 
-                                            << " (" << wp.size << " bytes, " << type_name << " access)" << std::endl;
-                                    watchpoint_hit = true;
-                                }
-                                ptrace(PTRACE_POKEUSER, m_pid, offsetof(user, u_debugreg[6]), 0);
-                                break;
-                            }
-                        }
-                        
-                        if (watchpoint_hit) {
-                            return;
-                        }
-                    }
-                } catch (const std::exception& e) {
-                    std::cerr << "Warning: Could not check watchpoints: " << e.what() << std::endl;
-                }
+                int ptrace_event = (status >> 16) & 0xffff;
                 
-                if (breakpoints.find(pc) != breakpoints.end()) {
-                    std::cout << "Breakpoint hit at " << format_hex64(pc) << std::dec << std::endl;
+                if (ptrace_event == PTRACE_EVENT_CLONE) {
+                    unsigned long new_thread_id;
+                    if (ptrace(PTRACE_GETEVENTMSG, waited_pid, nullptr, &new_thread_id) == 0) {
+                        std::cout << "New thread created: " << new_thread_id << " (parent: " << waited_pid << ")" << std::endl;
+                    } else {
+                        std::cout << "New thread created (couldn't get TID)" << std::endl;
+                    }
+                    
+                    if (ptrace(PTRACE_CONT, waited_pid, nullptr, nullptr) == -1) {
+                        throw mx::Exception::error("Failed to continue parent thread after clone");
+                    }
+                    
+                    wait_for_stop();
                     return;
-                } else if (breakpoints.find(pc - 1) != breakpoints.end()) {
-                    std::cout << "Breakpoint hit at " << format_hex64(pc - 1) << std::dec << std::endl;
-                    set_pc(pc - 1);
+                }
+                else if (ptrace_event == PTRACE_EVENT_EXEC) {
+                    std::cout << "Process " << waited_pid << " executed new program" << std::endl;
+                    if (ptrace(PTRACE_CONT, waited_pid, nullptr, nullptr) == -1) {
+                        throw mx::Exception::error("Failed to continue after exec");
+                    }
+                    wait_for_stop();
                     return;
-                } else {
-                    std::cout << "Debug trap at " << format_hex64(pc) << std::endl;
+                }
+                else if (ptrace_event == PTRACE_EVENT_FORK) {
+                    unsigned long new_pid;
+                    if (ptrace(PTRACE_GETEVENTMSG, waited_pid, nullptr, &new_pid) == 0) {
+                        std::cout << "New process forked: " << new_pid << " (parent: " << waited_pid << ")" << std::endl;
+                    }
+                    if (ptrace(PTRACE_CONT, waited_pid, nullptr, nullptr) == -1) {
+                        throw mx::Exception::error("Failed to continue after fork");
+                    }
+                    wait_for_stop();
+                    return;
                 }
             }
+            if (waited_pid != current_thread_id) {
+                struct user_regs_struct test_regs;
+                if (ptrace(PTRACE_GETREGS, waited_pid, nullptr, &test_regs) == 0) {
+                    std::cout << "Thread " << waited_pid << " stopped, switching context" << std::endl;
+                    current_thread_id = waited_pid;
+                } else {
+                    std::cout << "Thread " << waited_pid << " event, but can't access registers - continuing" << std::endl;
+                    if (ptrace(PTRACE_CONT, waited_pid, nullptr, nullptr) == -1) {
+                        throw mx::Exception::error("Failed to continue inaccessible thread");
+                    }
+                    wait_for_stop();
+                    return;
+                }
+            }
+            
+            std::cout << "Process/Thread " << waited_pid << " stopped by signal: " << format_signal(signal) << std::endl;
+        
+            if (signal == SIGTRAP) {
+                uint64_t pc = get_pc();
+                
+                if (breakpoints.find(pc) != breakpoints.end()) {
+                    std::cout << "=== BREAKPOINT HIT ===" << std::endl;
+                    std::cout << "Thread: " << current_thread_id << std::endl;
+                    std::cout << "Address: " << format_hex64(pc) << std::endl;
+                    return; 
+                } 
+                
+                else if (breakpoints.find(pc - 1) != breakpoints.end()) {
+                    std::cout << "=== BREAKPOINT HIT ===" << std::endl;
+                    std::cout << "Thread: " << current_thread_id << std::endl;
+                    std::cout << "Address: " << format_hex64(pc - 1) << std::endl;
+                    set_pc(pc - 1);
+                    return; 
+                }
+                unsigned long dr6 = 0;
+                if ((dr6 = ptrace(PTRACE_PEEKUSER, current_thread_id, 
+                                offsetof(user, u_debugreg[6]), nullptr)) != -1) {
+                    if (dr6 & 0xF) { 
+                        std::cout << "=== WATCHPOINT HIT ===" << std::endl;
+                        std::cout << "Thread: " << current_thread_id << std::endl;
+                        std::cout << "DR6: " << format_hex64(dr6) << std::endl;
+                        ptrace(PTRACE_POKEUSER, current_thread_id, 
+                            offsetof(user, u_debugreg[6]), 0);
+                        
+                        return; 
+                    }
+                }
+                std::cout << "SIGTRAP received (not breakpoint/watchpoint)" << std::endl;
+                return; 
+            }
+            
+            else if (signal == SIGINT || signal == SIGTERM || signal == SIGSEGV || 
+                    signal == SIGFPE || signal == SIGILL || signal == SIGABRT) {
+                std::cout << "=== PROGRAM STOPPED BY SIGNAL ===" << std::endl;
+                std::cout << "Thread: " << current_thread_id << std::endl;
+                std::cout << "Signal: " << format_signal(signal) << std::endl;
+                return; 
+            }
+            else {
+                std::cout << "Thread " << waited_pid << " received signal " << format_signal(signal) << ", continuing" << std::endl;
+                if (ptrace(PTRACE_CONT, waited_pid, nullptr, nullptr) == -1) {
+                    throw mx::Exception::error("Failed to continue after signal");
+                }
+                wait_for_stop(); 
+                return;
+            }
+        }
+        else {
+            std::cout << "Unexpected wait status: " << status << std::endl;
+            return;
         }
     }
-
     std::string Process::disassemble_instruction(uint64_t address, const std::vector<uint8_t>& bytes) {
         try {
             std::string random_name;
@@ -242,7 +334,7 @@ namespace mx {
         if (has_breakpoint(pc)) {
             handle_breakpoint_step(pc);
         } else {
-            if (ptrace(PTRACE_SINGLESTEP, m_pid, nullptr, nullptr) == -1) {
+            if (ptrace(PTRACE_SINGLESTEP, current_thread_id, nullptr, nullptr) == -1) {
                 throw mx::Exception::error("Failed to single step process");
             }
             is_single_stepping = true;
@@ -251,18 +343,18 @@ namespace mx {
 
     void Process::handle_breakpoint_step(uint64_t address) {
         uint8_t original_byte = breakpoints[address];
-        long data = ptrace(PTRACE_PEEKDATA, m_pid, address, nullptr);
+        long data = ptrace(PTRACE_PEEKDATA, current_thread_id, address, nullptr);
         long restored = (data & ~0xFF) | original_byte;
-        ptrace(PTRACE_POKEDATA, m_pid, address, restored);
+        ptrace(PTRACE_POKEDATA, current_thread_id, address, restored);
         
-        ptrace(PTRACE_SINGLESTEP, m_pid, nullptr, nullptr);
+        ptrace(PTRACE_SINGLESTEP, current_thread_id, nullptr, nullptr);
         is_single_stepping = true;
         
     }
 
     void Process::wait_for_single_step() {
         int status;
-        if (waitpid(m_pid, &status, 0) == -1) {
+        if (waitpid(current_thread_id, &status, 0) == -1) {
             throw mx::Exception::error("Failed to wait for single step");
         }
         
@@ -270,9 +362,9 @@ namespace mx {
             uint64_t prev_pc = get_pc() - 1; 
             auto it = breakpoints.find(prev_pc);
             if (it != breakpoints.end()) {
-                long data = ptrace(PTRACE_PEEKDATA, m_pid, prev_pc, nullptr);
+                long data = ptrace(PTRACE_PEEKDATA, current_thread_id, prev_pc, nullptr);
                 long data_with_int3 = (data & ~0xFF) | 0xCC;
-                ptrace(PTRACE_POKEDATA, m_pid, prev_pc, data_with_int3);
+                ptrace(PTRACE_POKEDATA, current_thread_id, prev_pc, data_with_int3);
             }
             is_single_stepping = false;
         }
@@ -280,11 +372,11 @@ namespace mx {
 
     void Process::set_pc(uint64_t address) {
         struct user_regs_struct regs;
-        if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
+        if (ptrace(PTRACE_GETREGS, current_thread_id, nullptr, &regs) == -1) {
             throw mx::Exception::error("Failed to get registers");
         }
         regs.rip = address;
-        if (ptrace(PTRACE_SETREGS, m_pid, nullptr, &regs) == -1) {
+        if (ptrace(PTRACE_SETREGS, current_thread_id, nullptr, &regs) == -1) {
             throw mx::Exception::error("Failed to set registers");
         }
     }
@@ -324,7 +416,7 @@ namespace mx {
     std::string Process::reg_info() const {
         std::ostringstream stream;
         struct user_regs_struct regs;
-        if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
+        if (ptrace(PTRACE_GETREGS, current_thread_id, nullptr, &regs) == -1) {
             throw mx::Exception::error("Failed to get registers for process");
         }
         stream << "RAX: " << std::hex << std::uppercase << regs.rax << "\n"
@@ -350,7 +442,7 @@ namespace mx {
 
     uint64_t Process::get_register(const std::string &reg_name) const {
         struct user_regs_struct regs;
-        if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
+        if (ptrace(PTRACE_GETREGS, current_thread_id, nullptr, &regs) == -1) {
             throw mx::Exception::error("Failed to get registers for process");
         }
         
@@ -433,7 +525,7 @@ namespace mx {
 
     uint32_t Process::get_register_32(const std::string &reg_name) const {
         struct user_regs_struct regs;
-        if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
+        if (ptrace(PTRACE_GETREGS, current_thread_id, nullptr, &regs) == -1) {
             throw mx::Exception::error("Failed to get registers for process");
         }
         
@@ -459,7 +551,7 @@ namespace mx {
 
     uint16_t Process::get_register_16(const std::string &reg_name) const {
         struct user_regs_struct regs;
-        if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
+        if (ptrace(PTRACE_GETREGS, current_thread_id, nullptr, &regs) == -1) {
             throw mx::Exception::error("Failed to get registers for process");
         }
         
@@ -485,7 +577,7 @@ namespace mx {
 
     uint8_t Process::get_register_8(const std::string &reg_name) const {
         struct user_regs_struct regs;
-        if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
+        if (ptrace(PTRACE_GETREGS, current_thread_id, nullptr, &regs) == -1) {
             throw mx::Exception::error("Failed to get registers for process");
         }
     
@@ -518,7 +610,7 @@ namespace mx {
         size_t count = 0;
         while (count < size) {
             errno = 0;
-            long word = ptrace(PTRACE_PEEKDATA, m_pid, address + count, nullptr);
+            long word = ptrace(PTRACE_PEEKDATA, current_thread_id, address + count, nullptr);
             if (errno != 0) {
                 throw mx::Exception::error("Failed to read memory");
             }
@@ -537,7 +629,7 @@ namespace mx {
             long word = 0;
             size_t bytes_to_copy = std::min(sizeof(long), size - count);
             std::memcpy(&word, data.data() + count, bytes_to_copy);
-            if (ptrace(PTRACE_POKEDATA, m_pid, address + count, word) == -1) {
+            if (ptrace(PTRACE_POKEDATA, current_thread_id, address + count, word) == -1) {
                 throw mx::Exception::error("Failed to write memory");
             }
             count += bytes_to_copy;
@@ -555,15 +647,15 @@ namespace mx {
 
     void Process::handle_breakpoint_continue(uint64_t address) {
         uint8_t original_byte = breakpoints[address];
-        long data = ptrace(PTRACE_PEEKDATA, m_pid, address, nullptr);
+        long data = ptrace(PTRACE_PEEKDATA, current_thread_id, address, nullptr);
         long restored = (data & ~0xFF) | original_byte;
-        ptrace(PTRACE_POKEDATA, m_pid, address, restored);
-        ptrace(PTRACE_SINGLESTEP, m_pid, nullptr, nullptr);
+        ptrace(PTRACE_POKEDATA, current_thread_id, address, restored);
+        ptrace(PTRACE_SINGLESTEP,current_thread_id, nullptr, nullptr);
         int status;
-        waitpid(m_pid, &status, 0);
-        data = ptrace(PTRACE_PEEKDATA, m_pid, address, nullptr);
+        waitpid(current_thread_id, &status, 0);
+        data = ptrace(PTRACE_PEEKDATA, current_thread_id, address, nullptr);
         long data_with_int3 = (data & ~0xFF) | 0xCC;
-        ptrace(PTRACE_POKEDATA, m_pid, address, data_with_int3);
+        ptrace(PTRACE_POKEDATA, current_thread_id, address, data_with_int3);
     }
 
     std::string Process::disassemble_instruction(uint64_t address) const {
@@ -575,7 +667,7 @@ namespace mx {
     }
 
     void Process::set_breakpoint(uint64_t address) {
-        long data = ptrace(PTRACE_PEEKDATA, m_pid, address, nullptr);
+        long data = ptrace(PTRACE_PEEKDATA, current_thread_id, address, nullptr);
         if (data == -1 && errno != 0)
             throw mx::Exception::error("Failed to read memory for breakpoint");
 
@@ -587,16 +679,16 @@ namespace mx {
         }
         
         long data_with_int3 = (data & ~0xFF) | 0xCC;
-        if (ptrace(PTRACE_POKEDATA, m_pid, address, data_with_int3) == -1)
+        if (ptrace(PTRACE_POKEDATA, current_thread_id, address, data_with_int3) == -1)
             throw mx::Exception::error("Failed to write breakpoint");
     }
 
     bool Process::remove_breakpoint(uint64_t address) {
         auto it = breakpoints.find(address);
         if (it == breakpoints.end()) return false;
-        long data = ptrace(PTRACE_PEEKDATA, m_pid, address, nullptr);
+        long data = ptrace(PTRACE_PEEKDATA, current_thread_id, address, nullptr);
         long restored = (data & ~0xFF) | it->second;
-        ptrace(PTRACE_POKEDATA, m_pid, address, restored);        
+        ptrace(PTRACE_POKEDATA, current_thread_id, address, restored);        
         breakpoints.erase(it);
         auto index_it = std::find(breakpoint_index.begin(), breakpoint_index.end(), address);
         if (index_it != breakpoint_index.end()) {
@@ -668,7 +760,7 @@ namespace mx {
 
     void Process::set_register(const std::string &reg_name, uint64_t value) {
         struct user_regs_struct regs;
-        if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
+        if (ptrace(PTRACE_GETREGS, current_thread_id, nullptr, &regs) == -1) {
             throw mx::Exception::error("Failed to get registers for process");
         }
         
@@ -693,14 +785,14 @@ namespace mx {
             throw mx::Exception("Unknown register name: " + reg_name);
         }
         
-        if (ptrace(PTRACE_SETREGS, m_pid, nullptr, &regs) == -1) {
+        if (ptrace(PTRACE_SETREGS, current_thread_id, nullptr, &regs) == -1) {
             throw mx::Exception::error("Failed to set registers");
         }
     }
 
     void Process::set_register_32(const std::string &reg_name, uint32_t value) {
         struct user_regs_struct regs;
-        if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
+        if (ptrace(PTRACE_GETREGS, current_thread_id, nullptr, &regs) == -1) {
             throw mx::Exception::error("Failed to get registers for process");
         }
         
@@ -724,14 +816,14 @@ namespace mx {
             throw mx::Exception("Unknown 32-bit register name: " + reg_name);
         }
         
-        if (ptrace(PTRACE_SETREGS, m_pid, nullptr, &regs) == -1) {
+        if (ptrace(PTRACE_SETREGS, current_thread_id, nullptr, &regs) == -1) {
             throw mx::Exception::error("Failed to set registers");
         }
     }
 
     void Process::set_register_16(const std::string &reg_name, uint16_t value) {
         struct user_regs_struct regs;
-        if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
+        if (ptrace(PTRACE_GETREGS, current_thread_id, nullptr, &regs) == -1) {
             throw mx::Exception::error("Failed to get registers for process");
         }
         
@@ -755,19 +847,16 @@ namespace mx {
             throw mx::Exception("Unknown 16-bit register name: " + reg_name);
         }
         
-        if (ptrace(PTRACE_SETREGS, m_pid, nullptr, &regs) == -1) {
+        if (ptrace(PTRACE_SETREGS, current_thread_id, nullptr, &regs) == -1) {
             throw mx::Exception::error("Failed to set registers");
         }
     }
 
     void Process::set_register_8(const std::string &reg_name, uint8_t value) {
         struct user_regs_struct regs;
-        if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
+        if (ptrace(PTRACE_GETREGS, current_thread_id, nullptr, &regs) == -1) {
             throw mx::Exception::error("Failed to get registers for process");
         }
-        
-        std::cout << "HERE\n";
-
         if (reg_name == "al") regs.rax = (regs.rax & 0xFFFFFFFFFFFFFF00ULL) | value;
         else if (reg_name == "ah") regs.rax = (regs.rax & 0xFFFFFFFFFFFF00FFULL) | (static_cast<uint64_t>(value) << 8);
         else if (reg_name == "bl") regs.rbx = (regs.rbx & 0xFFFFFFFFFFFFFF00ULL) | value;
@@ -792,14 +881,14 @@ namespace mx {
             throw mx::Exception("Unknown 8-bit register name: " + reg_name);
         }
         
-        if (ptrace(PTRACE_SETREGS, m_pid, nullptr, &regs) == -1) {
+        if (ptrace(PTRACE_SETREGS, current_thread_id, nullptr, &regs) == -1) {
             throw mx::Exception::error("Failed to set registers");
         }
     }
 
     void Process::print_all_registers() const {
         struct user_regs_struct regs;
-        if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
+        if (ptrace(PTRACE_GETREGS, current_thread_id, nullptr, &regs) == -1) {
             throw mx::Exception::error("Failed to get registers for process");
         }
         
@@ -907,7 +996,7 @@ namespace mx {
             }
             
             user_regs_struct regs;
-            if (ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs) == -1) {
+            if (ptrace(PTRACE_GETREGS, current_thread_id, nullptr, &regs) == -1) {
                 throw Exception("Failed to get registers for watchpoint");
             }
             
@@ -923,12 +1012,12 @@ namespace mx {
                 default: throw Exception("Invalid debug register slot");
             }
             
-            if (ptrace(PTRACE_POKEUSER, m_pid, dr_offset, dr_addr) == -1) {
+            if (ptrace(PTRACE_POKEUSER, current_thread_id, dr_offset, dr_addr) == -1) {
                 throw Exception("Failed to set debug address register");
             }
             
             unsigned long dr7;
-            if ((dr7 = ptrace(PTRACE_PEEKUSER, m_pid, 
+            if ((dr7 = ptrace(PTRACE_PEEKUSER, current_thread_id, 
                             offsetof(user, u_debugreg[7]), nullptr)) == -1) {
                 throw Exception("Failed to read DR7 register");
             }
@@ -954,7 +1043,7 @@ namespace mx {
             
             dr7 |= dr7_config;
             
-            if (ptrace(PTRACE_POKEUSER, m_pid, 
+            if (ptrace(PTRACE_POKEUSER,current_thread_id, 
                     offsetof(user, u_debugreg[7]), dr7) == -1) {
                 throw Exception("Failed to set DR7 register");
             }
@@ -993,19 +1082,19 @@ namespace mx {
                 default: throw Exception("Invalid debug register slot");
             }
             
-            if (ptrace(PTRACE_POKEUSER, m_pid, dr_offset, 0) == -1) {
+            if (ptrace(PTRACE_POKEUSER, current_thread_id, dr_offset, 0) == -1) {
                 throw Exception("Failed to clear debug address register");
             }
             
             unsigned long dr7;
-            if ((dr7 = ptrace(PTRACE_PEEKUSER, m_pid, 
+            if ((dr7 = ptrace(PTRACE_PEEKUSER, current_thread_id, 
                             offsetof(user, u_debugreg[7]), nullptr)) == -1) {
                 throw Exception("Failed to read DR7 register");
             }
             
             dr7 &= ~(3UL << (slot * 2));
             
-            if (ptrace(PTRACE_POKEUSER, m_pid, 
+            if (ptrace(PTRACE_POKEUSER, current_thread_id, 
                     offsetof(user, u_debugreg[7]), dr7) == -1) {
                 throw Exception("Failed to update DR7 register");
             }
@@ -1027,5 +1116,62 @@ namespace mx {
                             return wp.address <= address && 
                                     address < wp.address + wp.size; 
                         });
+    }
+
+ 
+    void Process::switch_to_thread(pid_t tid) {
+        std::string task_path = "/proc/" + std::to_string(m_pid) + "/task/" + std::to_string(tid);
+        if (!std::filesystem::exists(task_path)) {
+            throw Exception("Thread " + std::to_string(tid) + " does not exist");
+        }
+        std::ifstream status_file(task_path + "/status");
+        if (!status_file.is_open()) {
+            throw Exception("Cannot access thread " + std::to_string(tid) + " information");
+        }
+        std::string line;
+        bool found_tgid = false;
+        while (std::getline(status_file, line)) {
+            if (line.substr(0, 5) == "Tgid:") {
+                std::istringstream iss(line);
+                std::string label;
+                pid_t tgid;
+                iss >> label >> tgid;
+                if (tgid != m_pid) {
+                    throw Exception("Thread " + std::to_string(tid) + " does not belong to process " + std::to_string(m_pid));
+                }
+                found_tgid = true;
+                break;
+            }
+        }
+        if (!found_tgid) {
+            throw Exception("Could not verify thread " + std::to_string(tid) + " belongs to process " + std::to_string(m_pid));
+        }
+        current_thread_id = tid;
+    }
+    pid_t Process::get_current_thread() const {
+        return current_thread_id;
+    }
+
+    std::vector<pid_t> Process::get_thread_ids() const {
+        std::vector<pid_t> thread_ids;
+        std::string task_dir = "/proc/" + std::to_string(m_pid) + "/task";
+        
+        try {
+            for (const auto& entry : std::filesystem::directory_iterator(task_dir)) {
+                if (entry.is_directory()) {
+                    std::string tid_str = entry.path().filename().string();
+                    pid_t tid = std::stoi(tid_str);
+                    thread_ids.push_back(tid);
+                }
+            }
+        } catch (const std::exception& e) {
+        }
+        
+        return thread_ids;
+    }
+
+    bool Process::is_valid_thread(pid_t tid) const {
+        std::string task_path = "/proc/" + std::to_string(m_pid) + "/task/" + std::to_string(tid);
+        return std::filesystem::exists(task_path);
     }
 }

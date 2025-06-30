@@ -77,8 +77,13 @@ target_link_libraries(register_test PRIVATE
 add_executable(c_test
     test_explain.c
 )
-
 set_target_properties(c_test PROPERTIES
+    LINK_FLAGS "-no-pie"
+)
+add_executable(thread_test
+    thread_test.c
+)
+set_target_properties(thread_test PROPERTIES
     LINK_FLAGS "-no-pie"
 )
 target_include_directories(c_test PRIVATE                         

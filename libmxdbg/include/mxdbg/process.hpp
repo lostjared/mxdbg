@@ -77,9 +77,13 @@ namespace mx {
         std::vector<Watchpoint> get_watchpoints() const;
         bool has_watchpoint_at(uint64_t address) const;
         std::string disassemble_instruction(uint64_t address, const std::vector<uint8_t>& bytes);
+        void switch_to_thread(pid_t id);
+        pid_t get_current_thread() const;
+        std::vector<pid_t> get_thread_ids() const;
+        bool is_valid_thread(pid_t tid) const;
     private:
-        Process(pid_t pid) : m_pid(pid),  index_(0) {}    
-        pid_t m_pid;
+        Process(pid_t pid) : m_pid(pid), current_thread_id(pid), index_(0) {}    
+        pid_t m_pid, current_thread_id;
         bool is_single_stepping = false;
         std::map<uint64_t, uint8_t> breakpoints;
         std::vector<uint64_t> breakpoint_index;   
