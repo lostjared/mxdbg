@@ -114,6 +114,11 @@ Once in the debugger shell (`mx $>`), you can use:
 
 | Command | Aliases | Description |
 |---------|---------|-------------|
+| `expr <e>` | ` ` | Evalaulate expression |
+| `setval <name> <value>` | ` ` | Set variable value |
+| `listval` | ` ` | List all variables |
+| `thread, thread <id>` | ` ` | thread list current / set thread context |
+| `threads` | ` ` | List all running threads in process |
 | `continue` | `c` | Continue process execution |
 | `cur` | | Print current instruction |
 | `step` | `s` | Execute single instruction |
