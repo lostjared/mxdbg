@@ -1050,7 +1050,7 @@ namespace mx {
             std::cout << "  setval <name> <value>       - Set Variable to value " << std::endl;
             std::cout << "  listval                     - List varaibles "         << std::endl;
             std::cout << "  thread / thread <id>        - List Current/Switch thread context " << std::endl;
-            std::cout << "  threads                     - list all running threads " << std:::endl;
+            std::cout << "  threads                     - list all running threads " << std::endl;
             std::cout << "  continue, c                 - Continue process execution" << std::endl;
             std::cout << "  cur                         - Print current instruction" << std::endl;
             std::cout << "  step, s                     - Execute single instruction" << std::endl;
