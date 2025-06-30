@@ -391,6 +391,12 @@ namespace mx {
             std::string e = cmd.substr(cmd.find(' ') + 1);
             expression(e);
             return true;
+        } else if(tokens.size() == 1 && tokens[0] == "stack_frame") {
+            analyze_current_frame();
+            return true;
+        } else if(tokens.size() == 1 && (tokens[0] == "maps" || tokens[0] == "memory_maps")) {
+            print_memory_maps();
+            return true;
         } else if (tokens.size() >= 2 && tokens[0] == "read_bytes") {
             if (process && process->is_running()) {
                 try {
@@ -1522,4 +1528,67 @@ namespace mx {
         return 0;
     }
 
+    void Debugger::print_memory_maps() const {
+        std::ifstream maps("/proc/" + std::to_string(process->get_pid()) + "/maps");
+        if(!maps.is_open()) 
+            throw mx::Exception("Could not open memory map..");
+
+        std::string line;
+        
+        std::cout << "Memory Map for PID " << process->get_pid() << ":" << std::endl;
+        std::cout << "Address Range        Perms   Offset     Device   Inode    Pathname" << std::endl;
+        std::cout << "=================================================================" << std::endl;
+        
+        while (std::getline(maps, line)) {
+            
+            if (line.find("r-xp") != std::string::npos) {
+                if (color_) std::cout << Color::BRIGHT_GREEN;
+            } else if (line.find("rw-p") != std::string::npos) {
+                if (color_) std::cout << Color::BRIGHT_YELLOW;
+            } else if (line.find("[heap]") != std::string::npos) {
+                if (color_) std::cout << Color::BRIGHT_RED;
+            } else if (line.find("[stack]") != std::string::npos) {
+                if (color_) std::cout << Color::BRIGHT_BLUE;
+            }
+            
+            std::cout << line << std::endl;
+            
+            if (color_) std::cout << Color::RESET;
+        }
+    }
+
+    void Debugger::analyze_current_frame() const {
+        try {
+            uint64_t rbp = process->get_register("rbp");
+            uint64_t rsp = process->get_register("rsp");
+            uint64_t rip = process->get_register("rip");
+            
+            std::cout << "=== Current Stack Frame ===" << std::endl;
+            std::cout << "RIP: " << format_hex64(rip) << " (" << resolve_symbol(rip) << ")" << std::endl;
+            std::cout << "RBP: " << format_hex64(rbp) << std::endl;
+            std::cout << "RSP: " << format_hex64(rsp) << std::endl;
+            std::cout << "Frame Size: " << (rbp - rsp) << " bytes" << std::endl;
+            
+            std::cout << "\nStack Contents:" << std::endl;
+            for (uint64_t addr = rsp; addr <= rbp + 8; addr += 8) {
+                try {
+                    auto data = process->read_memory(addr, 8);
+                    uint64_t value = 0;
+                    std::memcpy(&value, data.data(), 8);
+                    
+                    std::string annotation = "";
+                    if (addr == rbp) annotation = " <- RBP";
+                    else if (addr == rsp) annotation = " <- RSP";
+                    else if (addr == rbp + 8) annotation = " <- Return Address";
+                    
+                    std::cout << format_hex64(addr) << ": " << format_hex64(value) 
+                            << " (" << resolve_symbol(value) << ")" << annotation << std::endl;
+                } catch (...) {
+                    break;
+                }
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Error analyzing frame: " << e.what() << std::endl;
+        }
+    }
 }

@@ -58,6 +58,8 @@ namespace mx {
         std::string resolve_symbol(uint64_t address) const;
         bool is_at_function_entry() const;
         bool is_valid_code_address(uint64_t address) const;
+        void analyze_current_frame() const;
+        void print_memory_maps() const;
     };
 
 } 
