@@ -232,8 +232,8 @@ mxdbg/
 
 Run the test suite:
 ```bash
-cd build
-make test
+cd build/tests
+ctest
 ```
 
 Individual tests can be run:
