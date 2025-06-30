@@ -392,10 +392,18 @@ namespace mx {
             expression(e);
             return true;
         } else if(tokens.size() == 1 && tokens[0] == "stack_frame") {
-            analyze_current_frame();
+            if(process && process->is_running())  {
+                analyze_current_frame();
+            }
             return true;
         } else if(tokens.size() == 1 && (tokens[0] == "maps" || tokens[0] == "memory_maps")) {
-            print_memory_maps();
+            if(process && process->is_running()) {
+                try  {
+                    print_memory_maps();
+                } catch(const mx::Exception &e) {
+                    std::cerr << "Error: " << e.what() << "\n";
+                }
+            }
             return true;
         } else if (tokens.size() >= 2 && tokens[0] == "read_bytes") {
             if (process && process->is_running()) {
