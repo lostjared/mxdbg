@@ -122,141 +122,150 @@ namespace mx {
         return std::unique_ptr<Process>(new Process(pid));
     }
 
+    void Process::continue_execution() {
+        auto thread_ids = get_thread_ids();
+        for (pid_t tid : thread_ids) {
+            if (ptrace(PTRACE_CONT, tid, nullptr, 0) == -1) {
+                if (errno != ESRCH) { 
+                    throw mx::Exception::error("Failed to continue thread " + std::to_string(tid));
+                }
+            }
+        }
+    }
+
     void Process::wait_for_stop() {
         int status;
         pid_t waited_pid;
-        if ((waited_pid = waitpid(-1, &status, __WALL)) == -1) {
-            throw mx::Exception::error("Failed to wait for process");
-        }
         
-        if (WIFEXITED(status)) {
-            std::cout << "Process/Thread " << waited_pid << " exited with code: " << WEXITSTATUS(status) << std::endl;
-          
-            if (waited_pid == m_pid) {
-                return;
-            }
-          
-            wait_for_stop();
-            return;
-        } 
-        else if (WIFSIGNALED(status)) {
-            std::cout << "Process/Thread " << waited_pid << " killed by signal: " << format_signal(WTERMSIG(status)) << std::endl;
-            if (waited_pid == m_pid) {
-                return;
-            }
-            wait_for_stop();
-            return;
-        } 
-        else if (WIFSTOPPED(status)) {
-            int signal = WSTOPSIG(status);
-            if (signal == SIGTRAP) {
-                int ptrace_event = (status >> 16) & 0xffff;
-                
-                if (ptrace_event == PTRACE_EVENT_CLONE) {
-                    unsigned long new_thread_id;
-                    if (ptrace(PTRACE_GETEVENTMSG, waited_pid, nullptr, &new_thread_id) == 0) {
-                        std::cout << "New thread created: " << new_thread_id << " (parent: " << waited_pid << ")" << std::endl;
-                    } else {
-                        std::cout << "New thread created (couldn't get TID)" << std::endl;
-                    }
-                    
-                    if (ptrace(PTRACE_CONT, waited_pid, nullptr, nullptr) == -1) {
-                        throw mx::Exception::error("Failed to continue parent thread after clone");
-                    }
-                    
-                    wait_for_stop();
-                    return;
-                }
-                else if (ptrace_event == PTRACE_EVENT_EXEC) {
-                    std::cout << "Process " << waited_pid << " executed new program" << std::endl;
-                    if (ptrace(PTRACE_CONT, waited_pid, nullptr, nullptr) == -1) {
-                        throw mx::Exception::error("Failed to continue after exec");
-                    }
-                    wait_for_stop();
-                    return;
-                }
-                else if (ptrace_event == PTRACE_EVENT_FORK) {
-                    unsigned long new_pid;
-                    if (ptrace(PTRACE_GETEVENTMSG, waited_pid, nullptr, &new_pid) == 0) {
-                        std::cout << "New process forked: " << new_pid << " (parent: " << waited_pid << ")" << std::endl;
-                    }
-                    if (ptrace(PTRACE_CONT, waited_pid, nullptr, nullptr) == -1) {
-                        throw mx::Exception::error("Failed to continue after fork");
-                    }
-                    wait_for_stop();
-                    return;
-                }
-            }
-            if (waited_pid != current_thread_id) {
-                struct user_regs_struct test_regs;
-                if (ptrace(PTRACE_GETREGS, waited_pid, nullptr, &test_regs) == 0) {
-                    std::cout << "Thread " << waited_pid << " stopped, switching context" << std::endl;
-                    current_thread_id = waited_pid;
-                } else {
-                    std::cout << "Thread " << waited_pid << " event, but can't access registers - continuing" << std::endl;
-                    if (ptrace(PTRACE_CONT, waited_pid, nullptr, nullptr) == -1) {
-                        throw mx::Exception::error("Failed to continue inaccessible thread");
-                    }
-                    wait_for_stop();
-                    return;
-                }
+        while (true) { 
+            if ((waited_pid = waitpid(-1, &status, __WALL)) == -1) {
+                throw mx::Exception::error("Failed to wait for process");
             }
             
-            std::cout << "Process/Thread " << waited_pid << " stopped by signal: " << format_signal(signal) << std::endl;
-        
-            if (signal == SIGTRAP) {
-                uint64_t pc = get_pc();
+            if (WIFEXITED(status)) {
+                std::cout << "Process/Thread " << waited_pid << " exited with code: " 
+                        << WEXITSTATUS(status) << std::endl;
                 
-                if (breakpoints.find(pc) != breakpoints.end()) {
-                    std::cout << "=== BREAKPOINT HIT ===" << std::endl;
-                    std::cout << "Thread: " << current_thread_id << std::endl;
-                    std::cout << "Address: " << format_hex64(pc) << std::endl;
-                    return; 
-                } 
-                
-                else if (breakpoints.find(pc - 1) != breakpoints.end()) {
-                    std::cout << "=== BREAKPOINT HIT ===" << std::endl;
-                    std::cout << "Thread: " << current_thread_id << std::endl;
-                    std::cout << "Address: " << format_hex64(pc - 1) << std::endl;
-                    set_pc(pc - 1);
+                if (waited_pid == m_pid) {
                     return; 
                 }
-                unsigned long dr6 = 0;
-                if ((dr6 = ptrace(PTRACE_PEEKUSER, current_thread_id, 
-                                offsetof(user, u_debugreg[6]), nullptr)) != -1) {
-                    if (dr6 & 0xF) { 
-                        std::cout << "=== WATCHPOINT HIT ===" << std::endl;
-                        std::cout << "Thread: " << current_thread_id << std::endl;
-                        std::cout << "DR6: " << format_hex64(dr6) << std::endl;
-                        ptrace(PTRACE_POKEUSER, current_thread_id, 
-                            offsetof(user, u_debugreg[6]), 0);
+                
+                continue;
+            }
+            
+            if (WIFSIGNALED(status)) {
+                std::cout << "Process/Thread " << waited_pid << " killed by signal: " 
+                        << format_signal(WTERMSIG(status)) << std::endl;
+                
+                if (waited_pid == m_pid) {
+                    return; 
+                }
+                
+                continue;
+            }
+        
+            if (WIFSTOPPED(status)) {
+                int signal = WSTOPSIG(status);
+                
+                if (signal == SIGTRAP) {
+                    int ptrace_event = (status >> 16) & 0xffff;
+                    
+                    if (ptrace_event == PTRACE_EVENT_CLONE) {
+                        unsigned long new_thread_id;
+                        if (ptrace(PTRACE_GETEVENTMSG, waited_pid, nullptr, &new_thread_id) == 0) {
+                            std::cout << "New thread created: " << new_thread_id 
+                                    << " (parent: " << waited_pid << ")" << std::endl;
+                        } else {
+                            std::cout << "New thread created (couldn't get TID)" << std::endl;
+                        }
                         
+                        ptrace(PTRACE_CONT, waited_pid, nullptr, 0);
+                        continue; 
+                    }
+
+                    else if (ptrace_event == PTRACE_EVENT_EXEC) {
+                        std::cout << "Process " << waited_pid << " executed new program" << std::endl;
+                        ptrace(PTRACE_CONT, waited_pid, nullptr, 0);
+                        continue; 
+                    }
+                    else if (ptrace_event == PTRACE_EVENT_FORK) {
+                        unsigned long new_pid;
+                        if (ptrace(PTRACE_GETEVENTMSG, waited_pid, nullptr, &new_pid) == 0) {
+                            std::cout << "New process forked: " << new_pid 
+                                    << " (parent: " << waited_pid << ")" << std::endl;
+                        }
+                        ptrace(PTRACE_CONT, waited_pid, nullptr, 0);
+                        continue; 
+                    }
+                    
+                    if (waited_pid != current_thread_id) {
+                        struct user_regs_struct test_regs;
+                        if (ptrace(PTRACE_GETREGS, waited_pid, nullptr, &test_regs) == 0) {
+                            std::cout << "Thread " << waited_pid << " stopped, switching context" << std::endl;
+                            current_thread_id = waited_pid;
+                        } else {
+                            std::cout << "Thread " << waited_pid << " event, but can't access registers - continuing" << std::endl;
+                            ptrace(PTRACE_CONT, waited_pid, nullptr, 0);
+                            continue;
+                        }
+                    }
+        
+                    uint64_t pc = get_pc();
+                    
+                    if (breakpoints.find(pc) != breakpoints.end()) {
+                        std::cout << "=== BREAKPOINT HIT ===" << std::endl;
+                        std::cout << "Thread: " << current_thread_id << std::endl;
+                        std::cout << "Address: " << format_hex64(pc) << std::endl;
+                        return; 
+                    } 
+                    
+                    else if (breakpoints.find(pc - 1) != breakpoints.end()) {
+                        std::cout << "=== BREAKPOINT HIT ===" << std::endl;
+                        std::cout << "Thread: " << current_thread_id << std::endl;
+                        std::cout << "Address: " << format_hex64(pc - 1) << std::endl;
+                        set_pc(pc - 1);
                         return; 
                     }
+                    
+                    
+                    unsigned long dr6 = 0;
+                    if ((dr6 = ptrace(PTRACE_PEEKUSER, current_thread_id, 
+                                    offsetof(user, u_debugreg[6]), nullptr)) != -1) {
+                        if (dr6 & 0xF) { 
+                            std::cout << "=== WATCHPOINT HIT ===" << std::endl;
+                            std::cout << "Address: " << format_hex64(get_pc()) << std::endl;
+                            ptrace(PTRACE_POKEUSER, current_thread_id, 
+                                offsetof(user, u_debugreg[6]), 0);
+                            
+                            return; 
+                        }
+                    }
+                    
+                    std::cout << "SIGTRAP received (not breakpoint/watchpoint)" << std::endl;
+                    return; 
                 }
-                std::cout << "SIGTRAP received (not breakpoint/watchpoint)" << std::endl;
-                return; 
+                
+                
+                else if (signal == SIGINT || signal == SIGTERM || signal == SIGSEGV || 
+                        signal == SIGFPE || signal == SIGILL || signal == SIGABRT) {
+                    std::cout << "=== PROGRAM STOPPED BY SIGNAL ===" << std::endl;
+                    std::cout << "Thread: " << current_thread_id << std::endl;
+                    std::cout << "Signal: " << format_signal(signal) << std::endl;
+                    return; 
+                }
+                
+                
+                else {
+                    std::cout << "Thread " << waited_pid << " received signal " 
+                            << format_signal(signal) << ", continuing" << std::endl;
+                    ptrace(PTRACE_CONT, waited_pid, nullptr, signal);
+                    continue; 
+                }
             }
             
-            else if (signal == SIGINT || signal == SIGTERM || signal == SIGSEGV || 
-                    signal == SIGFPE || signal == SIGILL || signal == SIGABRT) {
-                std::cout << "=== PROGRAM STOPPED BY SIGNAL ===" << std::endl;
-                std::cout << "Thread: " << current_thread_id << std::endl;
-                std::cout << "Signal: " << format_signal(signal) << std::endl;
-                return; 
-            }
-            else {
-                std::cout << "Thread " << waited_pid << " received signal " << format_signal(signal) << ", continuing" << std::endl;
-                if (ptrace(PTRACE_CONT, waited_pid, nullptr, nullptr) == -1) {
-                    throw mx::Exception::error("Failed to continue after signal");
-                }
-                wait_for_stop(); 
-                return;
-            }
-        }
-        else {
+            
             std::cout << "Unexpected wait status: " << status << std::endl;
-            return;
+            return; 
         }
     }
     std::string Process::disassemble_instruction(uint64_t address, const std::vector<uint8_t>& bytes) {
@@ -322,12 +331,6 @@ namespace mx {
         }
     }
 
-    void Process::continue_execution() {
-        if (ptrace(PTRACE_CONT, m_pid, nullptr, 0) == -1) {
-            throw mx::Exception::error("Failed to continue process");
-        }
-    }
-
     void Process::single_step() {
         uint64_t pc = get_pc();
         
@@ -350,6 +353,27 @@ namespace mx {
         ptrace(PTRACE_SINGLESTEP, current_thread_id, nullptr, nullptr);
         is_single_stepping = true;
         
+    }
+    
+    void Process::handle_thread_breakpoint_continue(uint64_t address) {
+        uint8_t original_byte = breakpoints[address];
+        long data = ptrace(PTRACE_PEEKDATA, current_thread_id, address, nullptr);
+        long restored = (data & ~0xFF) | original_byte;
+        ptrace(PTRACE_POKEDATA, current_thread_id, address, restored);
+        ptrace(PTRACE_SINGLESTEP, current_thread_id, nullptr, nullptr);
+        int status;
+        waitpid(current_thread_id, &status, 0);
+        data = ptrace(PTRACE_PEEKDATA, current_thread_id, address, nullptr);
+        long data_with_int3 = (data & ~0xFF) | 0xCC;
+        ptrace(PTRACE_POKEDATA, current_thread_id, address, data_with_int3);
+        auto thread_ids = get_thread_ids();
+        for (pid_t tid : thread_ids) {
+            if (ptrace(PTRACE_CONT, tid, nullptr, 0) == -1) {
+                if (errno != ESRCH) { 
+                    throw mx::Exception::error("Failed to continue thread " + std::to_string(tid));
+                }
+            }
+        }
     }
 
     void Process::wait_for_single_step() {

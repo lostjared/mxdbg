@@ -686,12 +686,12 @@ namespace mx {
         else if (cmd == "continue" || cmd == "c") {
             if (process && process->is_running()) {
                 try {
-                    uint64_t pc_before = process->get_pc(); 
+                    uint64_t pc_before = process->get_pc();
                     if (process->has_breakpoint(pc_before)) {
-                        process->handle_breakpoint_continue(pc_before);
+                        process->handle_thread_breakpoint_continue(pc_before);
                     } else {
                         process->continue_execution();
-                    }
+                    }       
                     process->wait_for_stop();
                 } catch (const std::exception& e) {
                     std::cerr << "Error during continue: " << e.what() << std::endl;

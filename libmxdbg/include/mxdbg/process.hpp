@@ -81,6 +81,7 @@ namespace mx {
         pid_t get_current_thread() const;
         std::vector<pid_t> get_thread_ids() const;
         bool is_valid_thread(pid_t tid) const;
+        void handle_thread_breakpoint_continue(uint64_t address);
     private:
         Process(pid_t pid) : m_pid(pid), current_thread_id(pid), index_(0) {}    
         pid_t m_pid, current_thread_id;
@@ -89,6 +90,7 @@ namespace mx {
         std::vector<uint64_t> breakpoint_index;   
         void handle_breakpoint_step(uint64_t address);
         void set_pc(uint64_t address);    
+        
         size_t index_;    
         std::vector<Watchpoint> watchpoints_;
     };  
