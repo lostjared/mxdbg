@@ -365,8 +365,52 @@ namespace mx {
         return process && process->is_running();
     }
 
-    void expression(const std::string &text) {
+    void Debugger::expression(const std::string &text) {
         try {
+
+            if (process && process->is_running()) {
+                try {
+                    using namespace expr_parser;
+                    struct user_regs_struct regs;
+                    pid_t current_tid = process->get_current_thread();
+                    if (ptrace(PTRACE_GETREGS, current_tid, nullptr, &regs) == 0) {
+                        vars["rax"] = regs.rax;
+                        vars["rbx"] = regs.rbx;
+                        vars["rcx"] = regs.rcx;
+                        vars["rdx"] = regs.rdx;
+                        vars["rsi"] = regs.rsi;
+                        vars["rdi"] = regs.rdi;
+                        vars["rbp"] = regs.rbp;
+                        vars["rsp"] = regs.rsp;
+                        vars["r8"] = regs.r8;
+                        vars["r9"] = regs.r9;
+                        vars["r10"] = regs.r10;
+                        vars["r11"] = regs.r11;
+                        vars["r12"] = regs.r12;
+                        vars["r13"] = regs.r13;
+                        vars["r14"] = regs.r14;
+                        vars["r15"] = regs.r15;
+                        vars["rip"] = regs.rip;
+                        vars["eflags"] = regs.eflags;
+                        vars["pc"] = regs.rip;
+                        vars["ip"] = regs.rip;
+                        vars["sp"] = regs.rsp;
+                        vars["bp"] = regs.rbp;
+                        vars["flags"] = regs.eflags;
+                        vars["cs"] = regs.cs;
+                        vars["ss"] = regs.ss;
+                        vars["ds"] = regs.ds;
+                        vars["es"] = regs.es;
+                        vars["fs"] = regs.fs;
+                        vars["gs"] = regs.gs;
+                        vars["orig_rax"] = regs.orig_rax;
+                        vars["fs_base"] = regs.fs_base;
+                        vars["gs_base"] = regs.gs_base;
+                    }
+                } catch (const std::exception& e) {
+                    std::cerr << "Warning: Could not read registers for expression: " << e.what() << std::endl;
+                }
+            }
             expr_parser::ExprLexer lexer(text);
             expr_parser::ExprParser parser(lexer);
             uint64_t result = parser.parse();

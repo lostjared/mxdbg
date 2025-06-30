@@ -71,7 +71,6 @@ namespace mx {
         size_t get_breakpoint_index_by_address(uint64_t address) const;
         uint8_t get_original_instruction(uint64_t address) const;
         void handle_breakpoint_continue(uint64_t address);
-
         bool set_watchpoint(uint64_t address, size_t size, WatchType type);
         bool remove_watchpoint(uint64_t address);
         std::vector<Watchpoint> get_watchpoints() const;

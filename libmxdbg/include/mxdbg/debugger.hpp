@@ -49,6 +49,7 @@ namespace mx {
         bool is_running() const;
         
         bool command(const std::string &cmd);
+        void expression(const std::string &text);
         
         void setup_history();
         void save_history();

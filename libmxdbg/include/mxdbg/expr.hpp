@@ -2,6 +2,7 @@
 #define __EXPR__H_
 #include<iostream>
 #include<string>
+#include<unordered_map>
 #include"mxdbg/scanner.hpp"
 
  namespace expr_parser {
@@ -10,7 +11,8 @@
             END, NUMBER, PLUS, MINUS, MUL, DIV, MOD, LPAREN, RPAREN,
             PLUSEQ, MINUSEQ, XOR, OR, AND,
             LOGICAL_AND, LOGICAL_OR, NOT,
-            EQ, NEQ, GT, GTE, LT, LTE  
+            EQ, NEQ, GT, GTE, LT, LTE,
+            VARIABLE
         };
 
         struct ExprToken {
@@ -18,8 +20,12 @@
             uint64_t value; 
         };
 
+    
+        inline std::unordered_map<std::string,  uint64_t> vars;
+
         class ExprLexer {
         public:
+            std::string variable;
             ExprLexer(const std::string& input) : scanner(input), pos(0) {
                 scanner.scan();
                 next();
@@ -36,6 +42,9 @@
                     current = {ExprTokenType::NUMBER, std::stoull(val)};
                 } else if(t.getTokenType() == types::TokenType::TT_HEX) {
                     current = {ExprTokenType::NUMBER, std::stoull(val, nullptr, 16)};
+                } else if (t.getTokenType() == types::TokenType::TT_ID) { 
+                    current = {ExprTokenType::VARIABLE, 0};
+                    variable = val;
                 } else if (val == "+") {
                     current = {ExprTokenType::PLUS, 0};
                 } else if (val == "-") {
@@ -216,6 +225,10 @@
                     uint64_t v = lexer.peek().value;
                     lexer.consume();
                     return v;
+                } else if (lexer.peek().type == ExprTokenType::VARIABLE) {
+                    std::string var_name = lexer.variable;
+                    lexer.consume();
+                    return vars[var_name];
                 } else if (lexer.peek().type == ExprTokenType::LPAREN) {
                     lexer.consume();
                     uint64_t v = parseLogical();
@@ -228,9 +241,5 @@
             }
         };
     }
-
-
-
-
 
 #endif
