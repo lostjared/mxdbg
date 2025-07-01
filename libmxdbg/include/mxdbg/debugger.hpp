@@ -1,3 +1,8 @@
+/* 
+    MXDBG - Debugger with AI 
+    coded by Jared Bruni (jaredbruni@protonmail.com)
+    https://lostsidedead.biz
+*/
 #ifndef ___DEBUGGER__H__
 #define ___DEBUGGER__H__
 

@@ -1,3 +1,8 @@
+/* 
+    MXDBG - Debugger with AI 
+    coded by Jared Bruni (jaredbruni@protonmail.com)
+    https://lostsidedead.biz
+*/
 #ifndef _STR_BUF_X
 #define _STR_BUF_X
 

@@ -1,3 +1,8 @@
+/* 
+    MXDBG - Debugger with AI 
+    coded by Jared Bruni (jaredbruni@protonmail.com)
+    https://lostsidedead.biz
+*/
 #ifndef __EXPR__H_
 #define __EXPR__H_
 #include<iostream>

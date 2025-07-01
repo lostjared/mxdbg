@@ -1,3 +1,8 @@
+/* 
+    MXDBG - Debugger with AI 
+    coded by Jared Bruni (jaredbruni@protonmail.com)
+    https://lostsidedead.biz
+*/
 #ifndef _EXCEPTION_H_1
 #define _EXCEPTION_H_1
 

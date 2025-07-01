@@ -1,3 +1,8 @@
+/* 
+    MXDBG - Debugger with AI 
+    coded by Jared Bruni (jaredbruni@protonmail.com)
+    https://lostsidedead.biz
+*/
 #ifndef _TYPES_X__
 #define _TYPES_X__
   

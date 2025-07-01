@@ -1,3 +1,8 @@
+/* 
+    MXDBG - Debugger with AI 
+    coded by Jared Bruni (jaredbruni@protonmail.com)
+    https://lostsidedead.biz
+*/
 #include"mxdbg/debugger.hpp"
 #include"mxdbg/exception.hpp"
 #include"mxdbg/expr.hpp"
