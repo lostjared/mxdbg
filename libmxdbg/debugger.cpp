@@ -26,12 +26,20 @@ namespace mx {
     
     std::vector<std::string> split_command(const std::string &cmd) {
         std::vector<std::string> tokenz;
-        std::string token;
-        std::istringstream tokens(cmd);
-        while (tokens >> token) {
-            tokenz.push_back(token);
+         try {
+            scan::Scanner scanner(cmd);
+            uint64_t len = scanner.scan();
+            for(size_t i = 0; i < len; ++i) {
+                if(scanner[i].getTokenType() == types::TokenType::TT_ID || scanner[i].getTokenType() == types::TokenType::TT_HEX || scanner[i].getTokenType() == types::TokenType::TT_NUM || scanner[i].getTokenType() == types::TokenType::TT_SYM && scanner[i].getTokenValue() != "\n")
+                    tokenz.push_back(scanner[i].getTokenValue());
+
+                if(scanner[i].getTokenType() == types::TokenType::TT_SYM && scanner[i].getTokenValue() == "\n" || scanner[i].getTokenType() == types::TokenType::TT_SYM && scanner[i].getTokenValue() == "\r")
+                    break;      
+            }
+            return tokenz;
+        } catch(const scan::ScanExcept &e) {
+            throw mx::Exception("Error on lex of command string\n");
         }
-        return tokenz;
     }
 
     std::string join(size_t start, size_t stop, std::vector<std::string>  &tokens, const std::string &delimiter) {
@@ -394,7 +402,7 @@ namespace mx {
                 std::cout << "Usage: setval <name> <value>" << std::endl;
             }
             return true;
-        } else if(cmd == "listval") {
+        } else if(tokens.size() == 1 && tokens[0] == "listval") {
             for(auto &i : expr_parser::vars) {
                 if(color_)
                     std::cout << Color::BRIGHT_YELLOW;
@@ -423,7 +431,7 @@ namespace mx {
                 }
         }
         return true;
-        } else if (cmd == "threads" || cmd == "info threads") {
+        } else if (tokens.size() == 1 && (tokens[0] == "threads" || cmd == "info threads")) {
             list_threads();
             return true;
         } else if (tokens.size() == 2 && tokens[0] == "thread") {
@@ -433,7 +441,7 @@ namespace mx {
                 std::cerr << "Error: " << e.what() << "\n";
             }
             return true;
-        } else if(cmd == "thread") {
+        } else if(tokens.size() == 1 && tokens[0] == "thread") {
             if(color_)
                 std::cout << Color::BRIGHT_MAGENTA;
             if(process && process->is_running()) {
@@ -636,7 +644,7 @@ namespace mx {
                 std::cout << "No process running." << std::endl;
             }
             return true;
-        } else if(cmd == "run" || cmd == "r") {
+        } else if(tokens.size() == 1 && (tokens[0] == "run" || tokens[0] == "r")) {
             if(process  && process->is_running()) {
                 try {
                     if(!setfunction_breakpoint("main")) {
@@ -653,7 +661,7 @@ namespace mx {
             }
             return true;
 
-        } else if(cmd == "cur" || cmd == "current") {
+        } else if(tokens.size() ==  1 && (tokens[0] == "cur" || tokens[0] == "current")) {
             print_current_instruction();
             if(request) {
                 try {
@@ -670,7 +678,7 @@ namespace mx {
                 } 
             }
             return true;
-        } else if (cmd == "debug_state") {
+        } else if (tokens.size() ==1 && tokens[0] == "debug_state") {
             if (process && process->is_running()) {
                 std::cout << "=== DEBUG STATE ===" << std::endl;
                 std::cout << "Main PID: " << process->get_pid() << std::endl;
@@ -696,7 +704,7 @@ namespace mx {
             }
             return true;
         }
-        else if (cmd == "continue" || cmd == "c") {
+        else if (tokens.size() == 1 && (tokens[0] == "continue" || tokens[0] == "c")) {
             if (process && process->is_running()) {
                 try {
                     uint64_t pc_before = process->get_pc();
@@ -713,12 +721,12 @@ namespace mx {
                 std::cout << "Process has exited or is not running." << std::endl;
             }
             return true;
-        } else if (cmd == "step" || cmd == "s") {
+        } else if (tokens.size() == 1 && (tokens[0] == "step" || tokens[0] == "s")) {
             step();
             return true;
-        } else if (cmd.substr(0, 5) == "step " || cmd.substr(0, 2) == "s ") {
+        } else if (tokens.size() == 2 && tokens[0] == "step") {
             try {
-                std::string num_str = cmd.substr(cmd.find(' ') + 1);
+                std::string num_str = tokens[1];
                 int count = std::stoi(num_str);
                 if (count > 0) {
                     step_n(count);
@@ -729,7 +737,7 @@ namespace mx {
                 std::cout << "Invalid step count. Usage: step <number>" << std::endl;
             }
             return true;
-        } else if (cmd == "quit" || cmd == "q" || cmd == "exit") {
+        } else if (tokens.size() == 1 && (tokens[0] == "quit" || tokens[0] == "q" || tokens[0] == "exit")) {
             return false;
         } else if(tokens.size() == 1 && tokens[0] == "registers" || tokens[0] == "regs") {
             if (process && process->is_running()) {
@@ -789,14 +797,14 @@ namespace mx {
                 std::cout << "No process running." << std::endl;
             }
             return true;
-        } else if(cmd == "base") {
+        } else if(tokens.size() == 1 && tokens[0] == "base") {
             if (process && process->is_running()) {
                 print_address();
             } else {
                 std::cout << "No process attached or running." << std::endl;
             }
             return true;
-        } else if(cmd == "list") {
+        } else if(tokens.size() == 1 && tokens[0] == "list") {
             try {
                 std::cout << obj_dump() << std::endl;
             } catch(mx::Exception &e) {
@@ -859,13 +867,13 @@ namespace mx {
             }
             return true;
         }
-        else if(cmd == "explain") {
+        else if(tokens.size() == 1 && tokens[0] == "explain") {
             std::cout << "Usage: explain <function_name>" << std::endl;
             std::cout << "Example: explain main" << std::endl;
             std::cout << "To see available functions: objdump -t " << program_name << std::endl;
             return true;
         }
-        else if (cmd == "status" || cmd == "st") {
+        else if (tokens.size() == 1 && (tokens[0] == "status" || tokens[0] == "st")) {
             if (process) {
                 
                    if (kill(process->get_pid(), 0) != 0 && errno == ESRCH) {
@@ -884,6 +892,7 @@ namespace mx {
             try {
                 auto data = process->read_memory(addr, 8);
                 std::cout << "Memory at " << format_hex64(addr) << ": ";
+
                 for (auto byte : data) {
                     std::cout << std::hex << std::setfill('0') << std::setw(2) << (int)byte << " ";
                 }
@@ -976,8 +985,8 @@ namespace mx {
                 std::cout << "Invalid mode. Available modes: beginner, programmer, expert." << std::endl;
             }
             return true;
-        } else if (cmd == "backtrace" || cmd == "bt" || cmd == "where") {
-        
+        } else if (tokens.size() == 1 && (tokens[0] == "backtrace" ||  tokens[0] == "bt" || tokens[0] == "where")) {
+
             if (process && process->is_running()) {
                 print_backtrace();
             } else {
@@ -985,7 +994,7 @@ namespace mx {
             }
             return true;
         } 
-        else if (cmd == "help" || cmd == "h") {
+        else if (tokens.size() == 1 && (tokens[0] == "help" || tokens[0] == "h")) {
             if(color_)
                 std::cout << Color::YELLOW;
             std::cout << "Available commands:" << std::endl;
@@ -1179,7 +1188,7 @@ namespace mx {
                 std::cout << "No process running." << std::endl;
             }
             return true;
-        } else if (cmd == "start" || cmd == "restart") {
+        } else if (tokens.size() == 1  && (tokens[0] == "start" || tokens[0] == "restart")) {
             if (program_name.empty()) {
                 std::cout << "No program to restart. Use launch command first or provide a program path." << std::endl;
                 return true;
