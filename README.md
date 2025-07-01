@@ -1,5 +1,7 @@
 # mxdbg - Modern Debugger with AI Integration
 
+coded by Jared Bruni (jaredbruni@protonmail.com)
+
 A modern C++ debugger built with ptrace that integrates with Ollama for AI-powered code analysis and explanation.
 
 ![image](https://github.com/user-attachments/assets/149d94fd-6cdd-48f5-9171-ad83a066f26d)
