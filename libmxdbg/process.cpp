@@ -7,6 +7,7 @@
 #include"mxdbg/process.hpp"
 #include"mxdbg/pipe.hpp"
 #include"mxdbg/exception.hpp"
+#include"mxdbg/expr.hpp"
 #include<sys/ptrace.h>
 #include <sys/wait.h>
 #ifndef __WALL
@@ -139,6 +140,109 @@ namespace mx {
         }
     }
 
+     void Process::break_if(uint64_t address, const std::string &condition) {
+        if (!is_running()) {
+            std::cout << "No process attached or running." << std::endl;
+            return;
+        }
+        
+        if (condition.empty()) {
+            std::cout << "Usage: break_if <address> <condition>" << std::endl;
+            std::cout << "Example: break_if 0x401234 rax == 5" << std::endl;
+            return;
+        }
+        
+        try {
+            long data = ptrace(PTRACE_PEEKDATA, get_current_thread(), address, nullptr);
+            if (data == -1 && errno != 0) {
+                throw mx::Exception::error("Failed to read memory for breakpoint");
+            }
+            
+            uint8_t original_byte = static_cast<uint8_t>(data & 0xFF);
+            
+            if (conditional_breakpoints.find(address) != conditional_breakpoints.end()) {
+                std::cout << "Breakpoint already exists at " << format_hex64(address) << std::endl;
+                std::cout << "Updating condition..." << std::endl;
+                conditional_breakpoints[address].condition = condition;
+                conditional_breakpoints[address].is_conditional = true;
+                return;
+            }
+            
+            long data_with_int3 = (data & ~0xFF) | 0xCC;
+            if (ptrace(PTRACE_POKEDATA, get_current_thread(), address, data_with_int3) == -1) {
+                throw mx::Exception::error("Failed to write breakpoint");
+            }
+            conditional_breakpoints[address] = ConditionalBreakpoint(address, original_byte, condition);
+            std::cout << "Conditional breakpoint set at: " << format_hex64(address) << std::endl;
+            std::cout << "Condition: " << condition << std::endl; 
+        } catch (const std::exception& e) {
+            std::cerr << "Error setting conditional breakpoint: " << e.what() << std::endl;
+        }
+    }
+
+    uint64_t Process::expression(const std::string &text) {
+        try {
+
+            if (is_running()) {
+                try {
+                    using namespace expr_parser;
+                    struct user_regs_struct regs;
+                    pid_t current_tid = get_current_thread();
+                    if (ptrace(PTRACE_GETREGS, current_tid, nullptr, &regs) == 0) {
+                        vars["rax"] = regs.rax;
+                        vars["rbx"] = regs.rbx;
+                        vars["rcx"] = regs.rcx;
+                        vars["rdx"] = regs.rdx;
+                        vars["rsi"] = regs.rsi;
+                        vars["rdi"] = regs.rdi;
+                        vars["rbp"] = regs.rbp;
+                        vars["rsp"] = regs.rsp;
+                        vars["r8"] = regs.r8;
+                        vars["r9"] = regs.r9;
+                        vars["r10"] = regs.r10;
+                        vars["r11"] = regs.r11;
+                        vars["r12"] = regs.r12;
+                        vars["r13"] = regs.r13;
+                        vars["r14"] = regs.r14;
+                        vars["r15"] = regs.r15;
+                        vars["rip"] = regs.rip;
+                        vars["eflags"] = regs.eflags;
+                        vars["pc"] = regs.rip;
+                        vars["ip"] = regs.rip;
+                        vars["sp"] = regs.rsp;
+                        vars["bp"] = regs.rbp;
+                        vars["flags"] = regs.eflags;
+                        vars["cs"] = regs.cs;
+                        vars["ss"] = regs.ss;
+                        vars["ds"] = regs.ds;
+                        vars["es"] = regs.es;
+                        vars["fs"] = regs.fs;
+                        vars["gs"] = regs.gs;
+                        vars["orig_rax"] = regs.orig_rax;
+                        vars["fs_base"] = regs.fs_base;
+                        vars["gs_base"] = regs.gs_base;
+                    }
+                } catch (const std::exception& e) {
+                    std::cerr << "Warning: Could not read registers for expression: " << e.what() << std::endl;
+                }
+            }
+            expr_parser::ExprLexer lexer(text);
+            expr_parser::ExprParser parser(lexer);
+            uint64_t result = parser.parse();
+            std::cout << "The result: ";
+            if(color_)
+                std::cout << Color::BOLD;
+            std::cout << format_hex64(result) << " | " << std::dec << result << "\n";
+            if(color_)
+                std::cout << Color::RESET;
+            return result;
+        } catch (const std::exception& e) {
+            std::cerr << "Error on expression: " << e.what() << "\n";
+        }
+        throw mx::Exception("Processing Expression failed...\n");
+    }
+
+
     void Process::wait_for_stop() {
         int status;
         pid_t waited_pid;
@@ -153,6 +257,7 @@ namespace mx {
                         << WEXITSTATUS(status) << std::endl;
                 
                 if (waited_pid == m_pid) {
+                    exited_ = true;
                     return; 
                 }
                 
@@ -164,6 +269,7 @@ namespace mx {
                         << format_signal(WTERMSIG(status)) << std::endl;
                 
                 if (waited_pid == m_pid) {
+                    exited_ = true;
                     return; 
                 }
                 
@@ -217,6 +323,62 @@ namespace mx {
                     }
         
                     uint64_t pc = get_pc();
+                    auto bp_it = conditional_breakpoints.find(pc);
+                    if (bp_it == conditional_breakpoints.end()) {
+                        bp_it = conditional_breakpoints.find(pc - 1);  
+                        if (bp_it != conditional_breakpoints.end()) {
+                            set_pc(pc - 1);  
+                            pc = pc - 1;
+                        }
+                    }
+
+                    if (bp_it != conditional_breakpoints.end()) {
+                        const ConditionalBreakpoint& bp = bp_it->second;
+                        std::streambuf* cout_buf;
+
+                        if (bp.is_conditional) {
+                            
+                            bool condition_met = false;
+                            try {
+                            
+                                std::ostringstream old_cout;
+                                cout_buf = std::cout.rdbuf();
+                                std::cout.rdbuf(old_cout.rdbuf());
+                                
+                                uint64_t result = expression(bp.condition);
+                                std::cout.rdbuf(cout_buf);
+                                condition_met = (result != 0);  
+                                
+                            } catch (const std::exception& e) {
+                                std::cout.rdbuf(cout_buf);  
+                                std::cerr << "Error evaluating breakpoint condition '" << bp.condition 
+                                        << "': " << e.what() << std::endl;
+                                condition_met = true;  
+                            }
+                            
+                            if (!condition_met) {
+                            
+                                std::cout << "Conditional breakpoint at " << format_hex64(pc) 
+                                        << " hit, but condition '" << bp.condition << "' is false. Continuing..." << std::endl;
+                                
+                                handle_conditional_breakpoint_continue(pc);
+                                return;  
+                            }
+                        }
+                        
+                        
+                        std::cout << "=== ";
+                        if (bp.is_conditional) {
+                            std::cout << "CONDITIONAL ";
+                        }
+                        std::cout << "BREAKPOINT HIT ===" << std::endl;
+                        std::cout << "Thread: " << current_thread_id << std::endl;
+                        std::cout << "Address: " << format_hex64(pc) << std::endl;
+                        if (bp.is_conditional) {
+                            std::cout << "Condition: " << bp.condition << " (TRUE)" << std::endl;
+                        }
+                        return;  // Stop execution
+                    }
                     
                     if (breakpoints.find(pc) != breakpoints.end()) {
                         std::cout << "=== BREAKPOINT HIT ===" << std::endl;
@@ -274,6 +436,36 @@ namespace mx {
             return; 
         }
     }
+    
+    void Process::mark_as_exited() {
+        exited_ = true;
+    }
+
+    void Process::handle_conditional_breakpoint_continue(uint64_t address) {
+        auto bp_it = conditional_breakpoints.find(address);
+        if (bp_it == conditional_breakpoints.end()) {
+            return;
+        }
+        const ConditionalBreakpoint& bp = bp_it->second;
+        long data = ptrace(PTRACE_PEEKDATA, get_current_thread(), address, nullptr);
+        long restored = (data & ~0xFF) | bp.original_byte;
+        ptrace(PTRACE_POKEDATA, get_current_thread(), address, restored);
+        ptrace(PTRACE_SINGLESTEP, get_current_thread(), nullptr, nullptr);
+        int status;
+        waitpid(get_current_thread(), &status, 0);
+        data = ptrace(PTRACE_PEEKDATA, get_current_thread(), address, nullptr);
+        long data_with_int3 = (data & ~0xFF) | 0xCC;
+        ptrace(PTRACE_POKEDATA, get_current_thread(), address, data_with_int3);
+        continue_execution();
+        
+        try {
+            wait_for_stop();
+        } catch (const std::exception& e) {
+            exited_ = true;
+            std::cout << "Process exited after conditional breakpoint" << std::endl;
+        }
+    }
+
     std::string Process::disassemble_instruction(uint64_t address, const std::vector<uint8_t>& bytes) {
         try {
             std::string random_name;
@@ -772,7 +964,7 @@ namespace mx {
     }
 
     bool Process::is_running() const {
-        if (m_pid <= 0) return false;
+        if (m_pid <= 0 || exited_) return false;
         int result = kill(m_pid, 0);
         return result == 0;
     }

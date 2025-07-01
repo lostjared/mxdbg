@@ -20,39 +20,10 @@
 #include<fcntl.h>
 #include<sys/ptrace.h>
 #include<random>
-#include<termios.h>
+
 
 namespace mx {
     
-    namespace Color {
-        const std::string RESET = "\033[0m";
-        const std::string BOLD = "\033[1m";
-        const std::string DIM = "\033[2m";
-        const std::string BLACK = "\033[30m";
-        const std::string RED = "\033[31m";
-        const std::string GREEN = "\033[32m";
-        const std::string YELLOW = "\033[33m";
-        const std::string BLUE = "\033[34m";
-        const std::string MAGENTA = "\033[35m";
-        const std::string CYAN = "\033[36m";
-        const std::string WHITE = "\033[37m";
-        const std::string BRIGHT_RED = "\033[91m";
-        const std::string BRIGHT_GREEN = "\033[92m";
-        const std::string BRIGHT_YELLOW = "\033[93m";
-        const std::string BRIGHT_BLUE = "\033[94m";
-        const std::string BRIGHT_MAGENTA = "\033[95m";
-        const std::string BRIGHT_CYAN = "\033[96m";        
-        const std::string BG_RED = "\033[41m";
-        const std::string BG_GREEN = "\033[42m";
-        const std::string BG_YELLOW = "\033[43m";
-    }   
-    
-    bool terminal_supports_color() {
-        return isatty(STDOUT_FILENO) && getenv("TERM") != nullptr;
-    }
-    
-    bool color_ = terminal_supports_color();
-
     std::vector<std::string> split_command(const std::string &cmd) {
         std::vector<std::string> tokenz;
         std::string token;
@@ -191,7 +162,8 @@ namespace mx {
         return full_disassembly.str();
     }
 
-   bool Debugger::setfunction_breakpoint(const std::string &function_name) {
+   
+    bool Debugger::setfunction_breakpoint(const std::string &function_name) {
         if (!process || !process->is_running()) {
             std::cout << "No process attached or running." << std::endl;
             return false;
@@ -370,65 +342,7 @@ namespace mx {
         return process && process->is_running();
     }
 
-    void Debugger::expression(const std::string &text) {
-        try {
-
-            if (process && process->is_running()) {
-                try {
-                    using namespace expr_parser;
-                    struct user_regs_struct regs;
-                    pid_t current_tid = process->get_current_thread();
-                    if (ptrace(PTRACE_GETREGS, current_tid, nullptr, &regs) == 0) {
-                        vars["rax"] = regs.rax;
-                        vars["rbx"] = regs.rbx;
-                        vars["rcx"] = regs.rcx;
-                        vars["rdx"] = regs.rdx;
-                        vars["rsi"] = regs.rsi;
-                        vars["rdi"] = regs.rdi;
-                        vars["rbp"] = regs.rbp;
-                        vars["rsp"] = regs.rsp;
-                        vars["r8"] = regs.r8;
-                        vars["r9"] = regs.r9;
-                        vars["r10"] = regs.r10;
-                        vars["r11"] = regs.r11;
-                        vars["r12"] = regs.r12;
-                        vars["r13"] = regs.r13;
-                        vars["r14"] = regs.r14;
-                        vars["r15"] = regs.r15;
-                        vars["rip"] = regs.rip;
-                        vars["eflags"] = regs.eflags;
-                        vars["pc"] = regs.rip;
-                        vars["ip"] = regs.rip;
-                        vars["sp"] = regs.rsp;
-                        vars["bp"] = regs.rbp;
-                        vars["flags"] = regs.eflags;
-                        vars["cs"] = regs.cs;
-                        vars["ss"] = regs.ss;
-                        vars["ds"] = regs.ds;
-                        vars["es"] = regs.es;
-                        vars["fs"] = regs.fs;
-                        vars["gs"] = regs.gs;
-                        vars["orig_rax"] = regs.orig_rax;
-                        vars["fs_base"] = regs.fs_base;
-                        vars["gs_base"] = regs.gs_base;
-                    }
-                } catch (const std::exception& e) {
-                    std::cerr << "Warning: Could not read registers for expression: " << e.what() << std::endl;
-                }
-            }
-            expr_parser::ExprLexer lexer(text);
-            expr_parser::ExprParser parser(lexer);
-            uint64_t result = parser.parse();
-            std::cout << "The result: ";
-            if(color_)
-                std::cout << Color::BOLD;
-            std::cout << format_hex64(result) << " | " << std::dec << result << "\n";
-            if(color_)
-                std::cout << Color::RESET;
-        } catch (const std::exception& e) {
-            std::cerr << "Error on expression: " << e.what() << "\n";
-        }
-    }
+    
     
     bool Debugger::command(const std::string &cmd) {
         std::vector<std::string> tokens = split_command(cmd);
@@ -438,9 +352,28 @@ namespace mx {
         }
         if(tokens.size() >= 2 && tokens[0] == "expr") {
             std::string e = cmd.substr(cmd.find(' ') + 1);
-            expression(e);
+            process->expression(e);
             return true;
-        } else if(tokens.size() >= 2 && tokens[0] == "setval") {
+        } else if (tokens.size() >= 3 && tokens[0] == "break_if") {
+            if (process && process->is_running()) {
+                try {
+                    uint64_t addr = std::stoull(tokens[1], nullptr, 0);
+                    std::string condition;
+                    for (size_t i = 2; i < tokens.size(); ++i) {
+                        if (i > 2) condition += " ";
+                        condition += tokens[i];
+                    }          
+                    process->break_if(addr, condition);
+                } catch (const std::exception& e) {
+                    std::cerr << "Error setting conditional breakpoint: " << e.what() << std::endl;
+                }
+            } else {
+                std::cout << "No process running." << std::endl;
+            }
+            return true;
+        }
+        
+        else if(tokens.size() >= 2 && tokens[0] == "setval") {
             std::string name = tokens[1];
             if (tokens.size() >= 3) {
                 std::string value = cmd.substr(cmd.find(tokens[1]) + tokens[1].length());
@@ -777,7 +710,7 @@ namespace mx {
                     std::cerr << "Error during continue: " << e.what() << std::endl;
                 }
             } else {
-                std::cout << "No process running." << std::endl;
+                std::cout << "Process has exited or is not running." << std::endl;
             }
             return true;
         } else if (cmd == "step" || cmd == "s") {
@@ -933,7 +866,12 @@ namespace mx {
             return true;
         }
         else if (cmd == "status" || cmd == "st") {
-            if (process) { 
+            if (process) {
+                
+                   if (kill(process->get_pid(), 0) != 0 && errno == ESRCH) {
+                       process->mark_as_exited();
+        }
+                
                 std::cout << "Process PID: " << process->get_pid() << std::endl;
                 std::cout << "Process is running: " << (process->is_running() ? "Yes" : "No") << std::endl;
             } else {

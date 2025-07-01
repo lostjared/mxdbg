@@ -6,13 +6,14 @@
 #ifndef ___DEBUGGER__H__
 #define ___DEBUGGER__H__
 
-#include <iostream>
-#include <memory>
-#include <string>
-#include <vector>
-#include <filesystem>
-#include <cstdlib>
-#include "mxdbg/process.hpp"
+#include<iostream>
+#include<memory>
+#include<string>
+#include<vector>
+#include<map>
+#include<filesystem>
+#include<cstdlib>
+#include"mxdbg/process.hpp"
 #include<mx2-ollama.hpp>
 namespace mx {
 
@@ -54,7 +55,7 @@ namespace mx {
         bool is_running() const;
         
         bool command(const std::string &cmd);
-        void expression(const std::string &text);
+        uint64_t expression(const std::string &text);
         
         void setup_history();
         void save_history();
@@ -63,6 +64,7 @@ namespace mx {
         uint64_t get_base_address() const;
         bool setfunction_breakpoint(const std::string &function_name);
         uint64_t calculate_variable_address(const std::string &r, uint64_t value);
+        void break_if(uint64_t location, const std::string &e);
     private:
         void print_current_instruction(); 
         std::unique_ptr<Process> process;

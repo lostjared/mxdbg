@@ -81,7 +81,7 @@
                 } else if (val == "!") {
                     current = {ExprTokenType::NOT, 0};
                 } 
-                else if (val == "=") {
+                else if (val == "==") {
                     current = {ExprTokenType::EQ, 0};
                 } else if (val == "!=") {
                     current = {ExprTokenType::NEQ, 0};

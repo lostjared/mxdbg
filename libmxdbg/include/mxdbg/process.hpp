@@ -32,6 +32,17 @@ namespace mx {
         std::string disassembly;  
     };
 
+    struct ConditionalBreakpoint {
+        uint64_t address;
+        uint8_t original_byte;
+        std::string condition;
+        bool is_conditional;
+        
+        ConditionalBreakpoint() : address(0), original_byte(0), is_conditional(false) {}
+        ConditionalBreakpoint(uint64_t addr, uint8_t orig, const std::string& cond = "") 
+            : address(addr), original_byte(orig), condition(cond), is_conditional(!cond.empty()) {}
+    };
+    
     class Process {
     public:
         Process(const Process&) = delete;
@@ -86,17 +97,23 @@ namespace mx {
         std::vector<pid_t> get_thread_ids() const;
         bool is_valid_thread(pid_t tid) const;
         void handle_thread_breakpoint_continue(uint64_t address);
+        void break_if(uint64_t address, const std::string &condition);
+        uint64_t expression(const std::string &e);
+        void mark_as_exited();
     private:
         Process(pid_t pid) : m_pid(pid), current_thread_id(pid), index_(0) {}    
         pid_t m_pid, current_thread_id;
         bool is_single_stepping = false;
         std::map<uint64_t, uint8_t> breakpoints;
         std::vector<uint64_t> breakpoint_index;   
+        std::map<uint64_t, ConditionalBreakpoint> conditional_breakpoints;
         void handle_breakpoint_step(uint64_t address);
+        void handle_conditional_breakpoint_continue(uint64_t address);
         void set_pc(uint64_t address);    
         
         size_t index_;    
         std::vector<Watchpoint> watchpoints_;
+        bool exited_ = false;
     };  
 
 } 
