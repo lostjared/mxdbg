@@ -221,6 +221,56 @@ namespace mx {
                         vars["orig_rax"] = regs.orig_rax;
                         vars["fs_base"] = regs.fs_base;
                         vars["gs_base"] = regs.gs_base;
+                        vars["eax"] = regs.rax & 0xFFFFFFFF;
+                        vars["ebx"] = regs.rbx & 0xFFFFFFFF;
+                        vars["ecx"] = regs.rcx & 0xFFFFFFFF;
+                        vars["edx"] = regs.rdx & 0xFFFFFFFF;
+                        vars["esi"] = regs.rsi & 0xFFFFFFFF;
+                        vars["edi"] = regs.rdi & 0xFFFFFFFF;
+                        vars["ebp"] = regs.rbp & 0xFFFFFFFF;
+                        vars["esp"] = regs.rsp & 0xFFFFFFFF;
+                        vars["r8d"] = regs.r8 & 0xFFFFFFFF;
+                        vars["r9d"] = regs.r9 & 0xFFFFFFFF;
+                        vars["r10d"] = regs.r10 & 0xFFFFFFFF;
+                        vars["r11d"] = regs.r11 & 0xFFFFFFFF;
+                        vars["r12d"] = regs.r12 & 0xFFFFFFFF;
+                        vars["r13d"] = regs.r13 & 0xFFFFFFFF;
+                        vars["r14d"] = regs.r14 & 0xFFFFFFFF;
+                        vars["r15d"] = regs.r15 & 0xFFFFFFFF;
+                        vars["ax"] = regs.rax & 0xFFFF;
+                        vars["bx"] = regs.rbx & 0xFFFF;
+                        vars["cx"] = regs.rcx & 0xFFFF;
+                        vars["dx"] = regs.rdx & 0xFFFF;
+                        vars["si"] = regs.rsi & 0xFFFF;
+                        vars["di"] = regs.rdi & 0xFFFF;
+                        vars["r8w"] = regs.r8 & 0xFFFF;
+                        vars["r9w"] = regs.r9 & 0xFFFF;
+                        vars["r10w"] = regs.r10 & 0xFFFF;
+                        vars["r11w"] = regs.r11 & 0xFFFF;
+                        vars["r12w"] = regs.r12 & 0xFFFF;
+                        vars["r13w"] = regs.r13 & 0xFFFF;
+                        vars["r14w"] = regs.r14 & 0xFFFF;
+                        vars["r15w"] = regs.r15 & 0xFFFF;
+                        vars["al"] = regs.rax & 0xFF;
+                        vars["ah"] = (regs.rax >> 8) & 0xFF;
+                        vars["bl"] = regs.rbx & 0xFF;
+                        vars["bh"] = (regs.rbx >> 8) & 0xFF;
+                        vars["cl"] = regs.rcx & 0xFF;
+                        vars["ch"] = (regs.rcx >> 8) & 0xFF;
+                        vars["dl"] = regs.rdx & 0xFF;
+                        vars["dh"] = (regs.rdx >> 8) & 0xFF;
+                        vars["sil"] = regs.rsi & 0xFF;
+                        vars["dil"] = regs.rdi & 0xFF;
+                        vars["bpl"] = regs.rbp & 0xFF;
+                        vars["spl"] = regs.rsp & 0xFF;
+                        vars["r8b"] = regs.r8 & 0xFF;
+                        vars["r9b"] = regs.r9 & 0xFF;
+                        vars["r10b"] = regs.r10 & 0xFF;
+                        vars["r11b"] = regs.r11 & 0xFF;
+                        vars["r12b"] = regs.r12 & 0xFF;
+                        vars["r13b"] = regs.r13 & 0xFF;
+                        vars["r14b"] = regs.r14 & 0xFF;
+                        vars["r15b"] = regs.r15 & 0xFF;
                     }
                 } catch (const std::exception& e) {
                     std::cerr << "Warning: Could not read registers for expression: " << e.what() << std::endl;
@@ -238,6 +288,7 @@ namespace mx {
             return result;
         } catch (const std::exception& e) {
             std::cerr << "Error on expression: " << e.what() << "\n";
+            return 0;
         }
         throw mx::Exception("Processing Expression failed...\n");
     }
@@ -332,34 +383,34 @@ namespace mx {
                         }
                     }
 
-                    if (bp_it != conditional_breakpoints.end()) {
-                        const ConditionalBreakpoint& bp = bp_it->second;
-                        std::streambuf* cout_buf;
+                        if (bp_it != conditional_breakpoints.end()) {
+                            const ConditionalBreakpoint& bp = bp_it->second;
+                            std::streambuf* cout_buf;
 
                         if (bp.is_conditional) {
-                            
                             bool condition_met = false;
                             try {
-                            
+                                std::streambuf* cout_buf = std::cout.rdbuf();
                                 std::ostringstream old_cout;
-                                cout_buf = std::cout.rdbuf();
                                 std::cout.rdbuf(old_cout.rdbuf());
-                                
-                                uint64_t result = expression(bp.condition);
+                                try {
+                                    uint64_t result = expression(bp.condition);
+                                    condition_met = (result != 0);  
+                                }
+                                catch (const std::exception& e) {
+                                    condition_met = false;
+                                }
                                 std::cout.rdbuf(cout_buf);
-                                condition_met = (result != 0);  
                                 
                             } catch (const std::exception& e) {
-                                std::cout.rdbuf(cout_buf);  
-                                std::cerr << "Error evaluating breakpoint condition '" << bp.condition 
+                                std::cerr << "Error processing breakpoint condition '" << bp.condition 
                                         << "': " << e.what() << std::endl;
-                                condition_met = true;  
+                                condition_met = false;  
                             }
                             
                             if (!condition_met) {
-                            
                                 std::cout << "Conditional breakpoint at " << format_hex64(pc) 
-                                        << " hit, but condition '" << bp.condition << "' is false. Continuing..." << std::endl;
+                                        << " hit, but condition '" << bp.condition << "' is false or invalid. Continuing..." << std::endl;
                                 
                                 handle_conditional_breakpoint_continue(pc);
                                 return;  

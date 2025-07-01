@@ -233,6 +233,10 @@
                 } else if (lexer.peek().type == ExprTokenType::VARIABLE) {
                     std::string var_name = lexer.variable;
                     lexer.consume();
+                    auto v = vars.find(var_name);
+                    if(v == vars.end()) {
+                        throw mx::Exception("Error variable name not found...\n");
+                    }
                     return vars[var_name];
                 } else if (lexer.peek().type == ExprTokenType::LPAREN) {
                     lexer.consume();
