@@ -428,7 +428,7 @@ namespace mx {
                         if (bp.is_conditional) {
                             std::cout << "Condition: " << bp.condition << " (TRUE)" << std::endl;
                         }
-                        return;  // Stop execution
+                        return;  
                     }
                     
                     if (breakpoints.find(pc) != breakpoints.end()) {
