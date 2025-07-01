@@ -554,23 +554,31 @@ namespace mx {
     }
     
     void Process::handle_thread_breakpoint_continue(uint64_t address) {
-        uint8_t original_byte = breakpoints[address];
+        auto it = conditional_breakpoints.find(address);
+        if (it == conditional_breakpoints.end()) {
+            return;
+        }
+        
+        const ConditionalBreakpoint& bp = it->second;
         long data = ptrace(PTRACE_PEEKDATA, current_thread_id, address, nullptr);
-        long restored = (data & ~0xFF) | original_byte;
+        long restored = (data & ~0xFF) | bp.original_byte;
         ptrace(PTRACE_POKEDATA, current_thread_id, address, restored);
         ptrace(PTRACE_SINGLESTEP, current_thread_id, nullptr, nullptr);
         int status;
         waitpid(current_thread_id, &status, 0);
-        data = ptrace(PTRACE_PEEKDATA, current_thread_id, address, nullptr);
-        long data_with_int3 = (data & ~0xFF) | 0xCC;
-        ptrace(PTRACE_POKEDATA, current_thread_id, address, data_with_int3);
-        auto thread_ids = get_thread_ids();
-        for (pid_t tid : thread_ids) {
-            if (ptrace(PTRACE_CONT, tid, nullptr, 0) == -1) {
-                if (errno != ESRCH) { 
-                    throw mx::Exception::error("Failed to continue thread " + std::to_string(tid));
-                }
-            }
+        if (WIFEXITED(status)) {
+            exited_ = true;
+            std::cout << "Process exited with code: " << WEXITSTATUS(status) << std::endl;
+            return;
+        }
+        uint64_t new_pc = get_pc();
+        if (new_pc != address) {
+            ptrace(PTRACE_CONT, current_thread_id, nullptr, nullptr);
+        } else {
+            data = ptrace(PTRACE_PEEKDATA, current_thread_id, address, nullptr);
+            long data_with_int3 = (data & ~0xFF) | 0xCC;
+            ptrace(PTRACE_POKEDATA, current_thread_id, address, data_with_int3);
+            ptrace(PTRACE_CONT, current_thread_id, nullptr, nullptr);
         }
     }
 
@@ -960,7 +968,12 @@ namespace mx {
 
     
     bool Process::has_breakpoint(uint64_t address) const {
-        return breakpoints.find(address) != breakpoints.end();
+        return breakpoints.find(address) != breakpoints.end() || 
+            conditional_breakpoints.find(address) != conditional_breakpoints.end();
+    }
+
+    bool Process::has_conditional_breakpoint(uint64_t address) const {
+        return conditional_breakpoints.find(address) != conditional_breakpoints.end();
     }
 
     bool Process::is_running() const {

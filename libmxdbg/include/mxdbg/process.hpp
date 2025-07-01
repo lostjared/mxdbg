@@ -100,6 +100,7 @@ namespace mx {
         void break_if(uint64_t address, const std::string &condition);
         uint64_t expression(const std::string &e);
         void mark_as_exited();
+        bool has_conditional_breakpoint(uint64_t address) const;
     private:
         Process(pid_t pid) : m_pid(pid), current_thread_id(pid), index_(0) {}    
         pid_t m_pid, current_thread_id;
