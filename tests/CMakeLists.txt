@@ -102,6 +102,11 @@ set_tests_properties(process_attach PROPERTIES
     PASS_REGULAR_EXPRESSION "Test passed"
 )
 enable_language(ASM)
+add_executable(hello_world asm/hello_world.s)
+set_target_properties(hello_world PROPERTIES
+    LINKER_LANGUAGE ASM
+    LINK_FLAGS "-nostdlib -static -no-pie"
+)
 add_executable(registers_test_asm asm/registers_test.s)
 set_target_properties(registers_test_asm PROPERTIES
     LINKER_LANGUAGE ASM
