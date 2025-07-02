@@ -1,7 +1,6 @@
 .section .data
-    hello_msg: .ascii "Hello, World!\n  "
-    .equ hello_len, 17
-
+    hello_msg: .asciz "Hello, World!\n"
+    
 .section .text
     .global _start
 
@@ -11,14 +10,16 @@ _start:
     mov $60, %rax       # sys_exit
     mov $0, %rdi        # exit status
     syscall
-
 main:
     # Write system call
+    movl $0, %ebx
+loop_start:
     mov $1, %rax        # sys_write
     mov $1, %rdi        # stdout
-    mov $hello_msg, %rsi
-    mov $hello_len, %rdx # message length
+    lea hello_msg(%rip), %rsi
+    mov $14, %rdx # message length
     syscall
+    incl %ebx
+    cmpl $10, %ebx
+    jne loop_start
     ret
-
-    
