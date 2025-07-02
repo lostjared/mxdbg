@@ -362,6 +362,33 @@ namespace mx {
             std::string e = cmd.substr(cmd.find(' ') + 1);
             process->expression(e);
             return true;
+        }
+        else if (tokens.size() == 1 && tokens[0] == "next") {
+            if (process && process->is_running()) {
+                step_over();
+            } else {
+                std::cout << "No process running." << std::endl;
+            }
+            return true;
+        } else if (tokens.size() == 1 && (tokens[0] == "finish" || tokens[0] == "step_out")) {
+            if (process && process->is_running()) {
+                step_out();
+            } else {
+                std::cout << "No process running." << std::endl;
+            }
+            return true;
+        } else if (tokens.size() == 2 && (tokens[0] == "until" || tokens[0] == "run_until")) {
+            if (process && process->is_running()) {
+                try {
+                    uint64_t address = std::stoull(tokens[1], nullptr, 0);
+                    run_until(address);
+                } catch (const std::exception& e) {
+                    std::cerr << "Invalid address format: " << tokens[1] << std::endl;
+                }
+            } else {
+                std::cout << "No process running." << std::endl;
+            }
+            return true;
         } else if (tokens.size() >= 3 && tokens[0] == "break_if") {
             if (process && process->is_running()) {
                 try {
@@ -379,9 +406,7 @@ namespace mx {
                 std::cout << "No process running." << std::endl;
             }
             return true;
-        }
-        
-        else if(tokens.size() >= 2 && tokens[0] == "setval") {
+        } else if(tokens.size() >= 2 && tokens[0] == "setval") {
             std::string name = tokens[1];
             if (tokens.size() >= 3) {
                 std::string value = cmd.substr(cmd.find(tokens[1]) + tokens[1].length());
@@ -1008,6 +1033,9 @@ namespace mx {
             std::cout << "  continue, c                 - Continue process execution" << std::endl;
             std::cout << "  step, s                     - Execute single instruction" << std::endl;
             std::cout << "  step N, s N                 - Execute N instructions" << std::endl;
+            std::cout << "  next                        - Step over function calls" << std::endl;
+            std::cout << "  finish, step_out            - Step out of current function" << std::endl;
+            std::cout << "  until <addr>, run_until <addr> - Run until specific address" << std::endl;
             std::cout << "  status, st                  - Show process status" << std::endl;
             std::cout << "  start, restart              - Restart the program" << std::endl;
 
@@ -2286,5 +2314,199 @@ namespace mx {
             }
         }
         return matches;
+    }
+
+    void Debugger::step_over() {
+        if (!process || !process->is_running()) {
+            std::cerr << "No process attached or running." << std::endl;
+            return;
+        }
+        
+        try {
+            uint64_t current_rip = process->get_register("rip");
+            std::vector<uint8_t> instruction = process->read_memory(current_rip, 15);
+            bool is_call = false;
+            if (instruction.size() >= 1) {
+                if (instruction[0] == 0xE8 ||  
+                    (instruction[0] == 0xFF && instruction.size() >= 2 && 
+                    ((instruction[1] & 0x38) == 0x10)) ||  
+                    instruction[0] == 0x9A) {  
+                    is_call = true;
+                }
+            }
+            
+            if (is_call) {
+                uint64_t return_address = current_rip;
+                if (instruction[0] == 0xE8 && instruction.size() >= 5) {
+                    return_address += 5; 
+                } else if (instruction[0] == 0xFF) {
+                    return_address += 2;
+                } else {
+                    return_address += 1;  
+                }
+                process->set_breakpoint(return_address);
+                if (color_) std::cout << Color::BRIGHT_YELLOW;
+                std::cout << "Step over: Setting temporary breakpoint at " 
+                        << format_hex64(return_address) << std::endl;
+                if (color_) std::cout << Color::RESET;
+                process->continue_execution();
+                process->wait_for_stop();
+                process->remove_breakpoint(return_address);
+                std::cout << "Step over completed." << std::endl;
+            } else {
+                print_current_instruction();
+                process->single_step();
+                process->wait_for_single_step();
+                std::cout << "Step completed." << std::endl;
+            }
+            
+        } catch (const std::exception& e) {
+            std::cerr << "Error during step over: " << e.what() << std::endl;
+        }
+    }
+
+   void Debugger::step_out() {
+        if (!process || !process->is_running()) {
+            std::cerr << "No process attached or running." << std::endl;
+            return;
+        }        
+        
+        try {
+            uint64_t rip = process->get_register("rip");
+            uint64_t rbp = process->get_register("rbp");
+            uint64_t rsp = process->get_register("rsp");
+            
+            if (process->has_breakpoint(rip)) {
+                std::cout << "Currently at breakpoint. Stepping over it first..." << std::endl;
+                uint8_t original_byte = process->get_original_instruction(rip);
+                long data = ptrace(PTRACE_PEEKDATA, process->get_current_thread(), rip, nullptr);
+                long restored = (data & ~0xFF) | original_byte;
+                ptrace(PTRACE_POKEDATA, process->get_current_thread(), rip, restored);
+                ptrace(PTRACE_SINGLESTEP, process->get_current_thread(), nullptr, nullptr);
+                int status;
+                waitpid(process->get_current_thread(), &status, 0);
+                
+                data = ptrace(PTRACE_PEEKDATA, process->get_current_thread(), rip, nullptr);
+                long data_with_int3 = (data & ~0xFF) | 0xCC;
+                ptrace(PTRACE_POKEDATA, process->get_current_thread(), rip, data_with_int3);
+                
+                rip = process->get_register("rip");
+            }
+            
+            if (rip < 0x400000 || rip > 0x500000) {
+                std::cout << "Cannot step out: Process appears to be at entry point or invalid location." << std::endl;
+                std::cout << "Try running the program first with 'run' or 'continue'." << std::endl;
+                return;
+            }
+            uint64_t return_address = 0;
+            if (rbp > 0 && rbp > rsp && rbp < 0x7fffffffffff && (rbp - rsp) <= 0x10000) {
+                try {
+                    std::vector<uint8_t> return_data = process->read_memory(rbp + 8, 8);
+                    std::memcpy(&return_address, return_data.data(), 8);
+                    
+                    if (return_address >= 0x400000 && return_address < 0x500000 && 
+                        is_valid_code_address(return_address)) {
+                        std::cout << "Using return address from RBP+8: " << format_hex64(return_address) << std::endl;
+                    }
+                } catch (...) {
+                    return_address = 0;
+                }
+            }
+        
+            if (return_address == 0 || return_address < 0x400000 || return_address >= 0x500000) {
+                std::cout << "Searching for valid return address on stack..." << std::endl;
+                
+                for (int i = 0; i < 8; i++) {
+                    try {
+                        uint64_t stack_addr = rsp + (i * 8);
+                        std::vector<uint8_t> stack_data = process->read_memory(stack_addr, 8);
+                        uint64_t potential_return = 0;
+                        std::memcpy(&potential_return, stack_data.data(), 8);
+                        
+                        if (potential_return >= 0x400000 && potential_return < 0x500000 && 
+                            potential_return != rip && is_valid_code_address(potential_return)) {
+                            
+                            return_address = potential_return;
+                            std::cout << "Using return address from RSP+" << (i * 8) 
+                                    << ": " << format_hex64(return_address) << std::endl;
+                            break;
+                        }
+                    } catch (...) {
+                        continue;
+                    }
+                }
+            }
+            
+            if (return_address == 0 || return_address < 0x400000 || return_address >= 0x500000) {
+                std::cout << "Could not find valid return address. Try 'next' or 'until' instead." << std::endl;
+                return;
+            }
+            process->set_breakpoint(return_address);   
+            if (color_) std::cout << Color::BRIGHT_YELLOW;
+            std::cout << "Step out: Setting breakpoint at return address " 
+                    << format_hex64(return_address) << std::endl;
+            if (color_) std::cout << Color::RESET;
+            process->continue_execution();
+            process->wait_for_stop();
+            process->remove_breakpoint(return_address);       
+            std::cout << "Step out completed." << std::endl;
+            
+        } catch (const std::exception& e) {
+            std::cerr << "Error during step out: " << e.what() << std::endl;
+        }
+    }
+    void Debugger::run_until(uint64_t address) {
+        if (!process || !process->is_running()) {
+            std::cerr << "No process attached or running." << std::endl;
+            return;
+        }
+        try {
+            if (!is_valid_code_address(address)) {
+                std::cerr << "Warning: Address " << format_hex64(address) 
+                        << " may not be in executable memory." << std::endl;
+            }
+            uint64_t current_rip = process->get_register("rip");
+            if (current_rip == address) {
+                std::cout << "Already at target address " << format_hex64(address) << std::endl;
+                return;
+            }
+            bool had_existing_breakpoint = process->has_breakpoint(address);        
+            if (!had_existing_breakpoint) {
+                process->set_breakpoint(address);
+            }
+            
+            if (color_) std::cout << Color::BRIGHT_YELLOW;
+            std::cout << "Running until address " << format_hex64(address);
+            if (!had_existing_breakpoint) {
+                std::cout << " (temporary breakpoint set)";
+            }
+            std::cout << "..." << std::endl;
+            if (color_) std::cout << Color::RESET;
+            process->continue_execution();
+            process->wait_for_stop();
+            uint64_t final_rip = process->get_register("rip");
+            if (final_rip == address) {
+                if (color_) std::cout << Color::BRIGHT_GREEN;
+                std::cout << "Reached target address " << format_hex64(address) << std::endl;
+                if (color_) std::cout << Color::RESET;
+            } else {
+                if (color_) std::cout << Color::BRIGHT_RED;
+                std::cout << "Stopped at " << format_hex64(final_rip) 
+                        << " (did not reach target " << format_hex64(address) << ")" << std::endl;
+                if (color_) std::cout << Color::RESET;
+            }
+            if (!had_existing_breakpoint) {
+                process->remove_breakpoint(address);
+            }
+            
+        } catch (const std::exception& e) {
+            std::cerr << "Error during run until: " << e.what() << std::endl;
+           try {
+                if (!process->has_breakpoint(address)) {
+                    process->remove_breakpoint(address);
+                }
+            } catch (...) {
+            }
+        }
     }
 }

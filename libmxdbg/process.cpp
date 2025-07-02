@@ -390,7 +390,6 @@ namespace mx {
                         if (bp.is_conditional) {
                             bool condition_met = false;
                             try {
-                                std::streambuf* cout_buf = std::cout.rdbuf();
                                 std::ostringstream old_cout;
                                 std::cout.rdbuf(old_cout.rdbuf());
                                 try {
@@ -416,8 +415,7 @@ namespace mx {
                                 return;  
                             }
                         }
-                        
-                        
+                                     
                         std::cout << "=== ";
                         if (bp.is_conditional) {
                             std::cout << "CONDITIONAL ";

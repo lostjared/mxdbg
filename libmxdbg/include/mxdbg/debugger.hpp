@@ -65,6 +65,9 @@ namespace mx {
         bool setfunction_breakpoint(const std::string &function_name);
         uint64_t calculate_variable_address(const std::string &r, uint64_t value);
         void break_if(uint64_t location, const std::string &e);
+        void step_over();     
+        void step_out();      
+        void run_until(uint64_t address);  
     private:
         void print_current_instruction(); 
         std::unique_ptr<Process> process;
