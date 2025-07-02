@@ -16,7 +16,7 @@ main:
     # Write system call
     mov $1, %rax        # sys_write
     mov $1, %rdi        # stdout
-    lea hello_msg(%rip), %rsi
+    mov $hello_msg, %rsi
     mov $hello_len, %rdx # message length
     syscall
     ret
