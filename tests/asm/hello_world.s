@@ -1,6 +1,6 @@
 .section .data
     hello_msg: .ascii "Hello, World!\n"
-    hello_len = . - hello_msg
+    .equ hello_len, 14
 
 .section .text
     .global _start
