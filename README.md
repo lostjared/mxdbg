@@ -114,8 +114,6 @@ Once in the debugger shell (`mx $>`), you can use:
 
 ## Available Commands
 
-## Available Commands
-
 | Command | Aliases | Description |
 |---------|---------|-------------|
 | **Expression & Variables** | | |
@@ -127,6 +125,9 @@ Once in the debugger shell (`mx $>`), you can use:
 | `continue` | `c` | Continue process execution |
 | `step` | `s` | Execute single instruction |
 | `step N` | `s N` | Execute N instructions |
+| `next` | | Step over function calls |
+| `finish` | `step_out` | Step out of current function |
+| `until <addr>` | `run_until <addr>` | Run until specific address |
 | `status` | `st` | Show process status |
 | `start` | `restart` | Restart the program |
 | **Threading** | | |
