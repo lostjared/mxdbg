@@ -1,4 +1,4 @@
-# mxdbg - Modern Debugger with AI Integration
+# mxdbg - ELF x86_64 Debugger with AI Integration
 
 coded by Jared Bruni (jaredbruni@protonmail.com)
 
