@@ -750,10 +750,10 @@ namespace mx {
                 } catch (const std::exception& e) {
                     std::cerr << "Error during continue: " << e.what() << std::endl;
                 }
-    } else {
-        std::cout << "Process has exited or is not running." << std::endl;
-    }
-    return true;
+            } else {
+                std::cout << "Process has exited or is not running." << std::endl;
+            }
+            return true;
         } else if (tokens.size() == 1 && (tokens[0] == "step" || tokens[0] == "s")) {
             step();
             return true;
