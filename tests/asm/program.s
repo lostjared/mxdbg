@@ -6,18 +6,15 @@
     .global main
 
 main:
-    push %rbp           
-    mov %rsp, %rbp      
-
-    sub $16, %rsp
-    movq $0, -0x8(%rbp)
-
+    push %rbp
+    mov %rsp, %rbp
     lea hello_msg(%rip), %rdi    # First argument for puts
-    call puts          
-    lea print_digits(%rip), %rdi 
-    mov $255, %rsi               
+    call puts
+    lea print_digits(%rip), %rdi
+    mov $255, %rsi
+    mov $0, %rdx
     call printf
-    mov -0x8(%rbp), %rbx
+    mov $0, %rbx
 loop_1:
     lea print_digits(%rip), %rdi
     mov %rbx, %rsi
@@ -27,9 +24,9 @@ loop_1:
     cmp $10, %rbx
     jle loop_1
     mov %rbx, %rax
-    mov %rbp, %rsp       
-    pop %rbp            
-    ret                 
+    mov %rbp, %rsp
+    pop %rbp
+    ret
 
 print_number:
     push %rbp
