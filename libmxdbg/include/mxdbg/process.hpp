@@ -13,6 +13,8 @@
 #include<memory>
 #include<filesystem>
 #include<sys/user.h>
+#include<sys/uio.h>
+#include<linux/elf.h>
 #include<unistd.h>
 
 namespace mx {
@@ -101,6 +103,9 @@ namespace mx {
         uint64_t expression(const std::string &e);
         void mark_as_exited();
         bool has_conditional_breakpoint(uint64_t address) const;
+        void set_fpu_register(const std::string &text, double value);
+        double get_fpu_register(const std::string &text);
+        std::string print_fpu_registers();
     private:
         Process(pid_t pid) : m_pid(pid), current_thread_id(pid), index_(0) {}    
         pid_t m_pid, current_thread_id;
@@ -111,7 +116,9 @@ namespace mx {
         void handle_breakpoint_step(uint64_t address);
         void handle_conditional_breakpoint_continue(uint64_t address);
         void set_pc(uint64_t address);    
-        
+        void set_fpu_registers(const user_fpregs_struct& fpregs);
+        user_fpregs_struct get_fpu_registers() const;
+
         size_t index_;    
         std::vector<Watchpoint> watchpoints_;
         bool exited_ = false;

@@ -1458,4 +1458,216 @@ namespace mx {
         std::string task_path = "/proc/" + std::to_string(m_pid) + "/task/" + std::to_string(tid);
         return std::filesystem::exists(task_path);
     }
+    
+    user_fpregs_struct Process::get_fpu_registers() const {
+        struct user_fpregs_struct fpregs;
+        if (ptrace(PTRACE_GETFPREGS, current_thread_id, nullptr, &fpregs) == -1) {
+            throw mx::Exception::error("Failed to get FPU registers");
+        }
+        return fpregs;
+    }
+
+    void Process::set_fpu_registers(const user_fpregs_struct& fpregs) {
+        if (ptrace(PTRACE_SETFPREGS, current_thread_id, nullptr, &fpregs) == -1) {
+            throw mx::Exception::error("Failed to set FPU registers");
+        }
+    }
+
+    double Process::get_fpu_register(const std::string &text) {
+        struct user_fpregs_struct fpregs = get_fpu_registers(); 
+        if (text == "st0" || text == "st(0)") {
+            uint64_t mantissa;
+            uint16_t exponent;
+            memcpy(&mantissa, &fpregs.st_space[0], 8);
+            memcpy(&exponent, &fpregs.st_space[2], 2);
+            
+            int sign = (exponent >> 15) & 1;
+            int exp = (exponent & 0x7FFF) - 16383;
+            if (exp == -16383) return 0.0; 
+            
+            double d = ldexp(1.0 + (double)mantissa / (1ULL << 63), exp);
+            return sign ? -d : d;
+        } else if (text == "st1" || text == "st(1)") {
+            uint64_t mantissa;
+            uint16_t exponent;
+            memcpy(&mantissa, &fpregs.st_space[4], 8);
+            memcpy(&exponent, &fpregs.st_space[6], 2);
+            
+            int sign = (exponent >> 15) & 1;
+            int exp = (exponent & 0x7FFF) - 16383;
+            
+            if (exp == -16383) return 0.0;
+            
+            double d = ldexp(1.0 + (double)mantissa / (1ULL << 63), exp);
+            return sign ? -d : d;
+        } else if (text == "st2" || text == "st(2)") {
+            uint64_t mantissa;
+            uint16_t exponent;
+            memcpy(&mantissa, &fpregs.st_space[8], 8);
+            memcpy(&exponent, &fpregs.st_space[10], 2);
+            
+            int sign = (exponent >> 15) & 1;
+            int exp = (exponent & 0x7FFF) - 16383;
+            
+            if (exp == -16383) return 0.0;
+            
+            double d = ldexp(1.0 + (double)mantissa / (1ULL << 63), exp);
+            return sign ? -d : d;
+        } else if (text == "st3" || text == "st(3)") {
+            uint64_t mantissa;
+            uint16_t exponent;
+            memcpy(&mantissa, &fpregs.st_space[12], 8);
+            memcpy(&exponent, &fpregs.st_space[14], 2);
+            
+            int sign = (exponent >> 15) & 1;
+            int exp = (exponent & 0x7FFF) - 16383;
+            
+            if (exp == -16383) return 0.0;
+            
+            double d = ldexp(1.0 + (double)mantissa / (1ULL << 63), exp);
+            return sign ? -d : d;
+        } else if (text == "st4" || text == "st(4)") {
+            uint64_t mantissa;
+            uint16_t exponent;
+            memcpy(&mantissa, &fpregs.st_space[16], 8);
+            memcpy(&exponent, &fpregs.st_space[18], 2);
+            
+            int sign = (exponent >> 15) & 1;
+            int exp = (exponent & 0x7FFF) - 16383;
+            
+            if (exp == -16383) return 0.0;
+            
+            double d = ldexp(1.0 + (double)mantissa / (1ULL << 63), exp);
+            return sign ? -d : d;
+        } else if (text == "st5" || text == "st(5)") {
+            uint64_t mantissa;
+            uint16_t exponent;
+            memcpy(&mantissa, &fpregs.st_space[20], 8);
+            memcpy(&exponent, &fpregs.st_space[22], 2);
+            
+            int sign = (exponent >> 15) & 1;
+            int exp = (exponent & 0x7FFF) - 16383;
+            
+            if (exp == -16383) return 0.0;
+            
+            double d = ldexp(1.0 + (double)mantissa / (1ULL << 63), exp);
+            return sign ? -d : d;
+        } else if (text == "st6" || text == "st(6)") {
+            uint64_t mantissa;
+            uint16_t exponent;
+            memcpy(&mantissa, &fpregs.st_space[24], 8);
+            memcpy(&exponent, &fpregs.st_space[26], 2);
+            
+            int sign = (exponent >> 15) & 1;
+            int exp = (exponent & 0x7FFF) - 16383;
+            
+            if (exp == -16383) return 0.0;
+            
+            double d = ldexp(1.0 + (double)mantissa / (1ULL << 63), exp);
+            return sign ? -d : d;
+        } else if (text == "st7" || text == "st(7)") {
+            uint64_t mantissa;
+            uint16_t exponent;
+            memcpy(&mantissa, &fpregs.st_space[28], 8);
+            memcpy(&exponent, &fpregs.st_space[30], 2);
+            
+            int sign = (exponent >> 15) & 1;
+            int exp = (exponent & 0x7FFF) - 16383;
+            
+            if (exp == -16383) return 0.0;
+            
+            double d = ldexp(1.0 + (double)mantissa / (1ULL << 63), exp);
+            return sign ? -d : d;
+        } else {
+            throw mx::Exception("Unknown FPU register: " + text);
+        }
+     }
+
+    void Process::set_fpu_register(const std::string &text, double value) {
+        struct user_fpregs_struct fpregs = get_fpu_registers();
+        union {
+            double d;
+            uint64_t u;
+        } converter;
+        converter.d = value;
+        uint64_t mantissa = converter.u & 0x000FFFFFFFFFFFFF;
+        int exponent = ((converter.u >> 52) & 0x7FF) - 1023;
+        int sign = (converter.u >> 63) & 1;
+        uint64_t ext_mantissa = mantissa << 11;
+        uint16_t ext_exponent = (exponent + 16383) & 0x7FFF;
+        if (sign) ext_exponent |= 0x8000;
+        if (text == "st0" || text == "st(0)") {
+            memcpy(&fpregs.st_space[0], &ext_mantissa, 8);
+            memcpy(&fpregs.st_space[2], &ext_exponent, 2);
+        } else if (text == "st1" || text == "st(1)") {
+            memcpy(&fpregs.st_space[4], &ext_mantissa, 8);
+            memcpy(&fpregs.st_space[6], &ext_exponent, 2);
+        } else if (text == "st2" || text == "st(2)") {
+            memcpy(&fpregs.st_space[8], &ext_mantissa, 8);
+            memcpy(&fpregs.st_space[10], &ext_exponent, 2);
+        } else if (text == "st3" || text == "st(3)") {
+            memcpy(&fpregs.st_space[12], &ext_mantissa, 8);
+            memcpy(&fpregs.st_space[14], &ext_exponent, 2);
+        } else if (text == "st4" || text == "st(4)") {
+            memcpy(&fpregs.st_space[16], &ext_mantissa, 8);
+            memcpy(&fpregs.st_space[18], &ext_exponent, 2);
+        } else if (text == "st5" || text == "st(5)") {
+            memcpy(&fpregs.st_space[20], &ext_mantissa, 8);
+            memcpy(&fpregs.st_space[22], &ext_exponent, 2);
+        } else if (text == "st6" || text == "st(6)") {
+            memcpy(&fpregs.st_space[24], &ext_mantissa, 8);
+            memcpy(&fpregs.st_space[26], &ext_exponent, 2);
+        } else if (text == "st7" || text == "st(7)") {
+            memcpy(&fpregs.st_space[28], &ext_mantissa, 8);
+            memcpy(&fpregs.st_space[30], &ext_exponent, 2);
+        } else {
+            throw mx::Exception("Unknown FPU register: " + text);
+        }
+
+        set_fpu_registers(fpregs);
+    }
+
+    std::string Process::print_fpu_registers() {
+        std::ostringstream out;
+        try {
+            struct user_fpregs_struct fpregs = get_fpu_registers();        
+            out << "FPU Registers:" << std::endl;
+            out << "==============" << std::endl;
+            out << "Control Word: 0x" << std::hex << std::setfill('0') << std::setw(4) << fpregs.cwd << std::dec << std::endl;
+            out << "Status Word:  0x" << std::hex << std::setfill('0') << std::setw(4) << fpregs.swd << std::dec << std::endl;
+            out << "Tag Word:     0x" << std::hex << std::setfill('0') << std::setw(4) << fpregs.ftw << std::dec << std::endl;
+            out << "Opcode:       0x" << std::hex << std::setfill('0') << std::setw(4) << fpregs.fop << std::dec << std::endl;
+            out << "IP Offset:    0x" << std::hex << std::setfill('0') << std::setw(8) << fpregs.rip << std::dec << std::endl;
+            out << "Data Offset:  0x" << std::hex << std::setfill('0') << std::setw(8) << fpregs.rdp << std::dec << std::endl;
+            out << std::endl;
+            out << "ST Registers:" << std::endl;
+            out << "=============" << std::endl;
+            for (int i = 0; i < 8; i++) {
+                try {
+                    std::string reg_name = "st" + std::to_string(i);
+                    double value = get_fpu_register(reg_name);
+                    out << "ST(" << i << "):  " << std::fixed << std::setprecision(15) << value << std::endl;
+                } catch (const std::exception& e) {
+                    out << "ST(" << i << "):  <error reading register>" << std::endl;
+                }
+            }
+            out << std::endl;
+            out << "Raw ST Space (hex):" << std::endl;
+            out << "==================" << std::endl;
+            for (int i = 0; i < 8; i++) {
+                out << "ST(" << i << ") raw: ";
+                for (int j = 0; j < 5; j++) {
+                    int idx = i * 4 + j;
+                    if (idx < 32) {
+                        out << std::hex << std::setfill('0') << std::setw(2) << (unsigned int)fpregs.st_space[idx] << " ";
+                    }
+                }
+                out << std::dec << std::endl;
+            }
+            return out.str();
+        } catch (const std::exception& e) {
+            std::cerr << "Error reading FPU registers: " << e.what() << std::endl;
+        }
+        return out.str();
+    }
 }

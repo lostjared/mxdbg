@@ -363,6 +363,47 @@ namespace mx {
             process->expression(e);
             return true;
         }
+        else if (tokens.size() == 2 && tokens[0] == "get_fpu") {
+            if (process && process->is_running()) {
+                try {
+                    std::string fpu_reg = tokens[1];
+                    double value = process->get_fpu_register(fpu_reg);
+                    std::cout << "FPU Register " << fpu_reg << ": " << std::fixed << std::setprecision(6) << value << std::endl;
+                } catch (const std::exception& e) {
+                    std::cerr << "Error getting FPU register " << tokens[1] << ": " << e.what() << std::endl;
+                }
+            } else {
+                std::cout << "No process running." << std::endl;
+            }
+            return true;
+        } else if (tokens.size() == 3 && tokens[0] == "set_fpu") {
+            if (process && process->is_running()) {
+                try {
+                    std::string fpu_reg = tokens[1];
+                    double value = std::stod(tokens[2]);
+                    process->set_fpu_register(fpu_reg, value);
+                    std::cout << "FPU Register " << fpu_reg << " set to: " << std::fixed << std::setprecision(6) << value << std::endl;
+                } catch (const std::exception& e) {
+                    std::cerr << "Error setting FPU register: " << e.what() << std::endl;
+                }
+            } else {
+                std::cout << "No process running." << std::endl;
+            }
+            return true;
+        } else if (tokens.size() == 1 && tokens[0] == "list_fpu") {
+            if (process && process->is_running()) {
+                try {
+                    std::cout << "FPU Registers:" << std::endl;
+                    auto fpu_info = process->print_fpu_registers();
+                    std::cout << fpu_info << std::endl;
+                } catch (const std::exception& e) {
+                    std::cerr << "Error getting FPU registers: " << e.what() << std::endl;
+                }
+            } else {
+                std::cout << "No process running." << std::endl;
+            }
+            return true;
+        }
         else if (tokens.size() == 1 && tokens[0] == "next") {
             if (process && process->is_running()) {
                 step_over();
