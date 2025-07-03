@@ -349,8 +349,6 @@ namespace mx {
         return process && process->is_running();
     }
 
-    
-    
     bool Debugger::command(const std::string &cmd) {
         std::vector<std::string> tokens = split_command(cmd);
         if (tokens.empty()) {
@@ -1336,7 +1334,29 @@ namespace mx {
                 std::cerr << "Error restarting program: " << e.what() << std::endl;
             }      
             return true;
-        }
+        } else if (tokens.size() == 1 && tokens[0] == "pwd") {
+            if (process && process->is_running()) {
+                std::string cwd_link = "/proc/" + std::to_string(process->get_pid()) + "/cwd";
+                char buf[PATH_MAX];
+                ssize_t len = readlink(cwd_link.c_str(), buf, sizeof(buf)-1);
+                if (len != -1) {
+                    buf[len] = '\0';
+                    std::cout << "Process CWD: " << buf << std::endl;
+                } else {
+                    std::cout << "Could not read process CWD." << std::endl;
+                }
+            } else {
+                std::cout << "No process running." << std::endl;
+            }
+            return true;
+        } else if (tokens.size() == 1 && (tokens[0] == "info" || tokens[0] == "args")) {
+            if (!args_string.empty()) {
+                std::cout << "Program arguments: " << args_string << std::endl;
+            } else {
+                std::cout << "No arguments recorded." << std::endl;
+            }
+            return true;
+        }    
         std::cout << "Unknown command: " << cmd << std::endl;
         return true;
     }
