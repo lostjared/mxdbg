@@ -419,8 +419,7 @@ namespace mx {
                                         << " hit, but condition '" << bp.condition << "' is false or invalid. Continuing..." << std::endl;
                                 
                                 handle_conditional_breakpoint_continue(pc);
-                                return;  
-                            }
+                             }
                         }
                                      
                         std::cout << "=== ";
@@ -498,15 +497,12 @@ namespace mx {
     }
 
     void Process::handle_conditional_breakpoint_continue(uint64_t address) {
-        skip_next_breakpoint = address;
-        
+        skip_next_breakpoint = address; 
         auto bp_it = conditional_breakpoints.find(address);
         if (bp_it == conditional_breakpoints.end()) {
             return;
         }
-        
         const ConditionalBreakpoint& bp = bp_it->second;
-        
         long data = ptrace(PTRACE_PEEKDATA, get_current_thread(), address, nullptr);
         long restored = (data & ~0xFF) | bp.original_byte;
         ptrace(PTRACE_POKEDATA, get_current_thread(), address, restored);
