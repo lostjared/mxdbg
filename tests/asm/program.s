@@ -14,12 +14,9 @@ main:
 
     lea hello_msg(%rip), %rdi    # First argument for puts
     call puts          
-
     lea print_digits(%rip), %rdi 
     mov $255, %rsi               
     call printf
-
-
     mov -0x8(%rbp), %rbx
 loop_1:
     lea print_digits(%rip), %rdi
