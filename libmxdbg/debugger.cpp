@@ -357,7 +357,25 @@ namespace mx {
             std::cout << "No command entered." << std::endl;
             return true;
         }
-        if(tokens.size()==3 && tokens[0] == "hexdump") {
+
+        if(tokens.size() == 2 && (tokens[0] == "shell" || tokens[0] == "sh")) {
+            std::string sh_cmd = tokens[1];
+            int code = 0;
+            if((code = system(sh_cmd.c_str())) == 0) {
+                if(color_) 
+                    std::cout << Color::BRIGHT_GREEN;
+                std::cout << "shell command sucess: 0" << std::endl;
+                if(color_)
+                    std::cout << Color::RESET;
+            } else {
+                if(color_)
+                    std::cout << Color::BRIGHT_RED;
+                std::cout << "shell command failed: " << code << std::endl;
+                if(color_)
+                    std::cout << Color::RESET;
+            }
+            return true;
+        } else if(tokens.size()==3 && tokens[0] == "hexdump") {
 
             std::string address = tokens[1];
             std::string sizeval = tokens[2];
