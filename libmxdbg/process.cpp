@@ -385,12 +385,12 @@ namespace mx {
 
                         if (bp_it != conditional_breakpoints.end()) {
                             const ConditionalBreakpoint& bp = bp_it->second;
-                            std::streambuf* cout_buf;
 
                         if (bp.is_conditional) {
                             bool condition_met = false;
                             try {
                                 std::ostringstream old_cout;
+                                std::streambuf* cout_buf = std::cout.rdbuf(); 
                                 std::cout.rdbuf(old_cout.rdbuf());
                                 try {
                                     uint64_t result = expression(bp.condition);
@@ -399,7 +399,7 @@ namespace mx {
                                 catch (const std::exception& e) {
                                     condition_met = false;
                                 }
-                                std::cout.rdbuf(cout_buf);
+                                std::cout.rdbuf(cout_buf); 
                                 
                             } catch (const std::exception& e) {
                                 std::cerr << "Error processing breakpoint condition '" << bp.condition 
