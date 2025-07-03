@@ -115,7 +115,7 @@ namespace mx {
         std::vector<uint64_t> breakpoint_index;   
         std::map<uint64_t, ConditionalBreakpoint> conditional_breakpoints;
         void handle_breakpoint_step(uint64_t address);
-        void handle_conditional_breakpoint_continue(uint64_t address);
+        void handle_conditional_breakpoint_continue(uint64_t address, bool continue_after_step = true);
         void set_pc(uint64_t address);    
         void set_fpu_registers(const user_fpregs_struct& fpregs);
         user_fpregs_struct get_fpu_registers() const;

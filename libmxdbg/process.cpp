@@ -417,13 +417,10 @@ namespace mx {
                             if (!condition_met) {
                                 std::cout << "Conditional breakpoint at " << format_hex64(pc) 
                                         << " hit, but condition '" << bp.condition << "' is false or invalid. Continuing..." << std::endl;
-                                
-                                handle_conditional_breakpoint_continue(pc);
+                                handle_conditional_breakpoint_continue(pc,  true);
                                 continue;  
                             } else {
-                                
-                                handle_conditional_breakpoint_continue(pc);
-                                
+                                handle_conditional_breakpoint_continue(pc, false);
                                 std::cout << "=== CONDITIONAL BREAKPOINT HIT ===" << std::endl;
                                 std::cout << "Thread: " << current_thread_id << std::endl;
                                 std::cout << "Address: " << format_hex64(pc) << std::endl;
@@ -494,25 +491,39 @@ namespace mx {
         exited_ = true;
     }
 
-    void Process::handle_conditional_breakpoint_continue(uint64_t address) {
-        skip_next_breakpoint = address; 
+    void Process::handle_conditional_breakpoint_continue(uint64_t address, bool continue_after_step) {
+        if (continue_after_step) {
+            skip_next_breakpoint = address;
+        }
+        
         auto bp_it = conditional_breakpoints.find(address);
         if (bp_it == conditional_breakpoints.end()) {
             return;
         }
+        
         const ConditionalBreakpoint& bp = bp_it->second;
+        
+        // Step 1: Replace the breakpoint with the original instruction
         long data = ptrace(PTRACE_PEEKDATA, get_current_thread(), address, nullptr);
         long restored = (data & ~0xFF) | bp.original_byte;
         ptrace(PTRACE_POKEDATA, get_current_thread(), address, restored);
+        
+        // Step 2: Single-step to execute the original instruction
         ptrace(PTRACE_SINGLESTEP, get_current_thread(), nullptr, nullptr);
         int status;
         waitpid(get_current_thread(), &status, 0);
+        
+        // Step 3: Restore the breakpoint
         data = ptrace(PTRACE_PEEKDATA, get_current_thread(), address, nullptr);
         long data_with_int3 = (data & ~0xFF) | 0xCC;
         ptrace(PTRACE_POKEDATA, get_current_thread(), address, data_with_int3);
-        for (pid_t tid : get_thread_ids()) {
-            if (ptrace(PTRACE_CONT, tid, nullptr, 0) == -1 && errno != ESRCH) {
-                std::cerr << "Warning: Failed to continue thread " << tid << std::endl;
+        
+        // Step 4: Continue execution ONLY if requested
+        if (continue_after_step) {
+            for (pid_t tid : get_thread_ids()) {
+                if (ptrace(PTRACE_CONT, tid, nullptr, 0) == -1 && errno != ESRCH) {
+                    std::cerr << "Warning: Failed to continue thread " << tid << std::endl;
+                }
             }
         }
     }
