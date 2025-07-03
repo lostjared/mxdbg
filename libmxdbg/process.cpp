@@ -1670,4 +1670,32 @@ namespace mx {
         }
         return out.str();
     }
+    std::string Process::hex_dump(uint64_t address, uint64_t size) {
+        std::ostringstream stream;
+        if(is_running()) {
+            auto v = read_memory(address, size);
+            size_t bytes_per_line = 16;
+            for (size_t i = 0; i < v.size(); i += bytes_per_line) {
+                stream << format_hex64(address + i) << ": ";
+                size_t line_bytes = std::min(bytes_per_line, v.size() - i);
+                for (size_t j = 0; j < bytes_per_line; ++j) {
+                    if (j < line_bytes) {
+                        stream << format_hex8(v[i + j]) << " ";
+                    } else {
+                        stream << "     "; 
+                    }
+                }
+                stream << " ";
+                for (size_t j = 0; j < line_bytes; ++j) {
+                    uint8_t c = v[i + j];
+                    stream << (std::isprint(c) ? static_cast<char>(c) : '.');
+                }
+                // No need for extra spaces after ASCII
+                stream << "\n";
+            }
+        } else {
+            throw mx::Exception("Process is not running...");
+        }
+        return stream.str();
+    }
 }

@@ -106,6 +106,7 @@ namespace mx {
         void set_fpu_register(const std::string &text, double value);
         double get_fpu_register(const std::string &text);
         std::string print_fpu_registers();
+        std::string hex_dump(uint64_t address, uint64_t size);
     private:
         Process(pid_t pid) : m_pid(pid), current_thread_id(pid), index_(0) {}    
         pid_t m_pid, current_thread_id;

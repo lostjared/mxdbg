@@ -357,8 +357,27 @@ namespace mx {
             std::cout << "No command entered." << std::endl;
             return true;
         }
-        if(tokens.size() >= 2 && tokens[0] == "expr") {
+        if(tokens.size()==3 && tokens[0] == "hexdump") {
+
+            std::string address = tokens[1];
+            std::string sizeval = tokens[2];
+            try {
+                uint64_t a_ = std::stoull(address, nullptr, 0);
+                uint64_t v_ = std::stoull(sizeval, nullptr, 0);
+                auto sval = process->hex_dump(a_, v_);
+                std::cout << sval << "\n";
+             } catch(const mx::Exception &e) {
+                std::cerr << "Error: " << e.what() << "\n";
+             } catch(const std::exception &e) {
+                std::cerr << "Exception: " << e.what() << "\n";
+             }
+            return true;
+        } else if(tokens.size() == 1 && tokens[0] == "clear") {
+            std::cout << "\033[2J\033[H";
+            return true;
+        } else if(tokens.size() >= 2 && tokens[0] == "expr") {
             std::string e = cmd.substr(cmd.find(' ') + 1);
+
             process->expression(e);
             return true;
         }
