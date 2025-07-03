@@ -23,9 +23,9 @@ loop_1:
     inc %rbx
     cmp $10, %rbx
     jle loop_1
-    mov %rbx, %rax
     mov %rbp, %rsp
     pop %rbp
+    mov $0, %eax
     ret
 
 print_number:
