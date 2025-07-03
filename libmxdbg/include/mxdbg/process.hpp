@@ -123,6 +123,7 @@ namespace mx {
         size_t index_;    
         std::vector<Watchpoint> watchpoints_;
         bool exited_ = false;
+        mutable uint64_t skip_next_breakpoint = 0;
     };  
 
 } 

@@ -374,6 +374,12 @@ namespace mx {
                     }
         
                     uint64_t pc = get_pc();
+
+                    if(skip_next_breakpoint == pc) {
+                        skip_next_breakpoint = 0;
+                        return;
+                    }
+
                     auto bp_it = conditional_breakpoints.find(pc);
                     if (bp_it == conditional_breakpoints.end()) {
                         bp_it = conditional_breakpoints.find(pc - 1);  
@@ -491,6 +497,7 @@ namespace mx {
     }
 
     void Process::handle_conditional_breakpoint_continue(uint64_t address) {
+        skip_next_breakpoint = address;
         auto bp_it = conditional_breakpoints.find(address);
         if (bp_it == conditional_breakpoints.end()) {
             return;
