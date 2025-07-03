@@ -1690,7 +1690,6 @@ namespace mx {
                     uint8_t c = v[i + j];
                     stream << (std::isprint(c) ? static_cast<char>(c) : '.');
                 }
-                // No need for extra spaces after ASCII
                 stream << "\n";
             }
         } else {
