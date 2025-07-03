@@ -390,7 +390,7 @@ namespace mx {
                         }
                     }
 
-                        if (bp_it != conditional_breakpoints.end()) {
+                    if (bp_it != conditional_breakpoints.end()) {
                             const ConditionalBreakpoint& bp = bp_it->second;
 
                         if (bp.is_conditional) {
@@ -419,23 +419,20 @@ namespace mx {
                                         << " hit, but condition '" << bp.condition << "' is false or invalid. Continuing..." << std::endl;
                                 
                                 handle_conditional_breakpoint_continue(pc);
-                                continue;
-                             }
+                                continue;  
+                            } else {
+                                
+                                handle_conditional_breakpoint_continue(pc);
+                                
+                                std::cout << "=== CONDITIONAL BREAKPOINT HIT ===" << std::endl;
+                                std::cout << "Thread: " << current_thread_id << std::endl;
+                                std::cout << "Address: " << format_hex64(pc) << std::endl;
+                                std::cout << "Condition: " << bp.condition << " (TRUE)" << std::endl;
+                                return;  
+                            }
                         }
-                                     
-                        std::cout << "=== ";
-                        if (bp.is_conditional) {
-                            std::cout << "CONDITIONAL ";
-                        }
-                        std::cout << "BREAKPOINT HIT ===" << std::endl;
-                        std::cout << "Thread: " << current_thread_id << std::endl;
-                        std::cout << "Address: " << format_hex64(pc) << std::endl;
-                        if (bp.is_conditional) {
-                            std::cout << "Condition: " << bp.condition << " (TRUE)" << std::endl;
-                        }
-                        return;  
                     }
-                    
+
                     if (breakpoints.find(pc) != breakpoints.end()) {
                         std::cout << "=== BREAKPOINT HIT ===" << std::endl;
                         std::cout << "Thread: " << current_thread_id << std::endl;
