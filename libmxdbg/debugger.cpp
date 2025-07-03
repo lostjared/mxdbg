@@ -362,6 +362,14 @@ namespace mx {
             process->expression(e);
             return true;
         }
+        else if(tokens.size() == 2   && tokens[0] == "as_bytes") {
+            std::string what = tokens[1];
+            for(int i = 0; i < what.size(); ++i) {
+                std::cout << format_hex8(what.at(i)) << " ";
+            }
+            std::cout << "\n";
+            return true;
+        }
         else if (tokens.size() == 2 && tokens[0] == "get_fpu") {
             if (process && process->is_running()) {
                 try {
