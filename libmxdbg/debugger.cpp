@@ -30,11 +30,10 @@ namespace mx {
             scan::Scanner scanner(cmd);
             uint64_t len = scanner.scan();
             for(size_t i = 0; i < len; ++i) {
-                if(scanner[i].getTokenType() == types::TokenType::TT_ID || scanner[i].getTokenType() == types::TokenType::TT_HEX || scanner[i].getTokenType() == types::TokenType::TT_NUM || scanner[i].getTokenType() == types::TokenType::TT_STR || scanner[i].getTokenType() == types::TokenType::TT_SYM && scanner[i].getTokenValue() != "\n")
-                    tokenz.push_back(scanner[i].getTokenValue());
-
                 if(scanner[i].getTokenType() == types::TokenType::TT_SYM && scanner[i].getTokenValue() == "\n" || scanner[i].getTokenType() == types::TokenType::TT_SYM && scanner[i].getTokenValue() == "\r")
                     break;      
+                if(scanner[i].getTokenType() == types::TokenType::TT_ID || scanner[i].getTokenType() == types::TokenType::TT_HEX || scanner[i].getTokenType() == types::TokenType::TT_NUM || scanner[i].getTokenType() == types::TokenType::TT_STR || scanner[i].getTokenType() == types::TokenType::TT_SYM && scanner[i].getTokenValue() != "\n")
+                    tokenz.push_back(scanner[i].getTokenValue());
             }
             return tokenz;
         } catch(const scan::ScanExcept &e) {
