@@ -378,7 +378,7 @@ namespace mx {
                     if(skip_next_breakpoint == pc) {
                         skip_next_breakpoint = 0;
                         ptrace(PTRACE_CONT, current_thread_id, nullptr, 0);
-                        return;
+                        continue;
                     }
 
                     auto bp_it = conditional_breakpoints.find(pc);
