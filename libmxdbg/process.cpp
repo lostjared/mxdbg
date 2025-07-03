@@ -498,11 +498,14 @@ namespace mx {
 
     void Process::handle_conditional_breakpoint_continue(uint64_t address) {
         skip_next_breakpoint = address;
+        
         auto bp_it = conditional_breakpoints.find(address);
         if (bp_it == conditional_breakpoints.end()) {
             return;
         }
+        
         const ConditionalBreakpoint& bp = bp_it->second;
+        
         long data = ptrace(PTRACE_PEEKDATA, get_current_thread(), address, nullptr);
         long restored = (data & ~0xFF) | bp.original_byte;
         ptrace(PTRACE_POKEDATA, get_current_thread(), address, restored);
@@ -512,13 +515,10 @@ namespace mx {
         data = ptrace(PTRACE_PEEKDATA, get_current_thread(), address, nullptr);
         long data_with_int3 = (data & ~0xFF) | 0xCC;
         ptrace(PTRACE_POKEDATA, get_current_thread(), address, data_with_int3);
-        continue_execution();
-        
-        try {
-            wait_for_stop();
-        } catch (const std::exception& e) {
-            exited_ = true;
-            std::cout << "Process exited after conditional breakpoint" << std::endl;
+        for (pid_t tid : get_thread_ids()) {
+            if (ptrace(PTRACE_CONT, tid, nullptr, 0) == -1 && errno != ESRCH) {
+                std::cerr << "Warning: Failed to continue thread " << tid << std::endl;
+            }
         }
     }
 
