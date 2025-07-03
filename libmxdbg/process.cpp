@@ -419,6 +419,7 @@ namespace mx {
                                         << " hit, but condition '" << bp.condition << "' is false or invalid. Continuing..." << std::endl;
                                 
                                 handle_conditional_breakpoint_continue(pc);
+                                continue;
                              }
                         }
                                      
