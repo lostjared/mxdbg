@@ -961,8 +961,9 @@ namespace mx {
             std::cout << function_code;
             return true;
         }
-        else if(cmd.length() >= 7 && cmd.substr(0, 7) == "explain" && cmd.length() > 7 && cmd[7] == ' ') {
-            std::string function_name = cmd.substr(cmd.find(' ') + 1);
+
+        else if(tokens.size() ==  2 && tokens[0] == "explain") {
+            std::string function_name = tokens[1];
             std::string function_code;
             try {
                 function_code = functionText(function_name);
