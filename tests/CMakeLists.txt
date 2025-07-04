@@ -142,3 +142,8 @@ set_target_properties(program_input PROPERTIES
     LINKER_LANGUAGE ASM
     LINK_FLAGS "-no-pie"
 )
+add_executable(program_string asm/get_string.s)
+set_target_properties(program_string PROPERTIES
+    LINKER_LANGUAGE ASM
+    LINK_FLAGS "-no-pie"
+)
