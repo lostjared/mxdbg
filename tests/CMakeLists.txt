@@ -147,3 +147,8 @@ set_target_properties(program_string PROPERTIES
     LINKER_LANGUAGE ASM
     LINK_FLAGS "-no-pie"
 )
+add_executable(program_cloop asm/copy_loop.s)
+set_target_properties(program_cloop PROPERTIES
+    LINKER_LANGUAGE ASM
+    LINK_FLAGS "-no-pie"
+)
