@@ -927,6 +927,23 @@ namespace mx {
                 std::cerr << "Error running objdump: " << e.what() << std::endl;
             }
             return true;
+        } else if (tokens.size() == 2 && tokens[0] == "info" && tokens[1] == "files") {
+            if (process && process->is_running()) {
+                std::string fd_dir = "/proc/" + std::to_string(process->get_pid()) + "/fd";
+                for (const auto& entry : std::filesystem::directory_iterator(fd_dir)) {
+                    std::cout << entry.path() << " -> ";
+                    char buf[PATH_MAX];
+                    ssize_t len = readlink(entry.path().c_str(), buf, sizeof(buf)-1);
+                    if (len != -1) {
+                        buf[len] = '\0';
+                        std::cout << buf;
+                    }
+                    std::cout << std::endl;
+                }
+            } else {
+                std::cout << "No process running." << std::endl;
+            }
+            return true;
         } else  if(tokens.size() == 2 && tokens[0] == "list_function") {
             std::string function_name = tokens[1];
             std::string function_code;
