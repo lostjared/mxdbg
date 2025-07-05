@@ -1,9 +1,19 @@
 #include<stdio.h>
 
 extern int string_cat(char *dst, const char *src, unsigned long size);
+extern int string_copy(char *dst, const char *src,  unsigned long size);
 
 int main() {
-    char buffer[256] = {0};
+    char buffer[256];
+    if(string_copy(buffer, "failure", 1) == 0) {
+        puts("passed");
+    } else {
+        puts("shouldn't copy");
+    }
+    if(string_copy(buffer, "init", sizeof(buffer)) == 0) {
+        puts("String initilzation success..");
+    }
+
     if(string_cat(buffer , "hey ", 1) == 0) {
         puts("1: copied");
     } else {
