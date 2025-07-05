@@ -3,7 +3,6 @@
     variable2: .asciz "Value is Two \n"
 .section .bss 
     copy_string: .space 256
-
 .section .text
     .global main
 main:
