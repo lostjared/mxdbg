@@ -15,7 +15,7 @@ main:
     lea file_mode(%rip), %rsi
     call fopen
     cmp $0, %rax
-    je exit_main
+    je exit_fail
     mov %rax, -0x8(%rbp)
     mov %rax, %rdi
     lea file_string(%rip),%rsi
@@ -25,6 +25,11 @@ cleanup:
     call fclose
 exit_main:
     mov $0, %rax
+    mov %rbp, %rsp
+    pop %rbp
+    ret
+exit_fail:
+    mov $1, %rax  
     mov %rbp, %rsp
     pop %rbp
     ret
