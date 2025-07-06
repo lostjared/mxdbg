@@ -163,3 +163,9 @@ set_target_properties(program_print PROPERTIES
     LINKER_LANGUAGE ASM
     LINK_FLAGS "-no-pie"
 )
+
+add_executable(program_file asm/file.s)
+set_target_properties(program_print PROPERTIES
+    LINKER_LANGUAGE ASM
+    LINK_FLAGS "-no-pie"
+)
