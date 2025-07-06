@@ -158,7 +158,7 @@ set_target_properties(program_cat PROPERTIES
     LINK_FLAGS "-no-pie"
 )
 
-add_executable(program_print asm/print_loop.s print_loop.c)
+add_executable(program_print asm/print_loop.s asm/echo_backward.s print_loop.c)
 set_target_properties(program_print PROPERTIES
     LINKER_LANGUAGE ASM
     LINK_FLAGS "-no-pie"
