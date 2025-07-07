@@ -812,23 +812,25 @@ namespace mx {
             }
             return true;
         }
-       else if (tokens.size() == 1 && (tokens[0] == "continue" || tokens[0] == "c")) {
+        else if (tokens.size() == 1 && (tokens[0] == "continue" || tokens[0] == "c")) {
             if (process && process->is_running()) {
                 try {
                     uint64_t current_pc = process->get_pc();
+                    bool handled_breakpoint = false;
                     
-                    // Check if we're at a breakpoint (current PC) or just past one (PC-1)
                     if (process->has_breakpoint(current_pc)) {
-                        // We're exactly at a breakpoint address
                         process->handle_breakpoint_continue(current_pc);
-                    } else if (process->has_breakpoint(current_pc - 1)) {
-                        // We're just past a breakpoint (common after SIGTRAP)
-                        process->set_pc(current_pc - 1);  // Rewind to breakpoint address
+                        handled_breakpoint = true;
+                    } else if (current_pc > 0 && process->has_breakpoint(current_pc - 1)) {
+                        process->set_pc(current_pc - 1);
                         process->handle_breakpoint_continue(current_pc - 1);
+                        handled_breakpoint = true;
                     }
                     
+        
                     process->continue_execution();
                     process->wait_for_stop();
+                    
                 } catch (const std::exception& e) {
                     std::cerr << "Error during continue: " << e.what() << std::endl;
                 }
@@ -836,7 +838,7 @@ namespace mx {
                 std::cout << "Process has exited or is not running." << std::endl;
             }
             return true;
-        } else if (tokens.size() == 1 && (tokens[0] == "step" || tokens[0] == "s")) {
+        }else if (tokens.size() == 1 && (tokens[0] == "step" || tokens[0] == "s")) {
             step();
             return true;
         } else if (tokens.size() == 2 && tokens[0] == "step") {

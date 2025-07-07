@@ -938,18 +938,33 @@ namespace mx {
     }
 
     void Process::handle_breakpoint_continue(uint64_t address) {
+        pid_t tid = current_thread_id;
+        long data = ptrace(PTRACE_PEEKDATA, tid, address, nullptr);
+        if (data == -1) {
+            throw mx::Exception("Failed to read memory at breakpoint");
+        }
         uint8_t original_byte = breakpoints[address];
-        long data = ptrace(PTRACE_PEEKDATA, current_thread_id, address, nullptr);
         long restored = (data & ~0xFF) | original_byte;
-        ptrace(PTRACE_POKEDATA, current_thread_id, address, restored);
-        ptrace(PTRACE_SINGLESTEP,current_thread_id, nullptr, nullptr);
+        if (ptrace(PTRACE_POKEDATA, tid, address, restored) == -1) {
+            throw mx::Exception("Failed to restore original instruction");
+        }
+        if (ptrace(PTRACE_SINGLESTEP, tid, nullptr, nullptr) == -1) {
+            throw mx::Exception("Failed to single-step");
+        }        
         int status;
-        waitpid(current_thread_id, &status, 0);
-        data = ptrace(PTRACE_PEEKDATA, current_thread_id, address, nullptr);
-        long data_with_int3 = (data & ~0xFF) | 0xCC;
-        ptrace(PTRACE_POKEDATA, current_thread_id, address, data_with_int3);
+        if (waitpid(tid, &status, 0) == -1) {
+            throw mx::Exception("Failed to wait for single-step");
+        }
+        data = ptrace(PTRACE_PEEKDATA, tid, address, nullptr);
+        if (data == -1) {
+            throw mx::Exception("Failed to read memory after single-step");
+        }
+        
+        long trap = (data & ~0xFF) | 0xCC;
+        if (ptrace(PTRACE_POKEDATA, tid, address, trap) == -1) {
+            throw mx::Exception("Failed to re-insert breakpoint");
+        }
     }
-
     std::string Process::disassemble_instruction(uint64_t address) const {
         return "disassembly not implemented";
     }
