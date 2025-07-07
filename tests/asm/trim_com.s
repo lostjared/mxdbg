@@ -1,5 +1,4 @@
 .section .data
-com_char: .asciz "#"
 print_char: .asciz "%c"
 
 .section .bss
