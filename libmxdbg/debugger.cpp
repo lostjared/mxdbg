@@ -814,20 +814,24 @@ namespace mx {
         }
         else if (tokens.size() == 1 && (tokens[0] == "continue" || tokens[0] == "c")) {
             if (process && process->is_running()) {
-                    try {
-                        uint64_t pc = process->get_pc();
-                        if (process->has_breakpoint(pc)) {
-
-                            process->handle_breakpoint_continue(pc);
-                        }
-                        process->continue_execution();
-                        process->wait_for_stop();
-                    } catch (const std::exception &e) {
-                        std::cerr << "Error during continue: " << e.what() << std::endl;
+                try {
+                    uint64_t pc = process->get_pc();
+                    
+                    // After a breakpoint trap, PC is at addr+1. Check for a breakpoint at pc-1.
+                    if (process->has_breakpoint(pc - 1)) {
+                        // Rewind PC to the breakpoint address before handling it.
+                        process->set_pc(pc - 1);
+                        process->handle_breakpoint_continue(pc - 1);
                     }
-                } else {
-                    std::cout << "Process has exited or is not running." << std::endl;
+                    
+                    process->continue_execution();
+                    process->wait_for_stop();
+                } catch (const std::exception& e) {
+                    std::cerr << "Error during continue: " << e.what() << std::endl;
                 }
+            } else {
+                std::cout << "Process has exited or is not running." << std::endl;
+            }
             return true;
         } else if (tokens.size() == 1 && (tokens[0] == "step" || tokens[0] == "s")) {
             step();
@@ -2098,7 +2102,7 @@ namespace mx {
                     if (color_) std::cout << Color::YELLOW;
                     std::cout << " [" << region.permissions << "] ";
                     if (color_) std::cout << Color::WHITE;
-                    std::cout << "Context: \"" << context << "\"";
+                    std::cout << "Context: " << context;
                     if (color_) std::cout << Color::CYAN;
                     std::cout << " " << region.pathname << std::endl;
                     if (color_) std::cout << Color::RESET;
@@ -2345,7 +2349,7 @@ namespace mx {
                 matches.push_back(i);
             }
         }
-       return matches;  
+        return matches;  
     }
 
     void Debugger::list_threads() {

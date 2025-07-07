@@ -107,6 +107,7 @@ namespace mx {
         double get_fpu_register(const std::string &text);
         std::string print_fpu_registers();
         std::string hex_dump(uint64_t address, uint64_t size);
+        void set_pc(uint64_t address);    
     private:
         Process(pid_t pid) : m_pid(pid), current_thread_id(pid), index_(0) {}    
         pid_t m_pid, current_thread_id;
@@ -116,7 +117,7 @@ namespace mx {
         std::map<uint64_t, ConditionalBreakpoint> conditional_breakpoints;
         void handle_breakpoint_step(uint64_t address);
         void handle_conditional_breakpoint_continue(uint64_t address, bool continue_after_step = true);
-        void set_pc(uint64_t address);    
+        
         void set_fpu_registers(const user_fpregs_struct& fpregs);
         user_fpregs_struct get_fpu_registers() const;
 
