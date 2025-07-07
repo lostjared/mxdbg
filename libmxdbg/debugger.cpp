@@ -816,21 +816,20 @@ namespace mx {
             if (process && process->is_running()) {
                 try {
                     uint64_t current_pc = process->get_pc();
-                    bool handled_breakpoint = false;
-                    
                     if (process->has_breakpoint(current_pc)) {
-                        process->handle_breakpoint_continue(current_pc);
-                        handled_breakpoint = true;
-                    } else if (current_pc > 0 && process->has_breakpoint(current_pc - 1)) {
-                        process->set_pc(current_pc - 1);
-                        process->handle_breakpoint_continue(current_pc - 1);
-                        handled_breakpoint = true;
-                    }
-                    
-        
+                        uint8_t original_byte = process->get_original_instruction(current_pc);
+                        long data = ptrace(PTRACE_PEEKDATA, process->get_current_thread(), current_pc, nullptr);
+                        long restored = (data & ~0xFF) | original_byte;
+                        ptrace(PTRACE_POKEDATA, process->get_current_thread(), current_pc, restored);
+                        ptrace(PTRACE_SINGLESTEP, process->get_current_thread(), nullptr, nullptr);
+                        int status;
+                        waitpid(process->get_current_thread(), &status, 0);
+                        data = ptrace(PTRACE_PEEKDATA, process->get_current_thread(), current_pc, nullptr);
+                        long data_with_int3 = (data & ~0xFF) | 0xCC;
+                        ptrace(PTRACE_POKEDATA, process->get_current_thread(), current_pc, data_with_int3);
+                    }            
                     process->continue_execution();
                     process->wait_for_stop();
-                    
                 } catch (const std::exception& e) {
                     std::cerr << "Error during continue: " << e.what() << std::endl;
                 }
@@ -838,7 +837,7 @@ namespace mx {
                 std::cout << "Process has exited or is not running." << std::endl;
             }
             return true;
-        }else if (tokens.size() == 1 && (tokens[0] == "step" || tokens[0] == "s")) {
+        } else if (tokens.size() == 1 && (tokens[0] == "step" || tokens[0] == "s")) {
             step();
             return true;
         } else if (tokens.size() == 2 && tokens[0] == "step") {

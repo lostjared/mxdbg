@@ -19,9 +19,11 @@ int main(int argc, char **argv) {
         fclose(fptr);
         return EXIT_FAILURE;
     }
+    unsigned int i = 0;
     while(!feof(fptr)) {
         char buffer[256] = {0};
         fgets(buffer, 255, fptr);
+        printf("%d: %s\n", i++, buffer);
         trim(fout, buffer);
     }
     fclose(fptr);
