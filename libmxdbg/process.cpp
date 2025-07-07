@@ -938,16 +938,15 @@ namespace mx {
     }
 
     void Process::handle_breakpoint_continue(uint64_t address) {
-        uint8_t original_byte = breakpoints[address];
-        long data = ptrace(PTRACE_PEEKDATA, current_thread_id, address, nullptr);
-        long restored = (data & ~0xFF) | original_byte;
-        ptrace(PTRACE_POKEDATA, current_thread_id, address, restored);
-        ptrace(PTRACE_SINGLESTEP,current_thread_id, nullptr, nullptr);
-        int status;
-        waitpid(current_thread_id, &status, 0);
-        data = ptrace(PTRACE_PEEKDATA, current_thread_id, address, nullptr);
-        long data_with_int3 = (data & ~0xFF) | 0xCC;
-        ptrace(PTRACE_POKEDATA, current_thread_id, address, data_with_int3);
+        pid_t tid = current_thread_id;
+        long data = ptrace(PTRACE_PEEKDATA, tid, address, nullptr);
+        long restored = (data & ~0xFF) | breakpoints[address];
+        ptrace(PTRACE_POKEDATA, tid, address, restored);
+        ptrace(PTRACE_SINGLESTEP, tid, nullptr, nullptr);
+        waitpid(tid, nullptr, __WALL);
+        data = ptrace(PTRACE_PEEKDATA, tid, address, nullptr);
+        long trap = (data & ~0xFF) | 0xCC;
+        ptrace(PTRACE_POKEDATA, tid, address, trap);
     }
 
     std::string Process::disassemble_instruction(uint64_t address) const {
