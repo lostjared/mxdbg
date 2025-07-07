@@ -812,16 +812,19 @@ namespace mx {
             }
             return true;
         }
-        else if (tokens.size() == 1 && (tokens[0] == "continue" || tokens[0] == "c")) {
+       else if (tokens.size() == 1 && (tokens[0] == "continue" || tokens[0] == "c")) {
             if (process && process->is_running()) {
                 try {
-                    uint64_t pc = process->get_pc();
+                    uint64_t current_pc = process->get_pc();
                     
-                    // After a breakpoint trap, PC is at addr+1. Check for a breakpoint at pc-1.
-                    if (process->has_breakpoint(pc - 1)) {
-                        // Rewind PC to the breakpoint address before handling it.
-                        process->set_pc(pc - 1);
-                        process->handle_breakpoint_continue(pc - 1);
+                    // Check if we're at a breakpoint (current PC) or just past one (PC-1)
+                    if (process->has_breakpoint(current_pc)) {
+                        // We're exactly at a breakpoint address
+                        process->handle_breakpoint_continue(current_pc);
+                    } else if (process->has_breakpoint(current_pc - 1)) {
+                        // We're just past a breakpoint (common after SIGTRAP)
+                        process->set_pc(current_pc - 1);  // Rewind to breakpoint address
+                        process->handle_breakpoint_continue(current_pc - 1);
                     }
                     
                     process->continue_execution();
@@ -2102,7 +2105,7 @@ namespace mx {
                     if (color_) std::cout << Color::YELLOW;
                     std::cout << " [" << region.permissions << "] ";
                     if (color_) std::cout << Color::WHITE;
-                    std::cout << "Context: " << context;
+                    std::cout << "Context: \"" << context << "\"";
                     if (color_) std::cout << Color::CYAN;
                     std::cout << " " << region.pathname << std::endl;
                     if (color_) std::cout << Color::RESET;
@@ -2349,7 +2352,7 @@ namespace mx {
                 matches.push_back(i);
             }
         }
-        return matches;  
+       return matches;  
     }
 
     void Debugger::list_threads() {
