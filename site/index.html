@@ -357,6 +357,34 @@ mxdbg -d /path/to/binary</code></pre>
                     </div>
 
                     <div class="command-category">
+                        <h3>Conditional Breakpoints</h3>
+                        <div class="command-list">
+                            <div class="command">
+                                <code>break_if &lt;addr&gt; &lt;condition&gt;</code>
+                                <span>Set conditional breakpoint that only triggers when condition is true</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="command-category">
+                        <h3>FPU/Float Registers</h3>
+                        <div class="command-list">
+                            <div class="command">
+                                <code>get_fpu &lt;name&gt;</code>
+                                <span>Get FPU register value</span>
+                            </div>
+                            <div class="command">
+                                <code>set_fpu &lt;name&gt; &lt;value&gt;</code>
+                                <span>Set FPU register to value</span>
+                            </div>
+                            <div class="command">
+                                <code>list_fpu</code>
+                                <span>List all FPU registers</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="command-category">
                         <h3>Memory Operations</h3>
                         <div class="command-list">
                             <div class="command">
@@ -382,6 +410,14 @@ mxdbg -d /path/to/binary</code></pre>
                             <div class="command">
                                 <code>local &lt;reg&gt; &lt;offset&gt; &lt;size&gt;</code>
                                 <span>Read local variable on stack</span>
+                            </div>
+                            <div class="command">
+                                <code>hexdump &lt;addr&gt; &lt;size&gt;</code>
+                                <span>Display memory as hexadecimal dump</span>
+                            </div>
+                            <div class="command">
+                                <code>as_bytes &lt;value&gt;</code>
+                                <span>Convert value to byte representation</span>
                             </div>
                         </div>
                     </div>
@@ -458,6 +494,18 @@ mxdbg -d /path/to/binary</code></pre>
                             <div class="command">
                                 <code>quit, q, exit</code>
                                 <span>Exit debugger</span>
+                            </div>
+                            <div class="command">
+                                <code>info files</code>
+                                <span>Show open file descriptors</span>
+                            </div>
+                            <div class="command">
+                                <code>shell &lt;command&gt;, sh &lt;command&gt;</code>
+                                <span>Execute shell command</span>
+                            </div>
+                            <div class="command">
+                                <code>clear</code>
+                                <span>Clear the screen</span>
                             </div>
                         </div>
                     </div>
