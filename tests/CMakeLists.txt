@@ -175,3 +175,9 @@ set_target_properties(program_setxy PROPERTIES
     LINKER_LANGUAGE ASM
     LINK_FLAGS "-no-pie"
 )
+
+add_executable(program_trim asm/trim_com.s trim_com.c)
+set_target_properties(program_trim PROPERTIES
+    LINKER_LANGUAGE ASM
+    LINK_FLAGS "-no-pie"
+)
