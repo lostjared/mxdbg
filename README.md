@@ -149,8 +149,13 @@ Once in the debugger shell (`mx $>`), you can use:
 | `register16 <name>` | | Show 16-bit register |
 | `register8 <name>` | | Show 8-bit register |
 | `set <reg> <value>` | | Set register to value |
+| **FPU/Float Registers** | | |
+| `get_fpu <name>` | | Get FPU register value |
+| `set_fpu <name> <value>` | | Set FPU register to value |
+| `list_fpu` | | List all FPU registers |
 | **Breakpoints & Watchpoints** | | |
 | `break <addr>` | `b <addr>` | Set breakpoint at address |
+| `break_if <addr> <condition>` | | Set conditional breakpoint that only triggers when condition is true |
 | `function <name>` | | Set breakpoint at function |
 | `list_break` | `lb` | List all breakpoints |
 | `remove <addr/index>` | `rmv` | Remove breakpoint |
@@ -161,6 +166,8 @@ Once in the debugger shell (`mx $>`), you can use:
 | `read_bytes <addr> <size>` | | Read specific number of bytes |
 | `write <addr> <value>` | | Write value to memory address |
 | `write_bytes <addr> <bytes>` | | Write byte sequence to memory |
+| `hexdump <addr> <size>` | | Display memory as hexadecimal dump |
+| `as_bytes <value>` | | Convert value to byte representation |
 | `maps` | `memory_maps` | Show memory map |
 | `local <reg> <offset> <size>` | | Read local variable on stack |
 | **Memory Search** | | |
@@ -175,8 +182,12 @@ Once in the debugger shell (`mx $>`), you can use:
 | `explain <function>` | | Explain function disassembly with AI |
 | `ask <question>` | | Ask the AI a question about the program |
 | `mode <level>` | `user <level>` | Set AI difficulty (beginner/programmer/expert) |
+| **File Information** | | |
+| `info files` | | Show open file descriptors |
 | **Utility** | | |
 | `find <text>` | | Find text in disassembly using grep |
+| `shell <command>` | `sh <command>` | Execute shell command |
+| `clear` | | Clear the screen |
 | `debug_state` | | Show detailed debug state |
 | `help` | `h` | Show this help message |
 | `quit` | `q`, `exit` | Exit debugger |
