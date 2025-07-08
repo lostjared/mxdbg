@@ -187,3 +187,9 @@ set_target_properties(program_trim_file PROPERTIES
     LINKER_LANGUAGE ASM
     LINK_FLAGS "-no-pie"
 )
+
+add_executable(program_loopbyx asm/loopbyx.s)
+set_target_properties(program_loopbyx PROPERTIES
+    LINKER_LANGUAGE ASM
+    LINK_FLAGS "-no-pie"
+)
