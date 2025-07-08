@@ -1,15 +1,25 @@
 .section .data
+    buffer_message: .asciz "Enter string: \n"
     input_message: .asciz "Enter number: "
     input_scan: .asciz "%d"
     message: .asciz "Hello, World\n"
-
+.section .bss
+    input_buffer: .space 256
 .section .text
     .global main
-
 main:
     push %rbp
     mov %rsp, %rbp
     sub $32, %rsp
+    lea buffer_message(%rip), %rdi
+    call printf
+    mov $0, %rax
+    mov $0, %rdi
+    lea input_buffer(%rip), %rsi
+    mov $255, %rdx
+    syscall
+    test %rax, %rax
+    jle exit_error
     lea input_message(%rip), %rdi
     call printf
     lea input_scan(%rip), %rdi
@@ -21,7 +31,7 @@ main:
 loopbyx:
     cmp %rbx, %r12
     je exit_main
-    lea message(%rip), %rdi
+    lea input_buffer(%rip), %rdi
     call printf
     inc %rbx
     jmp loopbyx
@@ -29,6 +39,11 @@ exit_main:
     mov %rbp, %rsp
     pop %rbp
     movl $0, %eax
+    ret
+exit_error:
+    mov %rbp, %rsp
+    pop %rbp
+    mov $-1, %rax
     ret
 
 .section .note.GNU-stack,"",@progbits
