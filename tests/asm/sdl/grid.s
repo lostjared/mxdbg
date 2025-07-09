@@ -40,11 +40,11 @@ grid_loop_x:
     movq %rax, -0x28(%rbp)
     call rand_mod255   
     movq %rax, -0x30(%rbp)
-    movl $256, %r8d       
+    movl $255, %r8d       
     movq -0x20(%rbp), %rsi
     movq -0x28(%rbp), %rdx
     movq -0x30(%rbp), %rcx
-    movl $0, %r8d 
+    movl $255, %r8d 
     movq renderer_ptr, %rdi
     call SDL_SetRenderDrawColor
     movq -0x8(%rbp), %rsi
