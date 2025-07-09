@@ -20,6 +20,7 @@ Rectangle:
     movl %ecx, rect1+8(%rip)
     movl %r8d, rect1+12(%rip)
     lea rect1(%rip), %rsi
+    movq renderer_ptr, %rdi
     call SDL_RenderFillRect
     mov %rbp, %rsp
     pop %rbp
