@@ -27,7 +27,7 @@ Rectangle:
 DrawGrid:
     push %rbp
     mov %rsp, %rbp
-    sub $32, %rsp
+    sub $56, %rsp
     movq %rdi, renderer_ptr
     movq $16, -0x8(%rbp)
     movq $16, -0x10(%rbp)
@@ -35,14 +35,17 @@ grid_loop_y:
     movq $16, -0x8(%rbp)
 grid_loop_x:
     call rand_mod255
-    movl %eax, %esi
+    movq %rax, -0x20(%rbp)
     call rand_mod255
-    movl %eax, %ebx
-    call rand_mod255
-    movl %eax, %ecx
-    movl $255, %r8d        
+    movq %rax, -0x28(%rbp)
+    call rand_mod255   
+    movq %rax, -0x30(%rbp)
+    movl $256, %r8d       
+    movq -0x20(%rbp), %rsi
+    movq -0x28(%rbp), %rdx
+    movq -0x30(%rbp), %rcx
+    movl $0, %r8d 
     movq renderer_ptr, %rdi
-    movl %ebx, %edx
     call SDL_SetRenderDrawColor
     movq -0x8(%rbp), %rsi
     movq -0x10(%rbp), %rdx
@@ -72,7 +75,6 @@ rand_mod255:
     ret
 
 .section .note.GNU-stack,"",@progbits
-
 
 
 
