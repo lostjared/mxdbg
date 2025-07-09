@@ -26,7 +26,7 @@ Rectangle:
 DrawGrid:
     push %rbp
     mov %rsp, %rbp
-    sub $56, %rsp
+    sub $64, %rsp
     movq %rdi, renderer_ptr(%rip)
     movq $16, -0x8(%rbp)
     movq $16, -0x10(%rbp)
