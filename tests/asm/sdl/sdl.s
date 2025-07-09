@@ -2,7 +2,7 @@
     window_title: .asciz "Hello, World, SDL2 Assembly"
 .section .bss
     .lcomm window_ptr, 8      
-    .lcomm renderer_ptr, 8    
+    .lcomm sdl_renderer_ptr, 8    
     .lcomm event_buffer, 64   
 .section .text
     .extern SDL_Init
@@ -48,7 +48,7 @@ main:
     call SDL_CreateRenderer
     testq %rax, %rax
     jz cleanup_window
-    movq %rax, renderer_ptr(%rip)
+    movq %rax, sdl_renderer_ptr(%rip)
 main_loop:
     movq $event_buffer, %rdi
     call SDL_PollEvent
@@ -63,23 +63,23 @@ main_loop:
     cmpl $0x29, %eax          
     je cleanup_all
 render_frame:
-    movq renderer_ptr(%rip), %rdi
+    movq sdl_renderer_ptr(%rip), %rdi
     movl $0, %esi             
     movl $0, %edx           
     movl $0, %ecx           
     movl $255, %r8d           
     call SDL_SetRenderDrawColor
-    movq renderer_ptr(%rip), %rdi
+    movq sdl_renderer_ptr(%rip), %rdi
     call SDL_RenderClear
-    movq renderer_ptr(%rip), %rdi
+    movq sdl_renderer_ptr(%rip), %rdi
     call DrawGrid
-    movq renderer_ptr(%rip), %rdi
+    movq sdl_renderer_ptr(%rip), %rdi
     call SDL_RenderPresent
     movl $16, %edi
     call SDL_Delay
     jmp main_loop
 cleanup_all:
-    movq renderer_ptr(%rip), %rdi
+    movq sdl_renderer_ptr(%rip), %rdi
     call SDL_DestroyRenderer
 cleanup_window:
     movq window_ptr(%rip), %rdi
