@@ -1,2 +1,2 @@
 all:
-	gcc sdl.s -o sdl-test -no-pie -lSDL2
+	gcc -g3 sdl.s grid.s -o sdl-test -no-pie -lSDL2

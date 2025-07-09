@@ -16,11 +16,17 @@
     .extern SDL_DestroyWindow
     .extern SDL_Quit
     .extern SDL_Delay
+    .extern srand
+    .extern time
     .global main
 main:
     push %rbp
     mov %rsp, %rbp
     sub $16, %rsp
+    movq $0, %rdi         
+    call time
+    movq %rax, %rdi
+    call srand
     movl $0x20, %edi
     call SDL_Init
     testl %eax, %eax
@@ -60,10 +66,12 @@ render_frame:
     movl $0, %esi             
     movl $0, %edx           
     movl $0, %ecx           
-    movl $0, %r8d           
+    movl $255, %r8d           
     call SDL_SetRenderDrawColor
     movq renderer_ptr, %rdi
     call SDL_RenderClear
+    movq renderer_ptr, %rdi
+    call DrawGrid
     movq renderer_ptr, %rdi
     call SDL_RenderPresent
     movl $16, %edi
