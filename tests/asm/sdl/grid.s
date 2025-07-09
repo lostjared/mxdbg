@@ -14,13 +14,12 @@
 Rectangle:
     push %rbp
     mov %rsp, %rbp
-    sub $16, %rsp
-    movl %esi, rect1(%rip)
-    movl %edx, rect1+4(%rip)
-    movl %ecx, rect1+8(%rip)
-    movl %r8d, rect1+12(%rip)
-    lea rect1(%rip), %rsi
-    movq renderer_ptr, %rdi
+    movl %esi, rect1(%rip)      
+    movl %edx, rect1+4(%rip)    
+    movl %ecx, rect1+8(%rip)    
+    movl %r8d, rect1+12(%rip)   
+    movq renderer_ptr, %rdi     
+    lea rect1(%rip), %rsi       
     call SDL_RenderFillRect
     mov %rbp, %rsp
     pop %rbp
@@ -36,25 +35,27 @@ grid_loop_y:
     movq $16, -0x8(%rbp)
 grid_loop_x:
     call rand_mod255
-    movq %rax, -0x20(%rbp)
+    movl %eax, -0x20(%rbp)     
     call rand_mod255
-    movq %rax, -0x28(%rbp)
+    movl %eax, -0x24(%rbp)
     call rand_mod255   
-    movq %rax, -0x30(%rbp)
-    movl $255, %r8d       
-    movq -0x20(%rbp), %rsi
-    movq -0x28(%rbp), %rdx
-    movq -0x30(%rbp), %rcx
-    movl $255, %r8d 
-    movq renderer_ptr, %rdi
+    movl %eax, -0x28(%rbp)
+    
+    movq renderer_ptr, %rdi     
+    movl -0x20(%rbp), %esi      
+    movl -0x24(%rbp), %edx      
+    movl -0x28(%rbp), %ecx      
+    movl $255, %r8d             
     call SDL_SetRenderDrawColor
-    movq -0x8(%rbp), %rsi
-    movq -0x10(%rbp), %rdx
-    movl $32, %ecx
-    movl $16, %r8d
+    
+    movq renderer_ptr, %rdi     
+    movl -0x8(%rbp), %esi       
+    movl -0x10(%rbp), %edx      
+    movl $32, %ecx              
+    movl $16, %r8d              
     call Rectangle
-    addq $34, -0x8(%rbp)
-    cmpq $620,-0x8(%rbp)
+    addl $34, -0x8(%rbp)        
+    cmpl $620, -0x8(%rbp)       
     jl grid_loop_x
     addq $18, -0x10(%rbp)
     cmpq $460, -0x10(%rbp)
