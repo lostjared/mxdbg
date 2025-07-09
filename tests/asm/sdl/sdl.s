@@ -18,6 +18,7 @@
     .extern SDL_Delay
     .extern srand
     .extern time
+    .extern exit
     .global main
 main:
     push %rbp
@@ -40,14 +41,14 @@ main:
     call SDL_CreateWindow
     testq %rax, %rax
     jz cleanup_and_exit
-    movq %rax, window_ptr
-    movq window_ptr, %rdi     
+    movq %rax, window_ptr(%rip)
+    movq window_ptr(%rip), %rdi     
     movl $-1, %esi            
     movl $0, %edx             
     call SDL_CreateRenderer
     testq %rax, %rax
     jz cleanup_window
-    movq %rax, renderer_ptr
+    movq %rax, renderer_ptr(%rip)
 main_loop:
     movq $event_buffer, %rdi
     call SDL_PollEvent
@@ -62,26 +63,26 @@ main_loop:
     cmpl $0x29, %eax          
     je cleanup_all
 render_frame:
-    movq renderer_ptr, %rdi
+    movq renderer_ptr(%rip), %rdi
     movl $0, %esi             
     movl $0, %edx           
     movl $0, %ecx           
     movl $255, %r8d           
     call SDL_SetRenderDrawColor
-    movq renderer_ptr, %rdi
+    movq renderer_ptr(%rip), %rdi
     call SDL_RenderClear
-    movq renderer_ptr, %rdi
+    movq renderer_ptr(%rip), %rdi
     call DrawGrid
-    movq renderer_ptr, %rdi
+    movq renderer_ptr(%rip), %rdi
     call SDL_RenderPresent
     movl $16, %edi
     call SDL_Delay
     jmp main_loop
 cleanup_all:
-    movq renderer_ptr, %rdi
+    movq renderer_ptr(%rip), %rdi
     call SDL_DestroyRenderer
 cleanup_window:
-    movq window_ptr, %rdi
+    movq window_ptr(%rip), %rdi
     call SDL_DestroyWindow
 cleanup_and_exit:
     call SDL_Quit
