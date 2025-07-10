@@ -52,7 +52,7 @@ Color:
     push %rbp
     mov %rsp, %rbp
     cmpl $-1, %edi
-    je over
+    je set_black
     cmpl $0, %edi
     je set_c1
     cmpl $1, %edi
@@ -89,6 +89,11 @@ set_c5:
     movl $0, gval(%rip)
     movl $255, bval(%rip)
     jmp over
+set_black:
+    movl $0, rval(%rip)
+    movl $0, gval(%rip)
+    movl $0, bval(%rip)
+    jmp over
 over:
     mov %rbp, %rsp
     pop %rbp
@@ -120,8 +125,6 @@ grid_loop_x:
     movl -24(%rbp), %edi
     movl -28(%rbp), %esi
     call GetGrid
-    cmpl $-1, %eax
-    je nocolor
     movl %eax, %edi
     call Color                  
     movq renderer_ptr(%rip), %rdi

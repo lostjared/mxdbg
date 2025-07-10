@@ -1,7 +1,12 @@
 .section .data
-    window_title: .asciz "Hello, World, SDL2 Assembly"
+    window_title: .asciz "MasterPiece Assembly"
+    background_path: .asciz "bg.bmp"
+    error_msg: .asciz "Error loading background image\n"
+    open_mode: .asciz "rb"
 .section .bss
     .lcomm window_ptr, 8      
+    .lcomm bg_surface, 8
+    .lcomm bg_texture, 8
     .comm renderer_ptr, 8    
     .lcomm event_buffer, 64  
     .globl renderer_ptr 
@@ -17,6 +22,11 @@
     .extern SDL_DestroyWindow
     .extern SDL_Quit
     .extern SDL_Delay
+    .extern SDL_RWFromFile
+    .extern SDL_LoadBMP_RW
+    .extern SDL_DestroyTexture
+    .extern SDL_RenderCopy
+    .extern puts
     .extern srand
     .extern time
     .extern exit
@@ -29,7 +39,7 @@
 main:
     push %rbp
     mov %rsp, %rbp
-    sub $16, %rsp
+    sub $32, %rsp
     movq $0, %rdi         
     call time
     movq %rax, %rdi
@@ -58,6 +68,26 @@ main:
     jz cleanup_window
     movq %rax, renderer_ptr(%rip)
     call InitBlocks
+
+    lea background_path(%rip), %rdi
+    lea open_mode(%rip), %rsi
+    call SDL_RWFromFile
+    cmp $0, %rax
+    je error_exit
+    mov %rax, %rdi
+    movl $1, %esi
+    call SDL_LoadBMP_RW
+    cmp $0, %rax
+    je error_exit
+    movq %rax, bg_surface(%rip)
+    movq bg_surface(%rip), %rsi
+    movq renderer_ptr(%rip), %rdi
+    call SDL_CreateTextureFromSurface
+    cmp $0, %rax
+    je error_exit
+    movq %rax, bg_texture(%rip)
+    movq bg_surface(%rip), %rdi
+    call SDL_FreeSurface
 main_loop:
     movq $event_buffer, %rdi
     call SDL_PollEvent
@@ -90,14 +120,34 @@ render_frame:
     movq renderer_ptr(%rip), %rdi
     call SDL_RenderClear
     movq renderer_ptr(%rip), %rdi
+    movq bg_texture(%rip), %rsi
+    mov $0, %rdx
+    mov $0, %rcx
+    call SDL_RenderCopy
+    movq renderer_ptr(%rip), %rdi
     call DrawGrid
     call DrawBlocks
     movq renderer_ptr(%rip), %rdi
     call SDL_RenderPresent
+    call SDL_GetTicks
+    mov %eax, -4(%rbp)              
+    cmpb $0, -8(%rbp)               
+    je set_last_ticks
+    mov -8(%rbp), %edx              
+    sub %edx, %eax                  
+    cmpl $1200, %eax
+    jb skip_move_down
+    call MoveDown
+    call SDL_GetTicks
+    mov %eax, -8(%rbp)              
+    jmp skip_move_down
+set_last_ticks:
+    mov -4(%rbp), %eax
+    mov %eax, -8(%rbp)
+skip_move_down:
     movl $16, %edi
     call SDL_Delay
     jmp main_loop
-
 key_left:
     call MoveLeft
     jmp render_frame
@@ -111,6 +161,8 @@ key_up:
     call ShiftUp
     jmp render_frame
 cleanup_all:
+    movq bg_texture(%rip), %rdi
+    call SDL_DestroyTexture
     movq renderer_ptr(%rip), %rdi
     call SDL_DestroyRenderer
 cleanup_window:
@@ -120,9 +172,13 @@ cleanup_and_exit:
     call SDL_Quit
     mov $0, %edi
     call exit
+error_exit:
+    lea error_msg(%rip), %rdi
+    call puts
 exit_error:
     call SDL_Quit
     movl $1, %edi
     call exit
+
 
 .section .note.GNU-stack, "",@progbits
