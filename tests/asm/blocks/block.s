@@ -101,14 +101,26 @@ MoveRight:
     push %rbp
     mov %rsp, %rbp
     movl x_cord(%rip), %eax
+    push %rax
     cmp $17, %eax
     je right_over
+    movl %eax, %ecx
+    incl %ecx
+    movl y_cord(%rip), %edx
+    addl $2, %edx
+    movl %edx, %edi
+    movl %ecx, %esi
+    call GetGrid
+    cmpl $-1, %eax
+    jne right_over
+    pop %rax
     incl %eax
     movl %eax, x_cord(%rip)
 right_over:
     mov %rbp, %rsp
     pop %rbp
     ret
+
 MoveDown:
     push %rbp
     mov %rsp, %rbp
