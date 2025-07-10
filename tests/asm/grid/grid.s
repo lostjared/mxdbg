@@ -14,23 +14,25 @@
     .global DrawGrid
     .global rand_mod255
     .global FillGrid
+    .global SetGrid
+    .global GetGrid
 
 FillGrid:
     push %rbp
     mov %rsp, %rbp
-    lea grid(%rip), %r8          
-    movl $0, %ecx              
+    movl %edi, %ebx
+    movl $0, %ecx
 fill_y:
-    movl $0, %eax
+    movl $0, %r9d
 fill_x:
-    imull $18, %ecx, %edx     
-    addl %eax, %edx            
-    shll $2, %edx              
-    movl %edi, (%r8, %rdx, 1) 
-    inc %eax
-    cmpl $18, %eax             
+    movl %ebx, %edi
+    movl %ecx, %esi
+    movl %r9d, %edx
+    call SetGrid
+    inc %r9d    
+    cmpl $18, %r9d             
     jl fill_x
-    inc %ecx
+    inc %ecx    
     cmpl $25, %ecx             
     jl fill_y
     mov %rbp, %rsp
@@ -66,7 +68,6 @@ set_c3:
     movl $0, gval(%rip)
     movl $255, bval(%rip)
     jmp over
-
 set_c2:
     movl $0, rval(%rip)
     movl $255, gval(%rip)
@@ -105,14 +106,11 @@ grid_loop_y:
     movl $16, -16(%rbp)
     movl $0, -28(%rbp)
 grid_loop_x:
-    lea grid(%rip), %r8
-    movl -24(%rbp), %ecx
-    movl -28(%rbp), %eax
-    imull $18, %ecx, %edx      
-    addl %eax, %edx
-    shll $2, %edx
-    movl (%r8, %rdx, 1), %edi
     
+    movl -24(%rbp), %edi
+    movl -28(%rbp), %esi
+    call GetGrid
+    movl %eax, %edi
     call Color                  
     
     movq renderer_ptr(%rip), %rdi
@@ -152,6 +150,40 @@ rand_mod5:
     mov %rbp, %rsp
     pop %rbp
     ret
+
+
+
+# Get value from grid[row][col]
+# Arguments: row in %rdi, col in %rsi
+# Returns: value in %rax
+GetGrid:
+    push %rbp
+    mov %rsp, %rbp
+    lea grid(%rip), %r8
+    imull $18, %edi, %eax
+    addl %esi, %eax
+    shll $2, %eax
+    movl (%r8, %rax, 1), %ecx
+    mov %ecx, %eax
+    mov %rbp, %rsp
+    pop %rbp
+    ret
+
+# Set grid[row][col] = value
+# Arguments: value in %rdi, row in %rsi, col in %rdx
+SetGrid:
+    push %rbp
+    mov %rsp, %rbp
+    lea grid(%rip), %r8
+    imull $18, %esi, %eax
+    addl %edx, %eax
+    shll $2, %eax
+    movl %edi, (%r8, %rax, 1)
+    mov %rbp, %rsp
+    pop %rbp
+    ret
+
+
 
 .section .note.GNU-stack,"",@progbits
 
