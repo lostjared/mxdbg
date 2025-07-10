@@ -21,6 +21,8 @@
     .extern time
     .extern exit
     .extern DrawBlocks
+    .extern MoveLeft
+    .extern MoveRight
     .global main
 main:
     push %rbp
@@ -67,6 +69,11 @@ main_loop:
     movl event_buffer+16, %eax
     cmpl $0x29, %eax          
     je cleanup_all
+    movl event_buffer+20, %eax
+    cmpl $0x40000050, %eax    # Left arrow
+    je  key_left
+    cmpl $0x4000004F, %eax    # Right arrow
+    je  key_right
 render_frame:
     movq renderer_ptr(%rip), %rdi
     movl $0, %esi             
@@ -84,6 +91,14 @@ render_frame:
     movl $16, %edi
     call SDL_Delay
     jmp main_loop
+
+key_left:
+    call MoveLeft
+    jmp render_frame
+key_right:
+    call MoveRight
+    jmp render_frame
+
 cleanup_all:
     movq renderer_ptr(%rip), %rdi
     call SDL_DestroyRenderer

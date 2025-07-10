@@ -18,13 +18,15 @@
     .extern rand_mod5
     .global DrawBlocks
     .global InitBlocks
+    .global MoveLeft
+    .global MoveRight
 InitBlocks:
     push %rbp
     mov %rsp, %rbp
     movl $0, y_cord(%rip)
     movl $8, x_cord(%rip)
     call rand_mod5
-    movl %eax, colors+8(%rip)
+    movl %eax, colors(%rip)
     call rand_mod5
     movl %eax, colors+4(%rip)
     call rand_mod5
@@ -35,11 +37,12 @@ InitBlocks:
 DrawBlocks:
     push %rbp
     mov  %rsp,%rbp
-    xor %r14, %r14
-    xor %r15, %r15
+    push %r12
+    push %r13
+    lea colors(%rip),%r13
+    xor %r12d, %r12d
 draw_loop:
-    lea colors(%rip),%r9
-    movl  (%r9,%r15,4),%edi
+    movl  (%r13,%r12,4),%edi
     call  Color
     movq renderer_ptr(%rip), %rdi
     movl rval(%rip), %esi
@@ -49,18 +52,48 @@ draw_loop:
     call SDL_SetRenderDrawColor
     movq renderer_ptr(%rip), %rdi
     movl x_cord(%rip),%eax
-    imul $34,%eax,%esi     
-    addl $16,%esi
+    imul $34,%eax,%eax     
+    addl $16,%eax
+    movl %eax, %esi
     movl y_cord(%rip),%eax
-    addl %r15d,%eax
-    imul $18,%eax,%edx
-    addl $16,%edx
+    addl %r12d,%eax
+    imul $18,%eax,%eax
+    addl $16,%eax
+    movl %eax, %edx
     movl $32,%ecx
     movl $16,%r8d
     call Rectangle
-    incl %r15d
-    cmpl $3,%r15d
+    incl %r12d     
+    cmpl $3,%r12d
     jl draw_loop
+    pop %r13
+    pop %r12
+    mov %rbp, %rsp
+    pop %rbp
+    ret
+
+MoveLeft:
+    push %rbp
+    mov %rsp, %rbp    
+    movl x_cord(%rip), %eax
+    cmp $0, %eax
+    je left_over
+    decl %eax
+    movl %eax, x_cord(%rip)
+left_over:
+    mov %rbp, %rsp
+    pop %rbp
+    ret
+
+MoveRight:
+    push %rbp
+    mov %rsp, %rbp
+    movl x_cord(%rip), %eax
+    cmp $17, %eax
+    je right_over
+    incl %eax
+    movl %eax, x_cord(%rip)
+right_over:
     mov %rbp, %rsp
     pop %rbp
     ret
