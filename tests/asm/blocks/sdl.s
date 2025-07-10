@@ -24,6 +24,7 @@
     .extern MoveLeft
     .extern MoveRight
     .extern MoveDown
+    .extern ShiftUp
     .global main
 main:
     push %rbp
@@ -77,6 +78,8 @@ main_loop:
     je key_right
     cmpl $0x40000051, %eax
     je key_down
+    cmpl $0x40000052, %eax
+    je key_up
 render_frame:
     movq renderer_ptr(%rip), %rdi
     movl $0, %esi             
@@ -104,7 +107,9 @@ key_right:
 key_down:
     call MoveDown
     jmp render_frame
-
+key_up:
+    call ShiftUp
+    jmp render_frame
 cleanup_all:
     movq renderer_ptr(%rip), %rdi
     call SDL_DestroyRenderer

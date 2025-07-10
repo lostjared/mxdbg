@@ -21,6 +21,7 @@
     .global MoveLeft
     .global MoveRight
     .global MoveDown
+    .global ShiftUp
 InitBlocks:
     push %rbp
     mov %rsp, %rbp
@@ -162,6 +163,18 @@ merge_block:
     pop %rbp
     ret
 
+ShiftUp:
+    push %rbp
+    mov %rsp, %rbp
+    movl colors(%rip), %eax
+    movl colors+4(%rip), %ebx
+    movl colors+8(%rip), %ecx
+    movl %ecx, colors(%rip)
+    movl %eax, colors+4(%rip)
+    movl %ebx, colors+8(%rip)
+    mov %rbp, %rsp
+    pop %rbp
+    ret
 
 .section .note.GNU-stack,"",@progbits
 
