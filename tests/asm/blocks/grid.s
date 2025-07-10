@@ -48,7 +48,6 @@ fill_x:
     mov %rbp, %rsp
     pop %rbp
     ret
-
 Color:
     push %rbp
     mov %rsp, %rbp
@@ -117,8 +116,7 @@ DrawGrid:
 grid_loop_y:
     movl $16, -16(%rbp)
     movl $0, -28(%rbp)
-grid_loop_x:
-    
+grid_loop_x:  
     movl -24(%rbp), %edi
     movl -28(%rbp), %esi
     call GetGrid
@@ -132,7 +130,6 @@ grid_loop_x:
     movl bval(%rip), %ecx
     movl $255, %r8d
     call SDL_SetRenderDrawColor
-    
     movq renderer_ptr(%rip), %rdi
     movl -16(%rbp), %esi
     movl -8(%rbp), %edx
@@ -148,7 +145,6 @@ nocolor:
     incl -24(%rbp)
     cmpl $25, -24(%rbp)        
     jl grid_loop_y 
-    
     mov %rbp, %rsp
     pop %rbp
     ret
@@ -163,9 +159,6 @@ rand_mod5:
     mov %rbp, %rsp
     pop %rbp
     ret
-
-
-
 # Get value from grid[row][col]
 # Arguments: row in %rdi, col in %rsi
 # Returns: value in %rax
@@ -181,7 +174,6 @@ GetGrid:
     mov %rbp, %rsp
     pop %rbp
     ret
-
 # Set grid[row][col] = value
 # Arguments: value in %rdi, row in %rsi, col in %rdx
 SetGrid:
@@ -195,8 +187,6 @@ SetGrid:
     mov %rbp, %rsp
     pop %rbp
     ret
-
-
 
 .section .note.GNU-stack,"",@progbits
 
