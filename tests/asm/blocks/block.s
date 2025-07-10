@@ -20,6 +20,7 @@
     .global InitBlocks
     .global MoveLeft
     .global MoveRight
+    .global MoveDown
 InitBlocks:
     push %rbp
     mov %rsp, %rbp
@@ -97,6 +98,47 @@ right_over:
     mov %rbp, %rsp
     pop %rbp
     ret
+MoveDown:
+    push %rbp
+    mov %rsp, %rbp
+    movl y_cord(%rip), %edi
+    addl $3, %edi
+    movl x_cord(%rip), %esi
+    call GetGrid
+    cmpl $-1, %eax
+    jne merge_block
+    cmpl $24, %edi
+    jg merge_block
+    mov y_cord(%rip), %edi
+    incl %edi
+    mov %edi, y_cord(%rip)
+down_over:
+    mov %rbp, %rsp
+    pop %rbp
+    ret
+merge_block:
+    movl colors(%rip), %edi
+    movl x_cord(%rip), %edx
+    movl y_cord(%rip), %esi
+    call SetGrid
+    
+    movl colors+4(%rip), %edi
+    movl x_cord(%rip), %edx
+    movl y_cord(%rip), %esi
+    incl %esi
+    call SetGrid
+
+    movl colors+8(%rip), %edi
+    movl x_cord(%rip), %edx
+    movl y_cord(%rip), %esi
+    addl $2,%esi
+    call SetGrid
+
+    call InitBlocks
+    mov %rbp, %rsp
+    pop %rbp
+    ret
+
 
 .section .note.GNU-stack,"",@progbits
 

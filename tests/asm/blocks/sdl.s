@@ -23,6 +23,7 @@
     .extern DrawBlocks
     .extern MoveLeft
     .extern MoveRight
+    .extern MoveDown
     .global main
 main:
     push %rbp
@@ -71,9 +72,11 @@ main_loop:
     je cleanup_all
     movl event_buffer+20, %eax
     cmpl $0x40000050, %eax    # Left arrow
-    je  key_left
+    je key_left
     cmpl $0x4000004F, %eax    # Right arrow
-    je  key_right
+    je key_right
+    cmpl $0x40000051, %eax
+    je key_down
 render_frame:
     movq renderer_ptr(%rip), %rdi
     movl $0, %esi             
@@ -97,6 +100,9 @@ key_left:
     jmp render_frame
 key_right:
     call MoveRight
+    jmp render_frame
+key_down:
+    call MoveDown
     jmp render_frame
 
 cleanup_all:

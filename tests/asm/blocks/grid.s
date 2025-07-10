@@ -160,8 +160,8 @@ rand_mod5:
     pop %rbp
     ret
 # Get value from grid[row][col]
-# Arguments: row in %rdi, col in %rsi
-# Returns: value in %rax
+# Arguments: row in %edi, col in %esi
+# Returns: value in %eax
 GetGrid:
     push %rbp
     mov %rsp, %rbp
@@ -175,7 +175,7 @@ GetGrid:
     pop %rbp
     ret
 # Set grid[row][col] = value
-# Arguments: value in %rdi, row in %rsi, col in %rdx
+# Arguments: value in %edi, row in %esi, col in %edx
 SetGrid:
     push %rbp
     mov %rsp, %rbp
