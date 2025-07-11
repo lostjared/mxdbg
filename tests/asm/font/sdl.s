@@ -3,7 +3,7 @@
     background_path: .asciz "bg.bmp"
     error_msg: .asciz "Error loading background image\n"
     open_mode: .asciz "rb"
-    hello_world: .asciz "Hello, World!"
+    hello_world: .asciz "Hello, World in x64 ASM!"
 .section .bss
     .lcomm window_ptr, 8      
     .lcomm bg_surface, 8
