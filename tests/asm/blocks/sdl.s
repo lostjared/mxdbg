@@ -112,6 +112,7 @@ main_loop:
     je key_down
     cmpl $0x40000052, %eax
     je key_up
+    jmp main_loop
 render_frame:
     movq renderer_ptr(%rip), %rdi
     movl $0, %esi             
