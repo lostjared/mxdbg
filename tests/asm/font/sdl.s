@@ -1,5 +1,5 @@
 .section .data
-    window_title: .asciz "Assembly - SDL Image Load"
+    window_title: .asciz "Assembly - SDL Font Load"
     background_path: .asciz "bg.bmp"
     error_msg: .asciz "Error loading background image\n"
     open_mode: .asciz "rb"
