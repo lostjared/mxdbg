@@ -1,5 +1,5 @@
 .section .data
-    window_title: .asciz "MasterPiece Assembly"
+    window_title: .asciz "Assembly - SDL Image Load"
     background_path: .asciz "bg.bmp"
     error_msg: .asciz "Error loading background image\n"
     open_mode: .asciz "rb"
