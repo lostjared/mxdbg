@@ -20,9 +20,10 @@
     .global FillGrid
     .global SetGrid
     .global GetGrid
+    .global CheckGrid
+    .global CheckMoveDown
     .global rand_mod5
     .global Color
-
 FillGrid:
     push %rbp
     mov %rsp, %rbp
@@ -187,6 +188,252 @@ SetGrid:
     addl %edx, %eax
     shll $2, %eax
     movl %edi, (%r8, %rax, 1)
+    mov %rbp, %rsp
+    pop %rbp
+    ret
+
+#check for 3 in a row of same color (positive number)
+#horizontal, vertical, and diagonal
+CheckGrid:
+    push %rbp
+    mov %rsp, %rbp
+    push %r12
+    push %r13
+    push %r14
+    movl $0, %eax
+    movl $0, %r12d
+y_loop_check:
+    movl $0, %r13d
+x_loop_check:
+    movl %r12d, %edi
+    movl %r13d, %esi
+    call GetGrid
+    movl %eax, %r14d
+
+    cmpl $0, %r14d
+    jle next_iteration
+
+    cmpl $15, %r13d 
+    jg check_vertical
+    movl %r12d, %edi
+    movl %r13d, %esi
+    addl $1, %esi
+    call GetGrid
+    cmpl %r14d, %eax
+    jne check_vertical
+    movl %r12d, %edi
+    movl %r13d, %esi
+    addl $2, %esi
+    call GetGrid
+    cmpl %r14d, %eax
+    jne check_vertical
+    jmp horizontal_match_found
+check_vertical:
+    cmpl $22, %r12d 
+    jg check_diagonal_dr
+    movl %r12d, %edi
+    addl $1, %edi
+    movl %r13d, %esi
+    call GetGrid
+    cmpl %r14d, %eax
+    jne check_diagonal_dr
+    movl %r12d, %edi
+    addl $2, %edi
+    movl %r13d, %esi
+    call GetGrid
+    cmpl %r14d, %eax
+    jne check_diagonal_dr
+    jmp vertical_match_found
+
+check_diagonal_dr: 
+    cmpl $22, %r12d 
+    jg check_diagonal_dl
+    cmpl $15, %r13d 
+    jg check_diagonal_dl
+    movl %r12d, %edi
+    addl $1, %edi
+    movl %r13d, %esi
+    addl $1, %esi
+    call GetGrid
+    cmpl %r14d, %eax
+    jne check_diagonal_dl
+    movl %r12d, %edi
+    addl $2, %edi
+    movl %r13d, %esi
+    addl $2, %esi
+    call GetGrid
+    cmpl %r14d, %eax
+    jne check_diagonal_dl
+    jmp diagonal_dr_match_found
+
+check_diagonal_dl: 
+    cmpl $22, %r12d 
+    jg next_iteration
+    cmpl $2, %r13d 
+    jl next_iteration
+    movl %r12d, %edi
+    addl $1, %edi
+    movl %r13d, %esi
+    subl $1, %esi
+    call GetGrid
+    cmpl %r14d, %eax
+    jne next_iteration
+    movl %r12d, %edi
+    addl $2, %edi
+    movl %r13d, %esi
+    subl $2, %esi
+    call GetGrid
+    cmpl %r14d, %eax
+    jne next_iteration
+    jmp diagonal_dl_match_found
+
+next_iteration:
+    incl %r13d
+    cmpl $18, %r13d
+    jl x_loop_check
+    incl %r12d
+    cmpl $25, %r12d
+    jl y_loop_check
+    jmp end_check
+
+horizontal_match_found:
+    movl $1, %eax
+    movl $-1, %edi
+    movl %r12d, %esi
+    movl %r13d, %edx
+    call SetGrid
+    movl $-1, %edi
+    movl %r12d, %esi
+    movl %r13d, %edx
+    addl $1, %edx
+    call SetGrid
+    movl $-1, %edi
+    movl %r12d, %esi
+    movl %r13d, %edx
+    addl $2, %edx
+    call SetGrid
+    jmp next_iteration
+
+vertical_match_found:
+    movl $1, %eax
+    movl $-1, %edi
+    movl %r12d, %esi
+    movl %r13d, %edx
+    call SetGrid
+    movl $-1, %edi
+    movl %r12d, %esi
+    addl $1, %esi
+    movl %r13d, %edx
+    call SetGrid
+    movl $-1, %edi
+    movl %r12d, %esi
+    addl $2, %esi
+    movl %r13d, %edx
+    call SetGrid
+    jmp next_iteration
+
+diagonal_dr_match_found:
+    movl $1, %eax
+    movl $-1, %edi
+    movl %r12d, %esi
+    movl %r13d, %edx
+    call SetGrid
+    movl $-1, %edi
+    movl %r12d, %esi
+    addl $1, %esi
+    movl %r13d, %edx
+    addl $1, %edx
+    call SetGrid
+    movl $-1, %edi
+    movl %r12d, %esi
+    addl $2, %esi
+    movl %r13d, %edx
+    addl $2, %edx
+    call SetGrid
+    jmp next_iteration
+
+diagonal_dl_match_found:
+    movl $1, %eax
+    movl $-1, %edi
+    movl %r12d, %esi
+    movl %r13d, %edx
+    call SetGrid
+    movl $-1, %edi
+    movl %r12d, %esi
+    addl $1, %esi
+    movl %r13d, %edx
+    subl $1, %edx
+    call SetGrid
+    movl $-1, %edi
+    movl %r12d, %esi
+    addl $2, %esi
+    movl %r13d, %edx
+    subl $2, %edx
+    call SetGrid
+    jmp next_iteration
+
+end_check:
+    pop %r14
+    pop %r13
+    pop %r12
+    mov %rbp, %rsp
+    pop %rbp
+    ret
+
+CheckMoveDown:
+    push %rbp
+    mov %rsp, %rbp
+    push %r12
+    push %r13
+    push %r14
+    push %r15
+
+    movl $23, %r12d
+y_loop_move:
+    movl $0, %r13d
+x_loop_move:
+    movl %r12d, %edi
+    addl $1, %edi
+    movl %r13d, %esi
+    call GetGrid
+    movl %eax, %r14d
+
+    cmpl $-1, %r14d
+    jne next_cell
+
+    movl %r12d, %edi
+    movl %r13d, %esi
+    call GetGrid
+    movl %eax, %r15d
+
+    cmpl $-1, %r15d
+    je next_cell
+
+    movl %r15d, %edi
+    movl %r12d, %esi
+    addl $1, %esi
+    movl %r13d, %edx
+    call SetGrid
+
+    movl $-1, %edi
+    movl %r12d, %esi
+    movl %r13d, %edx
+    call SetGrid
+
+next_cell:
+    incl %r13d
+    cmpl $18, %r13d
+    jl x_loop_move
+
+    decl %r12d
+    cmpl $0, %r12d
+    jge y_loop_move
+
+    pop %r15
+    pop %r14
+    pop %r13
+    pop %r12
+
     mov %rbp, %rsp
     pop %rbp
     ret

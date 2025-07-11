@@ -35,6 +35,8 @@
     .extern MoveRight
     .extern MoveDown
     .extern ShiftUp
+    .extern CheckGrid
+    .extern CheckMoveDown
     .global main
 main:
     push %rbp
@@ -124,6 +126,8 @@ render_frame:
     mov $0, %rdx
     mov $0, %rcx
     call SDL_RenderCopy
+    call CheckGrid
+    call CheckMoveDown
     movq renderer_ptr(%rip), %rdi
     call DrawGrid
     call DrawBlocks

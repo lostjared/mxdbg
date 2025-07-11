@@ -16,6 +16,7 @@
     .extern SetGrid
     .extern GetGrid
     .extern rand_mod5
+    .extern FillGrid
     .global DrawBlocks
     .global InitBlocks
     .global MoveLeft
@@ -144,6 +145,8 @@ merge_block:
     movl colors(%rip), %edi
     movl x_cord(%rip), %edx
     movl y_cord(%rip), %esi
+    cmpl $0, %esi
+    je clearit
     call SetGrid
     
     movl colors+4(%rip), %edi
@@ -162,7 +165,14 @@ merge_block:
     mov %rbp, %rsp
     pop %rbp
     ret
-
+clearit:
+    call InitBlocks
+    movl $-1, %edi
+    call FillGrid
+    mov %rbp, %rsp
+    pop %rbp
+    ret
+    
 ShiftUp:
     push %rbp
     mov %rsp, %rbp
