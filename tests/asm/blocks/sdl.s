@@ -149,7 +149,7 @@ set_last_ticks:
     mov -4(%rbp), %eax
     mov %eax, -8(%rbp)
 skip_move_down:
-    movl $16, %edi
+    movl $4, %edi
     call SDL_Delay
     jmp main_loop
 key_left:
