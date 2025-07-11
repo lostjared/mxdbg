@@ -210,11 +210,11 @@ x_loop_check:
     call GetGrid
     movl %eax, %r14d
 
-    cmpl $0, %r14d
+    cmpl $-1, %r14d
     jle next_iteration
 
-    cmpl $15, %r13d 
-    jg check_vertical
+    cmpl $16, %r13d 
+    jge check_vertical
     movl %r12d, %edi
     movl %r13d, %esi
     addl $1, %esi
@@ -229,8 +229,8 @@ x_loop_check:
     jne check_vertical
     jmp horizontal_match_found
 check_vertical:
-    cmpl $22, %r12d 
-    jg check_diagonal_dr
+    cmpl $23, %r12d 
+    jge check_diagonal_dr
     movl %r12d, %edi
     addl $1, %edi
     movl %r13d, %esi
@@ -246,10 +246,10 @@ check_vertical:
     jmp vertical_match_found
 
 check_diagonal_dr: 
-    cmpl $22, %r12d 
-    jg check_diagonal_dl
-    cmpl $15, %r13d 
-    jg check_diagonal_dl
+    cmpl $23, %r12d 
+    jge check_diagonal_dl
+    cmpl $16, %r13d 
+    jge check_diagonal_dl
     movl %r12d, %edi
     addl $1, %edi
     movl %r13d, %esi
@@ -267,8 +267,8 @@ check_diagonal_dr:
     jmp diagonal_dr_match_found
 
 check_diagonal_dl: 
-    cmpl $22, %r12d 
-    jg next_iteration
+    cmpl $23, %r12d 
+    jge next_iteration
     cmpl $2, %r13d 
     jl next_iteration
     movl %r12d, %edi
