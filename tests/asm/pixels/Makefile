@@ -1,2 +1,2 @@
 all:
-	gcc -g3 sdl.s -o pixels-test -no-pie -lSDL2
+	gcc -g3 sdl.s surface.s -o pixels-test -no-pie -lSDL2

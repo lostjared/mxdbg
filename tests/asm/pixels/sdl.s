@@ -7,35 +7,29 @@
     num_msg: .asciz "Hex value: %x\n"
 .section .bss
     .lcomm window_ptr, 8      
-    .comm renderer_ptr, 8    
     .lcomm event_buffer, 64  
     .lcomm surface_ptr, 8
-    .globl renderer_ptr 
+    .lcomm offscreen_surface, 8
     .extern stderr
 .section .text
     .extern SDL_Init
     .extern SDL_CreateWindow
-    .extern SDL_CreateRenderer
-    .extern SDL_SetRenderDrawColor
-    .extern SDL_RenderClear
-    .extern SDL_RenderPresent
     .extern SDL_PollEvent
-    .extern SDL_DestroyRenderer
     .extern SDL_DestroyWindow
     .extern SDL_Quit
     .extern SDL_Delay
-    .extern SDL_RWFromFile
-    .extern SDL_LoadBMP_RW
-    .extern SDL_DestroyTexture
-    .extern SDL_RenderCopy
     .extern SDL_LockSurface
     .extern SDL_UnlockSurface
+    .extern SDL_FreeSurface
+    .extern SDL_UpperBlit
     .extern fprintf
     .extern srand
     .extern time
     .extern exit
     .extern SDL_GetError
+    .extern RandomPixels, CreateSurface, PrintError
     .global main
+    .global print_integer
 main:
     push %rbp
     mov %rsp, %rbp
@@ -68,6 +62,10 @@ main:
     lea ptr_msg(%rip), %rsi
     movq %r12, %rdx
     call fprintf
+    mov $640, %rdi
+    mov $480, %rsi
+    call CreateSurface
+    movq %rax, offscreen_surface(%rip)
 main_loop:
     movq $event_buffer, %rdi
     call SDL_PollEvent
@@ -84,23 +82,15 @@ main_loop:
     movl event_buffer+20, %eax
     jmp main_loop
 render_frame:
+    movq offscreen_surface(%rip), %rdi
+    call RandomPixels
+    movq offscreen_surface(%rip), %rdi   # src surface
+    movq $0, %rsi                        # src rect (NULL)
+    movq surface_ptr(%rip), %rdx         # dst surface
+    movq $0, %rcx                        # dst rect (NULL)
+    call SDL_UpperBlit
     movq surface_ptr(%rip), %rdi
-    movq $0, %rsi
-    movl $0, %edx
-    call SDL_FillRect
 
-    movq surface_ptr(%rip), %rdi
-  #  call SDL_LockSurface
-  #  cmpl $0, %eax
-  #  jne error_exit
-    #ovq surface_ptr(%rip), %r12 
-    #movq 32(%r12), %r13         # pixels pointer
-    #movl 24(%r12), %r15d        # pitch
-    #movl 16(%r12), %r14d        # width
-   # movq surface_ptr(%rip), %rdi
-   #call SDL_UnlockSurface
-   # cmpl $0, %eax
-   # jne error_exit
     movq window_ptr(%rip),%rdi
     call SDL_UpdateWindowSurface
     jmp main_loop
@@ -108,6 +98,8 @@ cleanup_all:
 cleanup_window:
     movq window_ptr(%rip), %rdi
     call SDL_DestroyWindow
+    movq offscreen_surface(%rip), %rdi
+    call SDL_FreeSurface
 cleanup_and_exit:
     call SDL_Quit
     mov $0, %edi
