@@ -22,6 +22,7 @@
     .extern SDL_UnlockSurface
     .extern SDL_FreeSurface
     .extern SDL_UpperBlit
+    .extern SDL_Delay
     .extern fprintf
     .extern srand
     .extern time
@@ -93,6 +94,8 @@ render_frame:
 
     movq window_ptr(%rip),%rdi
     call SDL_UpdateWindowSurface
+    mov $1, %rdi
+    call SDL_Delay
     jmp main_loop
 cleanup_all:
 cleanup_window:
