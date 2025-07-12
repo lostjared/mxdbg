@@ -49,7 +49,6 @@ PrintError:
     mov $1, %rdi
     call exit
 
-
 RandomPixels:
     push %rbp
     mov %rsp, %rbp
@@ -57,31 +56,21 @@ RandomPixels:
     push %r14
     push %r13
     sub $8, %rsp           
-
     mov %rdi, %r14         
-
     mov %r14, %rdi
     call SDL_LockSurface
     test %eax, %eax
     jnz PrintError         
-
-    
     mov 8(%r14), %rax
     mov 16(%rax), %al
     cmp $32, %al
     jne .unlock            
-
-
     mov 0x10(%r14), %ecx   
     mov 0x14(%r14), %edx   
     mov 0x20(%r14), %r15   
-
-    
     movslq %ecx, %r13
     movslq %edx, %rax
     imul %rax, %r13
-
-
     test %r13, %r13
     jz .unlock
 
@@ -92,25 +81,19 @@ RandomPixels:
     mov %eax, %r11d
     call rand_mod255
     mov %eax, %r12d
-
     mov 8(%r14), %rdi
     mov %r10d, %esi
     mov %r11d, %edx
     mov %r12d, %ecx
     mov $0xff, %r8d
-
     call SDL_MapRGBA
-
     mov %eax, (%r15)
     add $4, %r15          
-
     dec %r13
     jnz .pixel_loop
-
 .unlock:
     mov %r14, %rdi
     call SDL_UnlockSurface
-
 .cleanup:
     add $8, %rsp           
     pop %r13
@@ -118,7 +101,7 @@ RandomPixels:
     pop %r15
     pop %rbp
     ret
-
+    
 rand_mod255:
     push %rbp
     mov %rsp, %rbp
