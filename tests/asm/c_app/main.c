@@ -6,6 +6,15 @@
 extern SDL_Surface *CreateSurface(int w, int h);
 extern void RandomPixels(SDL_Surface *surface);
 extern void SetPixel(void *buffer, int x, int y, int pitch, int color);
+extern int get_pitch(SDL_Surface *surface);
+extern void *get_pixels(SDL_Surface *surface);
+
+ int get_pitch(SDL_Surface *surface) {
+    return surface->pitch;
+ }
+ void *get_pixels(SDL_Surface *surface) {
+    return surface->pixels;
+ }
 
 int main(int argc, char **argv) {
     if(SDL_Init(SDL_INIT_VIDEO) < 0) {

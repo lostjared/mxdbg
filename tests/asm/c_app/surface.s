@@ -12,6 +12,7 @@
     .extern SDL_UnlockSurface
     .extern SDL_MapRGBA
     .extern rand, SDL_GetError
+    .extern get_pitch, get_pixels
 
 CreateSurface:
     push %rbp
@@ -45,7 +46,6 @@ PrintError:
     call fprintf
     mov $1, %rdi
     call exit
-
 RandomPixels:
     push %rbp
     mov %rsp, %rbp
@@ -62,8 +62,12 @@ RandomPixels:
     jnz PrintError
     mov 0x10(%r14), %r11d
     mov 0x14(%r14), %r10d
-    mov 0x20(%r14), %r15
-    mov 0x18(%r14), %ebx
+    mov %r14, %rdi
+    call get_pixels
+    mov %rax, %r15
+    mov %r14, %rdi
+    call get_pitch
+    mov %eax, %ebx
     xor %r12d, %r12d
 .y_loop:
     xor %r13d, %r13d
