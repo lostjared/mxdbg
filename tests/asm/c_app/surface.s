@@ -19,7 +19,7 @@
 CreateSurface:
     push %rbp
     mov %rsp, %rbp
-    sub $8, %rsp
+    sub $16, %rsp
     mov %rsi, %rdx
     mov %rdi, %rsi
     mov $0, %edi
