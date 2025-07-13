@@ -51,6 +51,8 @@ int main(int argc, char **argv) {
          SDL_UpdateWindowSurface(window);
          SDL_Delay(1);
     }
+    SDL_FreeSurface(off_surface);
+    SDL_DestroyWindow(window);
     SDL_Quit();
     return  EXIT_SUCCESS;
 }
