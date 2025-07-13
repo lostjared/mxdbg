@@ -7,13 +7,8 @@
     .extern SDL_CreateRGBSurface
     .extern fprintf, exit
     .global CreateSurface, PrintError
-    .global RandomPixels
-    .extern SDL_LockSurface
-    .extern SDL_UnlockSurface
-    .extern SDL_MapRGBA
+    .global SetPixel
     .extern rand, SDL_GetError
-    .extern get_pitch, get_pixels
-
 CreateSurface:
     push %rbp
     mov %rsp, %rbp
@@ -46,87 +41,22 @@ PrintError:
     call fprintf
     mov $1, %rdi
     call exit
-RandomPixels:
-    push %rbp
-    mov %rsp, %rbp
-    push %r15
-    push %r14
-    push %r13
-    push %r12
-    push %rbx
-    sub $32, %rsp
-    mov %rdi, %r14
-    mov %r14, %rdi
-    call SDL_LockSurface
-    test %eax, %eax
-    jnz PrintError
-    mov 0x10(%r14), %r11d
-    mov 0x14(%r14), %r10d
-    mov %r14, %rdi
-    call get_pixels
-    mov %rax, %r15
-    mov %r14, %rdi
-    call get_pitch
-    mov %eax, %ebx
-    xor %r12d, %r12d
-.y_loop:
-    xor %r13d, %r13d
-.x_loop:
-    call rand_mod255
-    mov %eax, -12(%rbp)
-    call rand_mod255
-    mov %eax, -16(%rbp)
-    call rand_mod255
-    mov %eax, -20(%rbp)
-    mov 8(%r14), %rdi
-    mov $0xFF, %r8d
-    mov -12(%rbp), %esi
-    mov -16(%rbp), %edx
-    mov -20(%rbp), %ecx
-    call SDL_MapRGBA
-    mov %eax, %r9d
-    mov %r15, %rdi
-    mov %r12d, %esi
-    mov %r13d, %edx
-    mov %ebx, %ecx
-    mov %r9d, %r8d
-    call SetPixel
-    inc %r13d
-    cmp %r11d, %r13d
-    jl .x_loop
-    inc %r12d
-    cmp %r10d, %r12d
-    jl .y_loop
-.unlock:
-    mov %r14, %rdi
-    call SDL_UnlockSurface
-.cleanup:
-    add $32, %rsp
-    pop %rbx
-    pop %r12
-    pop %r13
-    pop %r14
-    pop %r15
-    mov %rbp, %rsp
-    pop %rbp
-    ret
-
+# void SetPixel(void *buffer, int x, int y, unsigned int pitch, unsigned int color);
 SetPixel:
     push %rbp
     mov %rsp, %rbp
     push %rax
-    movslq %esi, %rax
-    imulq %rcx, %rax
-    addq %rdi, %rax
-    movslq %edx, %rdx
+    movslq %edx, %rax
+    imulq  %rcx, %rax
+    movslq %esi, %rdx
     shl $2, %rdx
     addq %rdx, %rax
+    addq %rdi, %rax 
     mov %r8d, (%rax)
     pop %rax
     mov %rbp, %rsp
     pop %rbp
     ret
-
 rand_mod255:
     push %rbp
     mov %rsp, %rbp

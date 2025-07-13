@@ -4,17 +4,21 @@
 #define WINDOW_HEIGHT  720
 
 extern SDL_Surface *CreateSurface(int w, int h);
-extern void RandomPixels(SDL_Surface *surface);
-extern void SetPixel(void *buffer, int x, int y, int pitch, int color);
-extern int get_pitch(SDL_Surface *surface);
-extern void *get_pixels(SDL_Surface *surface);
+extern void SetPixel(void *buffer, int x, int y, unsigned int pitch, unsigned int color);
 
- int get_pitch(SDL_Surface *surface) {
-    return surface->pitch;
- }
- void *get_pixels(SDL_Surface *surface) {
-    return surface->pixels;
- }
+
+void RandomPixels(SDL_Surface *surface) {
+    if(SDL_LockSurface(surface) < 0) {
+        fprintf(stderr, "Error on lock");
+        exit(EXIT_FAILURE);
+    }
+    for(int z = 0; z < surface->h; ++z) {
+        for(int i = 0; i < surface->w; ++i) {
+            SetPixel(surface->pixels, i, z, surface->pitch, SDL_MapRGBA(surface->format, rand()%255, rand()%255, rand()%255, 0xFF));
+        }
+    }
+    SDL_UnlockSurface(surface);
+}
 
 int main(int argc, char **argv) {
     if(SDL_Init(SDL_INIT_VIDEO) < 0) {
