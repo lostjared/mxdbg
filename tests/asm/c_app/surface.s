@@ -8,14 +8,12 @@
     .extern fprintf, exit, print_integer
     .global CreateSurface, PrintError
     .global RandomPixels
-    .extern SDL_LockSurrrrrface
+    .extern SDL_LockSurface
     .extern SDL_UnlockSurface
     .extern SDL_MapRGBA
     .extern rand, SDL_GetError
     .global RandomPixels, CreateSurface
 
-
-# width in %rdi, height in %rsi
 CreateSurface:
     push %rbp
     mov %rsp, %rbp
@@ -24,14 +22,16 @@ CreateSurface:
     mov %rdi, %rsi
     mov $0, %edi
     mov $32, %ecx
-    mov $0x00ff0000, %r8d   
-    mov $0x0000ff00, %r9d   
-    mov $0xff000000, %rax   
-    push %rax
-    mov $0x000000ff, %rax   
-    push %rax
+    mov $0x00ff0000, %r8d
+    mov $0x0000ff00, %r9d
+    mov $0x000000ff, %r10d
+    mov $0xff000000, %r11d
+    mov %r10d, %eax
+    mov %rax, (%rsp)
+    mov %r11d, %eax
+    mov %rax, 8(%rsp)
     call SDL_CreateRGBSurface
-    add $16, %rsp     
+    add $16, %rsp
     test %rax, %rax
     jz PrintError
     mov %rbp, %rsp
@@ -39,7 +39,7 @@ CreateSurface:
     ret
 
 PrintError:
-    call SDL_GetError 
+    call SDL_GetError
     mov %rax, %rdx
     movq stderr(%rip), %rdi
     lea surf_error_msg(%rip), %rsi
@@ -55,38 +55,38 @@ RandomPixels:
     push %r13
     push %r12
     push %rbx
-    sub $32, %rsp
+    sub $48, %rsp
     mov %rdi, %r14
     mov %r14, %rdi
     call SDL_LockSurface
     test %eax, %eax
     jnz PrintError
-    mov 0x10(%r14), %r11d  
-    mov 0x14(%r14), %r10d  
-    mov 0x20(%r14), %r15   
-    mov 0x18(%r14), %ebx   
-    xor %r12d, %r12d       
+    mov 0x10(%r14), %r11d
+    mov 0x14(%r14), %r10d
+    mov 0x20(%r14), %r15
+    mov 0x18(%r14), %ebx
+    xor %r12d, %r12d
 .y_loop:
-    xor %r13d, %r13d       
+    xor %r13d, %r13d
 .x_loop:
     call rand_mod255
-    mov %eax, -12(%rbp)         
+    mov %eax, -88(%rbp)
     call rand_mod255
-    mov %eax, -16(%rbp)
+    mov %eax, -92(%rbp)
     call rand_mod255
-    mov %eax, -20(%rbp)          
-    mov 8(%r14), %rdi      
+    mov %eax, -96(%rbp)
+    mov 8(%r14), %rdi
     mov $0xff, %r8d
-    mov -12(%rbp), %esi
-    mov -16(%rbp), %edx
-    mov -20(%rbp), %rcx
-    call SDL_MapRGBA       
+    mov -88(%rbp), %esi
+    mov -92(%rbp), %edx
+    mov -96(%rbp), %ecx
+    call SDL_MapRGBA
     mov %eax, %r9d
-    mov %r15, %rdi      
-    mov %r12d, %esi     
-    mov %r13d, %edx     
-    mov %ebx, %ecx      
-    mov %r9d, %r8d      
+    mov %r15, %rdi
+    mov %r12d, %esi
+    mov %r13d, %edx
+    mov %ebx, %ecx
+    mov %r9d, %r8d
     call SetPixel
     inc %r13d
     cmp %r11d, %r13d
@@ -98,6 +98,7 @@ RandomPixels:
     mov %r14, %rdi
     call SDL_UnlockSurface
 .cleanup:
+    add $48, %rsp
     pop %rbx
     pop %r12
     pop %r13
@@ -110,10 +111,10 @@ RandomPixels:
 SetPixel:
     push %rbp
     mov %rsp, %rbp
-    push %rax          
-    movslq %esi, %rax  
-    imulq %rcx, %rax   
-    addq %rdi, %rax    
+    push %rax
+    movslq %esi, %rax
+    imulq %rcx, %rax
+    addq %rdi, %rax
     movslq %edx, %rdx
     shl $2, %rdx
     addq %rdx, %rax
@@ -126,10 +127,10 @@ SetPixel:
 rand_mod255:
     push %rbp
     mov %rsp, %rbp
-    call rand          
+    call rand
     mov $255, %ecx
-    cdq                
-    idivl %ecx         
+    cdq
+    idivl %ecx
     mov %edx, %eax
     pop %rbp
     ret
