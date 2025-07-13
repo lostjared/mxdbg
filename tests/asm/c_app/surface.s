@@ -98,12 +98,12 @@ RandomPixels:
     mov %r14, %rdi
     call SDL_UnlockSurface
 .cleanup:
-    add $32, %rsp
     pop %rbx
     pop %r12
     pop %r13
     pop %r14
     pop %r15
+    mov %rbp, %rsp
     pop %rbp
     ret
 
