@@ -104,11 +104,8 @@ main:
     movq stdout(%rip), %rdi   
     lea ascii_end_fmt(%rip), %rsi
     call fprintf
-
     jmp .read_loop
-
 .done:
-    addq $16, %rsp            
     movq file_handle(%rip), %rdi
     call fclose
 
@@ -117,7 +114,6 @@ main:
     mov %rbp, %rsp
     pop %rbp
     ret
-
 .error_args:
     movq stderr(%rip), %rdi
     lea error_arg_msg(%rip), %rsi
@@ -127,7 +123,6 @@ main:
     mov %rbp, %rsp
     pop %rbp
     ret
-
 .error_open:
     movq stderr(%rip), %rdi
     lea error_open_msg(%rip), %rsi
@@ -137,7 +132,6 @@ main:
     mov %rbp, %rsp
     pop %rbp
     ret
-
 
 .section .note.GNU-stack, "",@progbits
 
