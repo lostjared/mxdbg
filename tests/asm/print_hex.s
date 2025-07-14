@@ -17,7 +17,7 @@
 .section .text
 
 .global main
-.extern exit, fprintf, fopen, fclose, fread
+.extern exit, fprintf, fopen,gggbgb fclose, fread
 
 main:
     push %rbp

@@ -164,8 +164,7 @@ void castRays(SDL_Surface *surface) {
         if (wallBottom > surface->h) wallBottom = surface->h;
         
         for(int y = 0; y < wallTop; y++) {
-                SetPixel(surface->pixels, ray, y, surface->pitch,
-                         SDL_MapRGBA(surface->format, 32, 32, 64, 255));
+                SetPixel(surface->pixels, ray, y, surface->pitch, SDL_MapRGBA(surface->format, 32, 32, 64, 255));
         }
         
         for(int y = wallTop; y < wallBottom; y++) {
@@ -173,8 +172,7 @@ void castRays(SDL_Surface *surface) {
         }
         
         for(int y = wallBottom; y < WINDOW_HEIGHT; y++) {
-                SetPixel(surface->pixels, ray, y, surface->pitch,
-                         SDL_MapRGBA(surface->format, 16, 16, 32, 255));
+                SetPixel(surface->pixels, ray, y, surface->pitch, SDL_MapRGBA(surface->format, 16, 16, 32, 255));
         }
         
         rayAngle += angleStep;
