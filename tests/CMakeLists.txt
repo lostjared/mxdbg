@@ -193,3 +193,9 @@ set_target_properties(program_loopbyx PROPERTIES
     LINKER_LANGUAGE ASM
     LINK_FLAGS "-no-pie"
 )
+
+add_executable(print_hex asm/print_hex.s)
+set_target_properties(print_hex PROPERTIES
+    LINKER_LANGUAGE ASM
+    LINK_FLAGS "-no-pie"
+)
