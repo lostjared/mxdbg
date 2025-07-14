@@ -5,8 +5,8 @@
 
 #define WINDOW_WIDTH 960
 #define WINDOW_HEIGHT 720
-#define MAP_WIDTH 160
-#define MAP_HEIGHT 160
+#define MAP_WIDTH 80
+#define MAP_HEIGHT 80
 #define FOV 60
 #define NUM_RAYS WINDOW_WIDTH
 #define MOVE_SPEED 0.05f
@@ -22,23 +22,55 @@ typedef struct {
     float angle;    
 } Player;
 
-Player player = {2.0f, 2.0f, 0.0f};
+Player player = {5.0f, 5.0f, 0.7f}; 
 
 float degToRad(float deg) {
     return deg * M_PI / 180.0f;
 }
 
 void generateMap() {
-    for(int y = 0; y < MAP_HEIGHT; y++) {
-        for(int x = 0; x < MAP_WIDTH; x++) {
-            if(x == 0 || x == MAP_WIDTH-1 || y == 0 || y == MAP_HEIGHT-1) {
-                worldMap[y][x] = 1;
-            } else if((x % 10 == 0 && y % 10 < 8) || (y % 15 == 0 && x % 15 < 12)) {
-                worldMap[y][x] = 1;
-            } else {
-                worldMap[y][x] = 0;
-            }
+    for (int y = 0; y < MAP_HEIGHT; y++) {
+        for (int x = 0; x < MAP_WIDTH; x++) {
+            worldMap[y][x] = 1;
         }
+    }
+
+    for (int y = 2; y < 12; y++) {
+        for (int x = 2; x < 12; x++) worldMap[y][x] = 0;
+    }
+
+    for (int x = 12; x < 20; x++) {
+        for (int y = 7; y < 9; y++) worldMap[y][x] = 0;
+    }
+
+    for (int y = 5; y < 15; y++) {
+        for (int x = 20; x < 32; x++) worldMap[y][x] = 0;
+    }
+    worldMap[10][26] = 1;
+
+    for (int y = 15; y < 25; y++) {
+        for (int x = 25; x < 28; x++) worldMap[y][x] = 0;
+    }
+
+    for (int y = 25; y < 35; y++) {
+        for (int x = 15; x < 45; x++) worldMap[y][x] = 0;
+    }
+    worldMap[30][22] = 1;
+    worldMap[30][37] = 1;
+
+    for (int x = 45; x < 55; x++) {
+        for (int y = 30; y < 32; y++) worldMap[y][x] = 0;
+    }
+    for (int y = 20; y < 30; y++) {
+        for (int x = 53; x < 55; x++) worldMap[y][x] = 0;
+    }
+
+    for (int y = 10; y < 20; y++) {
+        for (int x = 50; x < 60; x++) worldMap[y][x] = 0;
+    }
+
+    for (int x = 32; x < 50; x++) {
+        for (int y = 12; y < 14; y++) worldMap[y][x] = 0;
     }
 }
 
@@ -47,14 +79,7 @@ void castRays(SDL_Surface *surface) {
         fprintf(stderr, "Error on lock");
         exit(EXIT_FAILURE);
     }
-    
-    for(int y = 0; y < WINDOW_HEIGHT; y++) {
-        for(int x = 0; x < WINDOW_WIDTH; x++) {
-            SetPixel(surface->pixels, x, y, surface->pitch, 
-                    SDL_MapRGBA(surface->format, 0, 0, 0, 255));
-        }
-    }
-    
+    SDL_FillRect(surface, 0, SDL_MapRGBA(surface->format, 0, 0, 0, 0xFF));
     float rayAngle = player.angle - degToRad(FOV / 2.0f);
     float angleStep = degToRad(FOV) / NUM_RAYS;
     
@@ -64,45 +89,75 @@ void castRays(SDL_Surface *surface) {
         float rayDirX = cosf(rayAngle);
         float rayDirY = sinf(rayAngle);
         
-        float distance = 0.0f;
-        int hit = 0;
-        int wallType = 1;
+        int mapX = (int)rayX;
+        int mapY = (int)rayY;
         
-        while(!hit) {
-            rayX += rayDirX * 0.01f;
-            rayY += rayDirY * 0.01f;
-            distance += 0.01f;
+        float sideDistX, sideDistY;
+        
+        float deltaDistX = (rayDirX == 0) ? 1e30 : fabsf(1 / rayDirX);
+        float deltaDistY = (rayDirY == 0) ? 1e30 : fabsf(1 / rayDirY);
+        
+        int stepX, stepY;
+        
+        if (rayDirX < 0) {
+            stepX = -1;
+            sideDistX = (rayX - mapX) * deltaDistX;
+        } else {
+            stepX = 1;
+            sideDistX = (mapX + 1.0f - rayX) * deltaDistX;
+        }
+        
+        if (rayDirY < 0) {
+            stepY = -1;
+            sideDistY = (rayY - mapY) * deltaDistY;
+        } else {
+            stepY = 1;
+            sideDistY = (mapY + 1.0f - rayY) * deltaDistY;
+        }
+        
+        int hit = 0;
+        int side; 
+        
+        while (!hit) {
+            if (sideDistX < sideDistY) {
+                sideDistX += deltaDistX;
+                mapX += stepX;
+                side = 0;
+            } else {
+                sideDistY += deltaDistY;
+                mapY += stepY;
+                side = 1;
+            }
             
-            int mapX = (int)rayX;
-            int mapY = (int)rayY;
-            
-            if(mapX < 0 || mapX >= MAP_WIDTH || mapY < 0 || mapY >= MAP_HEIGHT || 
-               worldMap[mapY][mapX] == 1) {
+            if (mapX < 0 || mapX >= MAP_WIDTH || mapY < 0 || mapY >= MAP_HEIGHT || 
+                worldMap[mapY][mapX] == 1) {
                 hit = 1;
-                if(mapX >= 0 && mapX < MAP_WIDTH && mapY >= 0 && mapY < MAP_HEIGHT) {
-                    wallType = worldMap[mapY][mapX];
-                }
             }
         }
         
-        distance *= cosf(rayAngle - player.angle);
-        if (distance < 0.01f) distance = 0.01f; 
-
-        int wallHeight = (int)(WINDOW_HEIGHT / distance);
+        float perpWallDist;
+        if (side == 0) {
+            perpWallDist = (mapX - rayX + (1 - stepX) / 2) / rayDirX;
+        } else {
+            perpWallDist = (mapY - rayY + (1 - stepY) / 2) / rayDirY;
+        }
+        
+        
+        Uint8 shade = (Uint8)(255 / (1 + perpWallDist * perpWallDist * 0.1f));
+        Uint32 wallColor;
+        
+        if(side == 0) {
+            wallColor = SDL_MapRGBA(surface->format, shade, shade/2, shade/4, 255);
+        } else {
+            wallColor = SDL_MapRGBA(surface->format, shade/2, shade, shade/4, 255);
+        }
+        
+        int wallHeight = (int)(WINDOW_HEIGHT / perpWallDist);
         int wallTop = (WINDOW_HEIGHT - wallHeight) / 2;
         int wallBottom = wallTop + wallHeight;
 
         if (wallTop < 0) wallTop = 0;
         if (wallBottom > surface->h) wallBottom = surface->h;
-
-        Uint8 shade = (Uint8)(255 / (1 + distance * distance * 0.1f));
-        Uint32 wallColor;
-        
-        if(fabs(rayDirX) > fabs(rayDirY)) {
-            wallColor = SDL_MapRGBA(surface->format, shade, shade/2, shade/4, 255);
-        } else {
-            wallColor = SDL_MapRGBA(surface->format, shade/2, shade, shade/4, 255);
-        }
         
         for(int y = 0; y < wallTop; y++) {
                 SetPixel(surface->pixels, ray, y, surface->pitch,
