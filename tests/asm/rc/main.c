@@ -76,7 +76,7 @@ void generateMap() {
 
 void castRays(SDL_Surface *surface) {
     if(SDL_LockSurface(surface) < 0) {
-        fprintf(stderr, "Error on lock");
+        fprintf(stderr, "Error on lock: %s\n", SDL_GetError());
         exit(EXIT_FAILURE);
     }
     SDL_FillRect(surface, 0, SDL_MapRGBA(surface->format, 0, 0, 0, 0xFF));
@@ -221,17 +221,28 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Error initializing SDL: %s\n", SDL_GetError());
         return EXIT_FAILURE;
     }
-    
-    SDL_Window *window = SDL_CreateWindow("Raycasting Demo", 100, 100, 
-                                         WINDOW_WIDTH, WINDOW_HEIGHT, 0);
+    SDL_Window *window = SDL_CreateWindow("Raycasting Demo", 100, 100, WINDOW_WIDTH, WINDOW_HEIGHT, 0);
     if(!window) {
         fprintf(stderr, "Error creating window: %s\n", SDL_GetError());
         return EXIT_FAILURE;
     }
     
     SDL_Surface *main_surface = SDL_GetWindowSurface(window);
+    if(!main_surface) {
+        fprintf(stderr, "Error getting Surface: %s\n", SDL_GetError());
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        exit(EXIT_FAILURE);
+    }
     SDL_Surface *off_surface = CreateSurface(WINDOW_WIDTH, WINDOW_HEIGHT);
     
+    if(!off_surface) {
+        fprintf(stderr, "Error creating offscreen surface: %s\n", SDL_GetError());
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        exit(EXIT_FAILURE);
+    }
+
     SDL_Event e;
     int active = 1;
     
@@ -261,8 +272,7 @@ int main(int argc, char **argv) {
         SDL_BlitSurface(off_surface, NULL, main_surface, NULL);
         SDL_UpdateWindowSurface(window);
         SDL_Delay(16); 
-    }
-    
+    }   
     SDL_FreeSurface(off_surface);
     SDL_DestroyWindow(window);
     SDL_Quit();
