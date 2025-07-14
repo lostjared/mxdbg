@@ -12,13 +12,10 @@
     .extern stderr
     .extern stdout
 .section .bss
-.lcomm file_handle,   8
-
+    .lcomm file_handle,   8
 .section .text
-
-.global main
-.extern exit, fprintf, fopen,gggbgb fclose, fread
-
+    .global main
+    .extern exit, fprintf, fopen,gggbgb fclose, fread
 main:
     push %rbp
     mov %rsp, %rbp
