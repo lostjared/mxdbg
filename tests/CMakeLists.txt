@@ -223,3 +223,9 @@ set_target_properties(echo PROPERTIES
     LINKER_LANGUAGE ASM
     LINK_FLAGS "-no-pie"
 )
+
+add_executable(l_list asm/list.s)
+set_target_properties(l_list PROPERTIES
+    LINKER_LANGUAGE ASM
+    LINK_FLAGS "-no-pie"
+)
