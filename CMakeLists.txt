@@ -22,9 +22,10 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 add_subdirectory(libmxdbg)
 add_subdirectory(mxdbg)
-add_subdirectory(tests)
-
-
+option(TESTS "Build tests" ON)
+if(TESTS)
+    add_subdirectory(tests)
+endif()
 configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
     "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
