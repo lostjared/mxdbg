@@ -49,14 +49,14 @@ print_list:
     movq list_node_ptr(%rip), %rbx
 .print_list_loop:
     cmp $0, %rbx
-    je print_list_end
+    je .print_list_end
     mov 0(%rbx), %rsi      
     lea fmt(%rip), %rdi    
     mov $0, %rax           
     call printf
     mov 8(%rbx), %rbx      
     jmp .print_list_loop
-print_list_end:
+.print_list_end:
     mov %rbp, %rsp
     pop %rbp
     ret
