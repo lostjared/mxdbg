@@ -1,10 +1,8 @@
 .section .data
-
 .align 8
 list_node:
 .quad 0          
 .quad 0          
-
 .section .bss
     .comm list_node_ptr, 8, 8
 
@@ -18,7 +16,7 @@ fmt:
 main:
     push %rbp
     mov %rsp, %rbp
-    movq $0, list_node_ptr
+    movq $0, list_node_ptr(%rip)
     mov $10, %rdi
     call add_node
     mov $20, %rdi
@@ -26,6 +24,7 @@ main:
     mov $30, %rdi
     call add_node
     call print_list
+    call free_list
     mov %rbp,%rsp
     pop %rbp
     ret
@@ -36,22 +35,19 @@ add_node:
     mov %rdi, -16(%rbp)
     mov $16, %rdi
     call malloc
-    mov %rdi, %rax
-    mov %rdi, -8(%rbp)
     mov %rax, %rbx
-    mov -8(%rbp), %rdx
     mov -16(%rbp), %rax
     mov %rax, 0(%rbx)
-    mov list_node_ptr, %rdx
+    movq list_node_ptr(%rip), %rdx
     mov %rdx, 8(%rbx)
-    mov %rbx, list_node_ptr
+    movq %rbx, list_node_ptr(%rip)
     mov %rbp, %rsp
     pop %rbp
     ret
 print_list:
     push %rbp
     mov %rsp, %rbp
-    mov list_node_ptr, %rbx
+    movq list_node_ptr(%rip), %rbx
 .print_list_loop:
     cmp $0, %rbx
     je print_list_end
@@ -65,7 +61,25 @@ print_list_end:
     mov %rbp, %rsp
     pop %rbp
     ret
-
+free_list:
+    push %rbp
+    mov %rsp, %rbp
+    movq list_node_ptr(%rip), %rbx
+.free_list_loop:
+    cmp $0, %rbx
+    je .free_list_end
+    mov 8(%rbx), %rcx
+    mov %rbx, %rdi
+    push %rcx
+    call free
+    pop %rcx
+    mov %rcx, %rbx
+    jmp .free_list_loop
+.free_list_end:
+    movq $0, list_node_ptr(%rip)
+    mov %rbp, %rsp
+    pop %rbp
+    ret
 
 .section .note.GNU-stack,"",@progbits
 
