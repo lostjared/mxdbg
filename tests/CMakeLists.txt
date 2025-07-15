@@ -199,3 +199,9 @@ set_target_properties(print_hex PROPERTIES
     LINKER_LANGUAGE ASM
     LINK_FLAGS "-no-pie"
 )
+
+add_executable(print_hex_c print_hex.c)
+set_target_properties(print_hex PROPERTIES
+    LINKER_LANGUAGE ASM
+    LINK_FLAGS "-no-pie"
+)
