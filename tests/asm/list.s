@@ -1,8 +1,5 @@
 .section .data
-.align 8
-list_node:
-.quad 0          
-.quad 0          
+
 .section .bss
     .comm list_node_ptr, 8, 8
 
@@ -28,6 +25,7 @@ main:
     mov %rbp,%rsp
     pop %rbp
     ret
+
 add_node:
     push %rbp
     mov %rsp, %rbp
@@ -44,6 +42,7 @@ add_node:
     mov %rbp, %rsp
     pop %rbp
     ret
+
 print_list:
     push %rbp
     mov %rsp, %rbp
@@ -61,6 +60,7 @@ print_list_end:
     mov %rbp, %rsp
     pop %rbp
     ret
+
 free_list:
     push %rbp
     mov %rsp, %rbp
