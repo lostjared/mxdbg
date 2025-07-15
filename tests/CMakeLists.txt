@@ -211,3 +211,15 @@ set_target_properties(print_hex_c_do PROPERTIES
     LINKER_LANGUAGE ASM
     LINK_FLAGS "-no-pie"
 )
+
+add_executable(echo_c echo.c)
+set_target_properties(echo_c PROPERTIES
+    LINKER_LANGUAGE ASM
+    LINK_FLAGS "-no-pie"
+)
+
+add_executable(echo asm/echo.s)
+set_target_properties(echo PROPERTIES
+    LINKER_LANGUAGE ASM
+    LINK_FLAGS "-no-pie"
+)
