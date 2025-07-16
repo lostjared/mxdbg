@@ -17,7 +17,7 @@
 
 .section .text
     .global main
-    .extern puts, fprintf
+    .extern puts, fprintf, exit, printf
 
 main:
     push %rbp
