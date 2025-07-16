@@ -1,6 +1,5 @@
 .section .data
-
-    stack_size: .quad 2040
+    stack_size: .quad 255
     .extern stdout, stderr
 
 .section .rodata
@@ -10,11 +9,8 @@
     stack_pop_output: .asciz "Stack [%ld] <- %ld\n"
     stack_elements: .asciz "Stack Elements: %ld\n"
 .section .bss
-
     .lcomm stack_data, 2040
     .lcomm stack_index, 8
-
-
 .section .text
     .global main
     .extern puts, fprintf, exit, printf
