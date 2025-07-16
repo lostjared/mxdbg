@@ -1,8 +1,10 @@
+
 .section .data
+
 
 .section .bss
     .comm list_node_ptr, 8, 8
-
+    
 .section .rodata
 fmt:
     .asciz "%ld\n"
@@ -25,7 +27,6 @@ main:
     mov %rbp,%rsp
     pop %rbp
     ret
-
 add_node:
     push %rbp
     mov %rsp, %rbp
@@ -42,7 +43,6 @@ add_node:
     mov %rbp, %rsp
     pop %rbp
     ret
-
 print_list:
     push %rbp
     mov %rsp, %rbp
@@ -60,7 +60,6 @@ print_list:
     mov %rbp, %rsp
     pop %rbp
     ret
-
 free_list:
     push %rbp
     mov %rsp, %rbp
