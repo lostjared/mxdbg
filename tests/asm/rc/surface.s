@@ -38,6 +38,7 @@ PrintError:
     mov %rax, %rdx
     movq stderr(%rip), %rdi
     lea surf_error_msg(%rip), %rsi
+    xor %rax, %rax
     call fprintf
     mov $1, %rdi
     call exit

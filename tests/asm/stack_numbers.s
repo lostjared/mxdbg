@@ -62,6 +62,7 @@ push_stack:
 .s_overflow:
     lea overflow_msg(%rip), %rsi
     movq stderr(%rip), %rdi
+    xor %rax, %rax
     call fprintf
     mov $1, %rdi
     call exit
@@ -91,6 +92,7 @@ pop_stack:
 .underflow:
     movq stderr(%rip), %rdi
     lea underflow_msg(%rip), %rsi
+    xor %rax, %rax
     call fprintf
     mov $1, %rdi
     call exit

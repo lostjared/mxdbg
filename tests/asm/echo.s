@@ -60,18 +60,21 @@ main:
 .invalid_args:
     movq stderr(%rip), %rdi
     lea invalid_args_msg(%rip), %rsi
+    xor %rax, %rax
     call fprintf
     mov $1, %rdi
     call exit  
 .file_open_error:
     movq stderr(%rip), %rdi
     lea file_error_msg(%rip), %rsi
+    xor %rax, %rax
     call fprintf
     mov $1, %rdi
     call exit
 .timeout_error:
     movq stderr(%rip), %rdi
     lea timeout_err_msg(%rip), %rsi
+    xor %rax, %rax
     call fprintf
     mov $1, %rdi
     call exit

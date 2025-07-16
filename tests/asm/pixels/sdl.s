@@ -62,6 +62,7 @@ main:
     movq stderr(%rip), %rdi
     lea ptr_msg(%rip), %rsi
     movq %r12, %rdx
+    xor %rax, %rax
     call fprintf
     mov $640, %rdi
     mov $480, %rsi
@@ -113,6 +114,7 @@ exit_error:
     mov %rax, %rdx
     mov stderr(%rip), %rdi
     lea error_msg(%rip), %rsi
+    xor %rax, %rax
     call fprintf
     call SDL_Quit
     movl $1, %edi
@@ -123,6 +125,7 @@ print_integer:
      movl %edi, %edx
      movq stderr(%rip), %rdi
      lea num_msg(%rip), %rsi
+     xor %rax, %rax
      call fprintf
      mov %rbp, %rsp
      pop %rbp

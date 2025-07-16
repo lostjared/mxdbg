@@ -50,6 +50,7 @@ main:
     movq stdout(%rip), %rdi   
     lea hex_fmt(%rip), %rsi
     movzbq (%rsp,%rbx,1), %rdx
+    xor %rax, %rax
     call fprintf
 
     incq %rbx
@@ -61,6 +62,7 @@ main:
 
     movq stdout(%rip), %rdi
     lea space_fmt(%rip), %rsi
+    xor %rax, %rax
     call fprintf
 
     incq %rbx
@@ -71,6 +73,7 @@ main:
 
     movq stdout(%rip), %rdi   
     lea ascii_bar_fmt(%rip), %rsi
+    xor %rax, %rax
     call fprintf
 
 .print_ascii_loop:
@@ -85,12 +88,14 @@ main:
 
     movq stdout(%rip), %rdi   
     lea ascii_fmt(%rip), %rsi
+    xor %rax, %rax
     call fprintf
     jmp .next_ascii
 
 .non_printable:
     movq stdout(%rip), %rdi   
     lea dot_fmt(%rip), %rsi
+    xor %rax, %rax
     call fprintf
 
 .next_ascii:
@@ -100,6 +105,7 @@ main:
 .end_ascii:
     movq stdout(%rip), %rdi   
     lea ascii_end_fmt(%rip), %rsi
+    xor %rax, %rax
     call fprintf
     jmp .read_loop
 .done:
@@ -114,6 +120,7 @@ main:
 .error_args:
     movq stderr(%rip), %rdi
     lea error_arg_msg(%rip), %rsi
+    xor %rax, %rax
     call fprintf
     mov $1, %rdi
     call exit
@@ -123,6 +130,7 @@ main:
 .error_open:
     movq stderr(%rip), %rdi
     lea error_open_msg(%rip), %rsi
+    xor %rax, %rax
     call fprintf
     mov $1, %rdi
     call exit

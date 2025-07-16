@@ -19,6 +19,7 @@ main:
     mov %rax, -0x8(%rbp)
     mov %rax, %rdi
     lea file_string(%rip),%rsi
+    xor %rax, %rax
     call fprintf
 cleanup:
     mov -0x8(%rbp), %rdi
