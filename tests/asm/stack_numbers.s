@@ -29,6 +29,7 @@ main:
     call pop_stack
     call pop_stack
     call pop_stack
+    mov $0, %rax
     mov %rbp, %rsp
     pop %rbp
     ret

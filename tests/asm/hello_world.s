@@ -22,4 +22,5 @@ loop_start:
     incl %ebx
     cmpl $10, %ebx
     jne loop_start
+    mov $0, %rax
     ret

@@ -24,6 +24,7 @@ main:
     call add_node
     call print_list
     call free_list
+    mov $0, %rax
     mov %rbp,%rsp
     pop %rbp
     ret

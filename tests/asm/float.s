@@ -30,6 +30,7 @@ main:
     lea output_str(%rip), %rdi
     cvtss2sd %xmm0, %xmm0
     call printf
+    mov $0, %rax
     mov %rbp,%rsp # clean up stack
     pop %rbp
     ret
