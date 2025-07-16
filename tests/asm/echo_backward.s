@@ -18,6 +18,7 @@ print_loop:
     movb (%r12), %al
     movzx %al, %esi
     lea ch_dat(%rip), %rdi
+    xor %rax, %rax
     call printf
     dec %r12
     dec %r13

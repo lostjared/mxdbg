@@ -19,6 +19,7 @@ loop_chars:
     je skip_chars
     test %al, %al
     jz end_loop
+    xor %rax, %rax
     call printf
     jmp loop_chars    
 skip_chars:

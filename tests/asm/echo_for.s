@@ -21,6 +21,7 @@ print_loop:
     lea ch_dat(%rip), %rdi
     movb (%r15), %al
     movzx %al, %edx
+    xor %rax, %rax
     call printf
     dec %r12
     dec %r13

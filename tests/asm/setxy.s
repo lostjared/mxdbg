@@ -13,6 +13,7 @@ setxy:
     lea ctrl_code(%rip), %rdi
     mov %r12, %rsi
     mov %r14, %rdx
+    xor %rax, %rax
     call printf
     mov $0, %rax
     mov %rbp, %rsp

@@ -13,6 +13,7 @@ main:
     lea print_digits(%rip), %rdi
     mov $255, %rsi
     mov $0, %rdx
+    xor %rax, %rax
     call printf
     mov $0, %rbx
 loop_1:
@@ -31,6 +32,7 @@ loop_1:
 print_number:
     push %rbp
     mov %rsp, %rbp
+    xor %rax, %rax
     call printf
     mov $0, %eax
     pop %rbp

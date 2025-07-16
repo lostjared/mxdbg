@@ -15,6 +15,7 @@ loop_test:
     movl %eax, %esi
     test %al, %al
     jz done
+    xor %rax, %rax
     call printf
     inc %r12
     jmp loop_test

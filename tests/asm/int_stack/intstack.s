@@ -82,6 +82,7 @@ print_stack:
     mov %rsp, %rbp
     lea stack_elements(%rip), %rdi
     movq stack_index(%rip), %rsi
+    xor %rax, %rax
     call printf
     lea stack_data(%rip), %rax
     movq stack_index(%rip), %rcx

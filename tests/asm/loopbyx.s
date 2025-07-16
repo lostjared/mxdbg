@@ -12,6 +12,7 @@ main:
     mov %rsp, %rbp
     sub $32, %rsp
     lea buffer_message(%rip), %rdi
+    xor %rax, %rax
     call printf
     mov $0, %rax
     mov $0, %rdi
@@ -21,6 +22,7 @@ main:
     test %rax, %rax
     jle exit_error
     lea input_message(%rip), %rdi
+    xor %rax, %rax
     call printf
     lea input_scan(%rip), %rdi
     movq $0,-0x8(%rbp)
@@ -32,6 +34,7 @@ loopbyx:
     cmp %rbx, %r12
     je exit_main
     lea input_buffer(%rip), %rdi
+    xor %rax, %rax
     call printf
     inc %rbx
     jmp loopbyx

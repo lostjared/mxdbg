@@ -44,6 +44,7 @@ main:
     je .over
     lea output_byte(%rip), %rdi
     movzx byte_value(%rip), %esi
+    xor %rax, %rax
     call printf
     movq stdout(%rip), %rdi
     call fflush 

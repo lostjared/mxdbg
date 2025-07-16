@@ -40,6 +40,7 @@ copy_loop2:
     jmp copy_loop2
 copy_done2:
     lea copy_string(%rip), %rdi
+    xor %rax, %rax
     call printf
     mov %rbp, %rsp
     pop %rbp

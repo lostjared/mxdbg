@@ -12,12 +12,14 @@ main:
     sub $16, %rsp
     movq $0, -0x8(%rbp)
     lea input_message(%rip), %rdi
+    xor %rax, %rax
     call printf
     lea input_string(%rip), %rdi
     lea -0x8(%rbp), %rsi
     call scanf
     lea output_message(%rip), %rdi
     mov -0x8(%rbp), %rsi
+    xor %rax, %rax
     call printf
     mov -0x8(%rbp), %rax
     cmp $10, %rax
