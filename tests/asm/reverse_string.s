@@ -27,9 +27,14 @@ main:
     mov %rax, %rsi
     lea buffer(%rip), %rdi
     call reverse_string
+    lea buffer(%rip), %rdi
+    call strlen
+    cmp $0, %rax
+    je .skip_nl
     lea nl(%rip), %rdi
     xor %rax, %rax
     call printf
+.skip_nl:
     mov %rbp, %rsp
     pop %rbp
     ret
@@ -70,6 +75,15 @@ input_string:
     movl buffer_len(%rip), %esi
     movq stdin(%rip), %rdx
     call fgets
+    lea buffer(%rip), %rdi
+    call strlen 
+    lea buffer(%rip), %rdi
+    cmp $0, %rax
+    je .input_
+    add %rax, %rdi
+    dec %rdi
+    movb $0, (%rdi)
+.input_:
     mov $0, %rax
     mov %rbp, %rsp
     pop %rbp
