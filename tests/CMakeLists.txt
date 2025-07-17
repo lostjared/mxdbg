@@ -247,3 +247,9 @@ set_target_properties(program_double PROPERTIES
     LINKER_LANGUAGE ASM
     LINK_FLAGS "-no-pie"
 )
+
+add_executable(program_prompt asm/prompt.s)
+set_target_properties(program_prompt PROPERTIES
+    LINKER_LANGUAGE ASM
+    LINK_FLAGS "-no-pie"
+)
