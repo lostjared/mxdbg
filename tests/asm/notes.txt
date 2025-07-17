@@ -1,3 +1,5 @@
+Linux X64 Assembly Notes:
+
 Registers Used for Function Call Arguments (in order):
 %rdi — 1st argument
 %rsi — 2nd argument
@@ -15,3 +17,17 @@ Registers Safe Across Function Calls (callee-saved, non-volatile):
 %r14
 %r15
 %rsp (must always be restored to its original value before returning)
+
+.long = 4 bytes (32 bits)
+.quad = 8 bytes (64 bits)
+.word = 2 bytes (16 bits)
+.byte = 1 byte (8 bits)
+
+.lcomm local
+.comm can be exported
+
+.extern Function
+.global Function
+
+.globl comm_global
+
