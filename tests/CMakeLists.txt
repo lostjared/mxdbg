@@ -241,3 +241,9 @@ set_target_properties(program_float PROPERTIES
     LINKER_LANGUAGE ASM
     LINK_FLAGS "-no-pie"
 )
+
+add_executable(program_double asm/double.s)
+set_target_properties(program_double PROPERTIES
+    LINKER_LANGUAGE ASM
+    LINK_FLAGS "-no-pie"
+)
