@@ -253,3 +253,9 @@ set_target_properties(program_prompt PROPERTIES
     LINKER_LANGUAGE ASM
     LINK_FLAGS "-no-pie"
 )
+
+add_executable(program_reverse asm/reverse_string.s)
+set_target_properties(program_reverse PROPERTIES
+    LINKER_LANGUAGE ASM
+    LINK_FLAGS "-no-pie"
+)
