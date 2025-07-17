@@ -259,3 +259,9 @@ set_target_properties(program_reverse PROPERTIES
     LINKER_LANGUAGE ASM
     LINK_FLAGS "-no-pie"
 )
+
+add_executable(program_bitset asm/bits/bit.s asm/bits/bit.c)
+set_target_properties(program_reverse PROPERTIES
+    LINKER_LANGUAGE ASM
+    LINK_FLAGS "-no-pie"
+)
