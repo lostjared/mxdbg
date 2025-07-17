@@ -6,6 +6,7 @@
     num1: .double 5.5
     num2: .double 6.1
     num3: .double 2.6
+    
     output_str: .asciz "(%.02f + %.02f) * %.02f = %.02f\n"
 .section .bss
 
