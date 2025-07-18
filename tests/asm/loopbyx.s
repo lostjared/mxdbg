@@ -10,6 +10,8 @@
 main:
     push %rbp
     mov %rsp, %rbp
+    push %rbx
+    push %r12
     sub $32, %rsp
     lea buffer_message(%rip), %rdi
     xor %rax, %rax
@@ -40,6 +42,8 @@ loopbyx:
     jmp loopbyx
 exit_main:
     mov %rbp, %rsp
+    pop %r12
+    pop %rbx
     pop %rbp
     movl $0, %eax
     ret

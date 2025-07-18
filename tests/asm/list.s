@@ -1,4 +1,3 @@
-
 .section .data
 
 
@@ -47,6 +46,7 @@ add_node:
 print_list:
     push %rbp
     mov %rsp, %rbp
+    push %rbx
     movq list_node_ptr(%rip), %rbx
 .print_list_loop:
     cmp $0, %rbx
@@ -59,11 +59,13 @@ print_list:
     jmp .print_list_loop
 .print_list_end:
     mov %rbp, %rsp
+    pop %rbx
     pop %rbp
     ret
 free_list:
     push %rbp
     mov %rsp, %rbp
+    push %rbx
     movq list_node_ptr(%rip), %rbx
 .free_list_loop:
     cmp $0, %rbx
@@ -78,6 +80,7 @@ free_list:
 .free_list_end:
     movq $0, list_node_ptr(%rip)
     mov %rbp, %rsp
+    pop %rbx
     pop %rbp
     ret
 

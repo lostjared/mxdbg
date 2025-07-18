@@ -12,6 +12,9 @@
 string_copy:
     push %rbp
     mov %rsp, %rbp
+    push %r12
+    push %r13
+    push %r15
     sub $16, %rsp
     mov %rdi, %r12
     mov %rsi, %r13
@@ -39,7 +42,10 @@ done:
     movl $0, %eax
 cleanup:
     mov %rbp, %rsp
+    pop %r15
+    pop %r13
+    pop %r12
     pop %rbp
     ret
 
-.section .note.GNU-stack,"",@progbits
+.section .note.GNU-stack, "",@progbits
