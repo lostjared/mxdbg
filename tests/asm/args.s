@@ -13,6 +13,7 @@ main:
     push %rsi
     mov %rdi, %rsi
     lea output_args(%rip), %rdi
+    xor %rax, %rax
     call printf
     pop %rsi
     pop %rdi
@@ -37,6 +38,7 @@ main:
     pop %rax
     jmp .loop
 .over:
+    mov $0, %rax
     mov %rsp, %rbp
     pop %rbp
 
