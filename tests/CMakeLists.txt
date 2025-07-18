@@ -277,3 +277,9 @@ set_target_properties(program_token PROPERTIES
     LINKER_LANGUAGE ASM
     LINK_FLAGS "-no-pie"
 )
+
+add_executable(program_token_test asm/token/token.s asm/token/main.c)
+set_target_properties(program_token_test PROPERTIES
+    LINKER_LANGUAGE ASM
+    LINK_FLAGS "-no-pie"
+)

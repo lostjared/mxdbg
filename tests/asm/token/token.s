@@ -124,13 +124,16 @@ tokenize:
     ret
 .find_separator:
     mov %rdi, %rsi           
-    mov %r12b, %cl           
+    mov %r12b, %cl 
+    movb $10, %dl
 .find_loop:
     movzbl (%rsi), %eax      
     test %al, %al
     jz .find_end             
     cmpb %cl, %al            
     je .find_found           
+    cmpb %dl, %al
+    je .find_found
     inc %rsi
     jmp .find_loop
 .find_end:
@@ -141,13 +144,17 @@ tokenize:
     ret
 
 .skip_separators:
-    mov %r12b, %cl           
+    mov %r12b, %cl
+    movb $10, %dl
 .skip_loop:
     movzbl (%rdi), %eax      
     test %al, %al            
     jz .skip_done            
     cmpb %cl, %al            
-    jne .skip_done           
+    je .skip_next
+    cmpb %dl, %al
+    jne .skip_done
+.skip_next:
     inc %rdi                 
     jmp .skip_loop
 .skip_done:
