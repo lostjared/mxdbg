@@ -46,7 +46,8 @@ add_node:
 print_list:
     push %rbp
     mov %rsp, %rbp
-    push %rbx
+    push %rbx     
+    sub $8, %rsp  
     movq list_node_ptr(%rip), %rbx
 .print_list_loop:
     cmp $0, %rbx
@@ -58,14 +59,15 @@ print_list:
     mov 8(%rbx), %rbx      
     jmp .print_list_loop
 .print_list_end:
-    mov %rbp, %rsp
+    add $8, %rsp  
     pop %rbx
-    pop %rbp
+    leave         
     ret
 free_list:
     push %rbp
     mov %rsp, %rbp
-    push %rbx
+    push %rbx     
+    sub $8, %rsp  
     movq list_node_ptr(%rip), %rbx
 .free_list_loop:
     cmp $0, %rbx
@@ -79,9 +81,9 @@ free_list:
     jmp .free_list_loop
 .free_list_end:
     movq $0, list_node_ptr(%rip)
-    mov %rbp, %rsp
+    add $8, %rsp  
     pop %rbx
-    pop %rbp
+    leave         
     ret
 
 .section .note.GNU-stack,"",@progbits

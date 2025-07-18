@@ -17,7 +17,7 @@ string_cat:
     push %r13
     push %r14
     push %r15
-    sub $16, %rsp
+    
     mov %rdi, %r12
     mov %rsi, %r13
     mov %rdx, %r15
@@ -44,12 +44,11 @@ skip_copy:
 done:
     mov $0, %rax
 cleanup:
-    mov %rbp, %rsp 
     pop %r15
     pop %r14
     pop %r13
     pop %r12
-    pop %rbp
+    leave
     ret
 
 .section .note.GNU-stack, "",@progbits

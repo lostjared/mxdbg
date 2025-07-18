@@ -10,9 +10,10 @@
 main:
     push %rbp
     mov %rsp, %rbp
-    push %rbx
-    push %r12
-    sub $32, %rsp
+    push %rbx              
+    push %r12              
+    
+    
     lea buffer_message(%rip), %rdi
     xor %rax, %rax
     call printf
@@ -41,10 +42,9 @@ loopbyx:
     inc %rbx
     jmp loopbyx
 exit_main:
-    mov %rbp, %rsp
     pop %r12
     pop %rbx
-    pop %rbp
+    leave 
     movl $0, %eax
     ret
 exit_error:
