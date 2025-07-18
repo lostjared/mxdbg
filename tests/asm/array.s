@@ -11,10 +11,12 @@
 .globl main
 
 main:
-    # Save base pointer
-    pushq %rbp
-    movq %rsp, %rbp
-    
+    push %rbp
+    mov %rsp, %rbp
+    push %r12
+    push %r13
+    sub $8, %rsp           # Align stack for calls
+
     # Display initial prompt
     movq $prompt_msg, %rdi
     xorl %eax, %eax
@@ -73,7 +75,10 @@ output_loop:
 
 exit:
     # Clean up and return
-    movl $0, %eax
+    mov $0, %eax
+    add $8, %rsp           # Deallocate alignment space
+    pop %r13
+    pop %r12
     leave
     ret
 
