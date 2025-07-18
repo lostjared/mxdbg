@@ -20,7 +20,6 @@ long long get_value(const char *msg) {
 }
 
 int main() {
-
     int active = 1;
     while(active) {
         long long value = get_value("Enter number: ");
@@ -35,11 +34,9 @@ int main() {
             bitreset(&value, index);
         else 
             break;
-        
         printf("value: %x = ", (unsigned int)value);
         printb(value);
         printf("\n");
     }
-
     return 0;
 }
