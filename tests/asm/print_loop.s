@@ -7,6 +7,7 @@ ch_dat: .asciz "%c\n"
 echo_text:
     push %rbp
     mov %rsp, %rbp
+    push %r12
     sub $16, %rsp
     mov %rdi, %r12
 loop_test:
@@ -20,11 +21,11 @@ loop_test:
     inc %r12
     jmp loop_test
 done:
+    pop %r12
     mov $0, %rax
     mov %rbp, %rsp
     pop %rbp
     ret
 
 .section .note.GNU-stack, "",@progbits
-
 

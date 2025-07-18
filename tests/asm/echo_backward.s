@@ -7,6 +7,8 @@ ch_dat: .asciz "%c\n"
 echo_backwards:
     push %rbp
     mov %rsp, %rbp
+    push %r12
+    push %r13
     sub $16, %rsp
     mov %rdi, %r12
     call strlen 
@@ -25,10 +27,11 @@ print_loop:
     cmp $-1,%r13
     jg print_loop
 done:
+    pop %r13
+    pop %r12
     mov $0, %rax
     mov %rbp, %rsp
     pop %rbp
     ret
 
 .section .note.GNU-stack, "",@progbits
-
