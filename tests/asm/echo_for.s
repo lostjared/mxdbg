@@ -7,6 +7,10 @@ ch_dat: .asciz "%c : %c\n"
 echo_for:
     push %rbp
     mov %rsp, %rbp
+    push %r12
+    push %r13
+    push %r15
+
     sub $16, %rsp
     mov %rdi, %r12
     mov %rdi, %r15
@@ -29,6 +33,9 @@ print_loop:
     cmp $-1, %r13
     jg print_loop
 done:
+    pop %r15
+    pop %r13
+    pop %r12
     mov $0, %rax
     mov %rbp, %rsp
     pop %rbp

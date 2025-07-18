@@ -10,13 +10,12 @@
 main:
     push %rbp
     mov %rsp, %rbp
-    push %rbx              
-    push %r12              
-    
-    
+    sub $16, %rsp
+
     lea buffer_message(%rip), %rdi
     xor %rax, %rax
     call printf
+
     mov $0, %rax
     mov $0, %rdi
     lea input_buffer(%rip), %rsi
@@ -24,33 +23,41 @@ main:
     syscall
     test %rax, %rax
     jle exit_error
+
     lea input_message(%rip), %rdi
     xor %rax, %rax
     call printf
+
     lea input_scan(%rip), %rdi
-    movq $0,-0x8(%rbp)
-    lea -0x8(%rbp), %rsi
+    movq $0, -8(%rbp)
+    lea -8(%rbp), %rsi
     call scanf
-    mov -0x8(%rbp), %r12
-    mov $0, %rbx
+
+    movq $0, -16(%rbp)
+
 loopbyx:
-    cmp %rbx, %r12
+    movq -16(%rbp), %rax
+    movq -8(%rbp), %rdx
+    cmp %rax, %rdx
     je exit_main
+
     lea input_buffer(%rip), %rdi
     xor %rax, %rax
     call printf
-    inc %rbx
+
+    movq -16(%rbp), %rax
+    inc %rax
+    movq %rax, -16(%rbp)
     jmp loopbyx
+
 exit_main:
-    pop %r12
-    pop %rbx
-    leave 
     movl $0, %eax
+    leave
     ret
+
 exit_error:
-    mov %rbp, %rsp
-    pop %rbp
     mov $-1, %rax
+    leave
     ret
 
 .section .note.GNU-stack,"",@progbits
