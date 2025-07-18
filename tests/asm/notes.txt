@@ -31,3 +31,4 @@ Registers Safe Across Function Calls (callee-saved, non-volatile):
 
 .globl comm_global
 
+.section .note.GNU-stack, "",@progbits
