@@ -5,5 +5,6 @@
 */
 #ifndef ___VERSION__INFO__H_
 #define ___VERSION__INFO__H_
-#define version_info "MXDBG v1.0\n - (c) 2025 LostSideDead Software"
+#include<string_view>
+inline constexpr std::string_view version_info = "MXDBG v1.1\n - (c) 2026 LostSideDead Software";
 #endif

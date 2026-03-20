@@ -10,6 +10,8 @@
 #include<cstdlib>
 #include<sstream>
 #include<vector>
+#include<span>
+#include<format>
 #include<thread>
 #include<unistd.h>
 #include<iomanip>
@@ -408,8 +410,7 @@ namespace mx {
             return true;
         } else if(tokens.size() >= 2 && tokens[0] == "expr") {
             std::string e = cmd.substr(cmd.find(' ') + 1);
-
-            process->expression(e);
+            (void)process->expression(e);
             return true;
         }
         else if(tokens.size() == 2   && tokens[0] == "as_bytes") {
@@ -2147,7 +2148,7 @@ namespace mx {
         }
     }
 
-    void Debugger::search_memory_for_bytes(const std::vector<std::string>& byte_tokens) {
+    void Debugger::search_memory_for_bytes(std::span<const std::string> byte_tokens) {
         std::vector<uint8_t> search_bytes;
         
         for (const std::string& token : byte_tokens) {
@@ -2351,7 +2352,7 @@ namespace mx {
         return !parsed_pattern.empty();
     }
 
-    std::vector<size_t> Debugger::find_pattern_in_memory(const std::vector<uint8_t>& memory,                                                         const std::vector<std::pair<uint8_t, bool>>& pattern) {
+    std::vector<size_t> Debugger::find_pattern_in_memory(std::span<const uint8_t> memory, std::span<const std::pair<uint8_t, bool>> pattern) {
         std::vector<size_t> matches;
         if (pattern.empty() || memory.size() < pattern.size()) {
             return matches;
@@ -2445,7 +2446,7 @@ namespace mx {
         }
     }
 
-    std::vector<size_t> Debugger::find_in_memory(const std::vector<uint8_t>& haystack, const std::vector<uint8_t>& needle) {
+    std::vector<size_t> Debugger::find_in_memory(std::span<const uint8_t> haystack, std::span<const uint8_t> needle) {
         std::vector<size_t> matches;        
         if (needle.empty() || haystack.size() < needle.size()) {
             return matches;

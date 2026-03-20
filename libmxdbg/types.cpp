@@ -11,13 +11,13 @@ namespace types {
     std::vector<std::string> strCharType  {"Characters", "Digits", "Symbols", "String", "Quote", "Space", "NULL"};
 
     void print_type_TokenType(std::ostream &out, const TokenType &tt) {
-       unsigned int t_type = static_cast<unsigned int>(tt);
+       auto t_type = static_cast<size_t>(tt);
        if(t_type < strTokenType.size())
             out << strTokenType[t_type];
     }       
 
     void print_type_CharType(std::ostream &out, const CharType &c) {
-        unsigned int t_type = static_cast<unsigned int>(c);
+        auto t_type = static_cast<size_t>(c);
         if(t_type < strCharType.size())
            out << strCharType[t_type];
     }

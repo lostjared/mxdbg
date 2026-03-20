@@ -20,6 +20,8 @@
 #include<sstream>
 #include<iostream>
 #include<vector>
+#include<span>
+#include<format>
 #include<thread>
 #include<chrono>
 #include<fstream>
@@ -914,7 +916,7 @@ namespace mx {
         return result;
     }
 
-    void Process::write_memory(uint64_t address, const std::vector<uint8_t> &data) {
+    void Process::write_memory(uint64_t address, std::span<const uint8_t> data) {
         size_t count = 0;
         size_t size = data.size();
         while (count < size) {
@@ -1443,7 +1445,7 @@ namespace mx {
         std::string line;
         bool found_tgid = false;
         while (std::getline(status_file, line)) {
-            if (line.substr(0, 5) == "Tgid:") {
+            if (line.starts_with("Tgid:")) {
                 std::istringstream iss(line);
                 std::string label;
                 pid_t tgid;

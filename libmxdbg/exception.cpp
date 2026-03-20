@@ -6,39 +6,27 @@
 #include "mxdbg/exception.hpp"
 #include <csignal>
 #include <iostream>
-#include <sstream>
-#include <stdint.h>
-#include <iomanip>
+#include <format>
 
 namespace mx {
     std::string format_hex64(uint64_t value) {
-        std::ostringstream oss;
-        oss << "0x" << std::setfill('0') << std::setw(16) << std::hex << std::uppercase <<  value;
-        return oss.str();
+        return std::format("0x{:016X}", value);
     }
 
     std::string format_hex32(uint32_t value) {
-        std::ostringstream oss;
-        oss << "0x" << std::setfill('0') << std::setw(8) << std::hex << std::uppercase << value;
-        return oss.str();
+        return std::format("0x{:08X}", value);
     }
 
     std::string format_hex16(uint16_t value) {
-        std::ostringstream oss;
-        oss << "0x" << std::setfill('0') << std::setw(4) << std::hex << std::uppercase <<  value;
-        return oss.str();
+        return std::format("0x{:04X}", value);
     }
     
     std::string format_hex8(uint8_t value) {
-        std::ostringstream oss;
-        oss << "0x" << std::setfill('0') << std::setw(2) << std::hex << std::uppercase << static_cast<unsigned>(value);
-        return oss.str();
+        return std::format("0x{:02X}", static_cast<unsigned>(value));
     }
 
     std::string format_hex_no_prefix(uint64_t value) {
-        std::ostringstream stream;
-        stream << std::hex << std::uppercase << value;
-        return stream.str();
+        return std::format("{:X}", value);
     }
 
 
@@ -77,14 +65,9 @@ namespace mx {
             
             default:
                 if (sig >= SIGRTMIN && sig <= SIGRTMAX) {
-                    std::ostringstream oss;
-                    oss << "SIGRTMIN+" << (sig - SIGRTMIN) << " (Real-time signal)";
-                    return oss.str();
+                    return std::format("SIGRTMIN+{} (Real-time signal)", sig - SIGRTMIN);
                 }
-                
-                std::ostringstream oss;
-                oss << "Unknown signal (" << sig << ")";
-                return oss.str();
+                return std::format("Unknown signal ({})", sig);
         }
     }
 }
