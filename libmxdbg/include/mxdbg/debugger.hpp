@@ -80,7 +80,8 @@ namespace mx {
         std::string obj_dump();
         std::string user_mode = "programmer";
         std::ostringstream code;
-
+        static constexpr size_t MAX_CONTEXT_SIZE = 32768;
+        void truncate_context();
 
         std::string functionText(const std::string &text);
         void print_backtrace() const;

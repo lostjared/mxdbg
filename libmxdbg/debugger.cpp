@@ -68,6 +68,21 @@ namespace mx {
 
     Debugger::~Debugger() {}
 
+    void Debugger::truncate_context() {
+        std::string content = code.str();
+        if (content.size() > MAX_CONTEXT_SIZE) {
+            size_t remove_count = content.size() - MAX_CONTEXT_SIZE;
+            size_t cut_pos = content.find('\n', remove_count);
+            if (cut_pos != std::string::npos && cut_pos < content.size()) {
+                content = content.substr(cut_pos + 1);
+            } else {
+                content = content.substr(remove_count);
+            }
+            code.str(content);
+            code.seekp(0, std::ios_base::end);
+        }
+    }
+
     void Debugger::setup_history() {
     }
     bool Debugger::attach(pid_t pid) {
@@ -995,6 +1010,7 @@ namespace mx {
                         std::cout << Color::RESET;
                     std::cout << "\n";
                     code << "Explanation of: " << function_name << response << "\n";
+                    truncate_context();
                 } catch (const mx::ObjectRequestException &e) {
                     std::cerr << "Error: " << e.what() << std::endl;
                 }      
@@ -1443,6 +1459,7 @@ namespace mx {
                     std::cout << Color::RESET;
                 code.str("");
                 code << "New breakpoint at :" << format_hex64(rip) << "\n";
+                truncate_context();
             } else {
                 std::cout << "Current instruction at: " << format_hex64(rip) << std::dec << ": ";
             }
@@ -1499,6 +1516,7 @@ namespace mx {
                         std::cout << hex_part << " -> " << instr_part << std::endl;
                         output << hex_part << " " << instr_part << std::endl;
                         code << output.str();
+                        truncate_context();
                     } else {
                         std::cout << line << std::endl;
                         output <<  line << std::endl;
