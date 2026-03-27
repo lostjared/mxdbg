@@ -1,26 +1,26 @@
-/* 
-    MXDBG - Debugger with AI 
+/*
+    MXDBG - Debugger with AI
     coded by Jared Bruni (jaredbruni@protonmail.com)
     https://lostsidedead.biz
 */
 #ifndef ___DEBUGGER__H__
 #define ___DEBUGGER__H__
 
-#include<iostream>
-#include<memory>
-#include<string>
-#include<vector>
-#include<span>
-#include<map>
-#include<filesystem>
-#include<cstdlib>
-#include"mxdbg/process.hpp"
-#include<mx2-ollama.hpp>
+#include "mxdbg/process.hpp"
+#include <cstdlib>
+#include <filesystem>
+#include <iostream>
+#include <map>
+#include <memory>
+#include <mx2-ollama.hpp>
+#include <span>
+#include <string>
+#include <vector>
 namespace mx {
 
     [[nodiscard]] std::vector<std::string> split_command(const std::string &cmd);
-    [[nodiscard]] std::string join(size_t start, size_t stop, std::vector<std::string>  &tokens, const std::string &delimiter);
-    
+    [[nodiscard]] std::string join(size_t start, size_t stop, std::vector<std::string> &tokens, const std::string &delimiter);
+
     struct MemoryRegion {
         uint64_t start{};
         uint64_t end{};
@@ -39,7 +39,7 @@ namespace mx {
     };
 
     class Debugger {
-    public:
+      public:
         explicit Debugger(bool ai = true);
         ~Debugger();
 
@@ -51,26 +51,27 @@ namespace mx {
         void wait_for_stop();
         void step();
         void step_n(int count);
-        
+
         [[nodiscard]] pid_t get_pid() const;
         [[nodiscard]] bool is_running() const;
-        
+
         bool command(const std::string &cmd);
         [[nodiscard]] uint64_t expression(const std::string &text);
-        
+
         void setup_history();
         void save_history();
         void detach();
-        
+
         [[nodiscard]] uint64_t get_base_address() const;
         bool setfunction_breakpoint(const std::string &function_name);
         [[nodiscard]] uint64_t calculate_variable_address(const std::string &r, uint64_t value);
         void break_if(uint64_t location, const std::string &e);
-        void step_over();     
-        void step_out();      
-        void run_until(uint64_t address);  
-    private:
-        void print_current_instruction(); 
+        void step_over();
+        void step_out();
+        void run_until(uint64_t address);
+
+      private:
+        void print_current_instruction();
         std::unique_ptr<Process> process;
         std::string_view args;
         pid_t p_id = -1;
@@ -91,22 +92,21 @@ namespace mx {
         [[nodiscard]] bool is_at_function_entry() const;
         [[nodiscard]] bool is_valid_code_address(uint64_t address) const;
         void analyze_current_frame() const;
-        void print_memory_maps() const;    
+        void print_memory_maps() const;
         void search_memory_for_int32(int32_t value);
         void search_memory_for_int64(int64_t value);
-        void search_memory_for_string(const std::string& pattern);
+        void search_memory_for_string(const std::string &pattern);
         void search_memory_for_bytes(std::span<const std::string> byte_tokens);
-        void search_memory_for_pattern(const std::string& pattern);
+        void search_memory_for_pattern(const std::string &pattern);
         [[nodiscard]] std::vector<MemoryRegion> get_searchable_memory_regions();
-        [[nodiscard]] bool match_pattern(std::span<const uint8_t> data, const std::string& pattern, size_t offset);
+        [[nodiscard]] bool match_pattern(std::span<const uint8_t> data, const std::string &pattern, size_t offset);
         [[nodiscard]] std::vector<size_t> find_in_memory(std::span<const uint8_t> haystack, std::span<const uint8_t> needle);
-        [[nodiscard]] bool parse_pattern(const std::string& pattern, std::vector<std::pair<uint8_t, bool>>& parsed_pattern);
+        [[nodiscard]] bool parse_pattern(const std::string &pattern, std::vector<std::pair<uint8_t, bool>> &parsed_pattern);
         [[nodiscard]] std::vector<size_t> find_pattern_in_memory(std::span<const uint8_t> memory, std::span<const std::pair<uint8_t, bool>> pattern);
         void list_threads();
         void switch_thread(pid_t id);
-
     };
 
-} 
+} // namespace mx
 
 #endif

@@ -1,24 +1,24 @@
-/* 
-    MXDBG - Debugger with AI 
+/*
+    MXDBG - Debugger with AI
     coded by Jared Bruni (jaredbruni@protonmail.com)
     https://lostsidedead.biz
 */
-#include"mxdbg/pipe.hpp"
-#include"mxdbg/exception.hpp"
-#include<unistd.h>
-#include<errno.h>
-#include<err.h>
-#include<cstring>
+#include "mxdbg/pipe.hpp"
+#include "mxdbg/exception.hpp"
+#include <cstring>
+#include <err.h>
+#include <errno.h>
+#include <unistd.h>
 
 namespace mx {
-    
+
     mx::Pipe::Pipe(bool on_close) {
         int fds[2];
-        if (pipe2(fds, on_close ? O_CLOEXEC :  0) == -1) {
+        if (pipe2(fds, on_close ? O_CLOEXEC : 0) == -1) {
             throw mx::Exception::error("Failed to create pipe");
         }
         m_read_fd = fds[0];
-        m_write_fd = fds[1];           
+        m_write_fd = fds[1];
     }
 
     Pipe::Pipe(Pipe &&proc) : m_read_fd(proc.m_read_fd), m_write_fd(proc.m_write_fd) {
@@ -46,12 +46,12 @@ namespace mx {
             throw mx::Exception("Pipe is closed for writing");
         }
         size_t total_written = 0;
-        const char* ptr = reinterpret_cast<const char*>(data);
+        const char *ptr = reinterpret_cast<const char *>(data);
         while (total_written < size) {
             ssize_t bytes_written = ::write(m_write_fd, ptr + total_written, size - total_written);
             if (bytes_written == -1) {
                 if (errno == EINTR) {
-                    continue; 
+                    continue;
                 }
                 throw mx::Exception::error("Failed to write to pipe");
             }
@@ -61,22 +61,22 @@ namespace mx {
     }
 
     std::size_t Pipe::write(const std::vector<std::byte> &data) {
-        return write(data.data(), data.size()); 
+        return write(data.data(), data.size());
     }
 
-    std::size_t Pipe::write(const std::string& data) {
+    std::size_t Pipe::write(const std::string &data) {
         if (m_write_fd == -1) {
             throw mx::Exception("Pipe is closed for writing");
         }
-        
+
         std::size_t total_written = 0;
-        const char* ptr = data.c_str();
-        
+        const char *ptr = data.c_str();
+
         while (total_written < data.size()) {
             ssize_t bytes_written = ::write(m_write_fd, ptr + total_written, data.size() - total_written);
             if (bytes_written == -1) {
                 if (errno == EINTR) {
-                    continue; 
+                    continue;
                 }
                 throw mx::Exception::error("Failed to write to pipe");
             }
@@ -89,32 +89,32 @@ namespace mx {
         if (m_write_fd == -1) {
             throw mx::Exception("Pipe is closed for writing");
         }
-        
+
         int flags = fcntl(m_write_fd, F_GETFL);
         if (flags == -1) {
             throw mx::Exception::error("Failed to get file flags");
         }
-        
+
         if (fcntl(m_write_fd, F_SETFL, flags | O_NONBLOCK) == -1) {
             throw mx::Exception::error("Failed to set non-blocking mode");
         }
-        
+
         size_t total_written = 0;
-        const char* ptr = reinterpret_cast<const char*>(data);
-        
+        const char *ptr = reinterpret_cast<const char *>(data);
+
         while (total_written < size) {
             ssize_t bytes_written = ::write(m_write_fd, ptr + total_written, size - total_written);
             if (bytes_written == -1) {
                 if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                    break; 
+                    break;
                 }
-                
+
                 fcntl(m_write_fd, F_SETFL, flags);
                 throw mx::Exception::error("Failed to write to pipe");
             }
             total_written += bytes_written;
         }
-        
+
         fcntl(m_write_fd, F_SETFL, flags);
         return total_written;
     }
@@ -123,29 +123,29 @@ namespace mx {
         return write_nonblocking(data.data(), data.size());
     }
 
-    std::size_t Pipe::write_nonblocking(const std::string& data) {
-        return write_nonblocking(reinterpret_cast<const std::byte*>(data.data()), data.size());
+    std::size_t Pipe::write_nonblocking(const std::string &data) {
+        return write_nonblocking(reinterpret_cast<const std::byte *>(data.data()), data.size());
     }
 
     bool Pipe::is_open() const {
         return m_read_fd != -1 || m_write_fd != -1;
-    }           
+    }
     std::string Pipe::read() {
         if (m_read_fd == -1) {
             throw mx::Exception("Pipe is closed for reading");
         }
         char buffer[1024];
         ssize_t bytes_read = ::read(m_read_fd, buffer, sizeof(buffer) - 1);
-        
+
         if (bytes_read == -1) {
             if (errno == EINTR) {
-                return ""; 
+                return "";
             }
             throw mx::Exception::error("Failed to read from pipe");
         }
-        
+
         if (bytes_read == 0) {
-            return ""; 
+            return "";
         }
 
         return std::string(buffer, bytes_read);
@@ -155,19 +155,19 @@ namespace mx {
         if (m_read_fd == -1) {
             throw mx::Exception("Pipe is closed for reading");
         }
-        
+
         std::vector<std::byte> buffer(1024);
         ssize_t bytes_read = ::read(m_read_fd, buffer.data(), buffer.size());
-        
+
         if (bytes_read == -1) {
             if (errno == EINTR) {
-                return {}; 
-            }       
+                return {};
+            }
             throw mx::Exception::error("Failed to read from pipe");
         }
-        
+
         if (bytes_read == 0) {
-            return {}; 
+            return {};
         }
 
         buffer.resize(bytes_read);
@@ -178,29 +178,29 @@ namespace mx {
         if (m_read_fd == -1) {
             throw mx::Exception("Pipe is closed for reading");
         }
-        
+
         int flags = fcntl(m_read_fd, F_GETFL);
         if (flags == -1) {
             throw mx::Exception::error("Failed to get file flags");
         }
-        
+
         if (fcntl(m_read_fd, F_SETFL, flags | O_NONBLOCK) == -1) {
             throw mx::Exception::error("Failed to set non-blocking mode");
         }
-        
+
         std::vector<std::byte> buffer(1024);
-        ssize_t bytes_read = ::read(m_read_fd, buffer.data(), buffer.size());        
+        ssize_t bytes_read = ::read(m_read_fd, buffer.data(), buffer.size());
         fcntl(m_read_fd, F_SETFL, flags);
-        
+
         if (bytes_read == -1) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                return {}; 
+                return {};
             }
             throw mx::Exception::error("Failed to read from pipe");
         }
-        
+
         if (bytes_read == 0) {
-            return {}; 
+            return {};
         }
 
         buffer.resize(bytes_read);
@@ -251,29 +251,29 @@ namespace mx {
         if (m_read_fd == -1) {
             throw mx::Exception("Pipe is closed for reading");
         }
-            
+
         int flags = fcntl(m_read_fd, F_GETFL);
         if (flags == -1) {
             throw mx::Exception::error("Failed to get file flags");
         }
-        
+
         if (fcntl(m_read_fd, F_SETFL, flags | O_NONBLOCK) == -1) {
             throw mx::Exception::error("Failed to set non-blocking mode");
         }
-        
+
         char buffer[1024];
         ssize_t bytes_read = ::read(m_read_fd, buffer, sizeof(buffer) - 1);
         fcntl(m_read_fd, F_SETFL, flags);
-        
+
         if (bytes_read == -1) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                return ""; 
+                return "";
             }
             throw mx::Exception::error("Failed to read from pipe");
         }
-        
+
         if (bytes_read == 0) {
-            return ""; 
+            return "";
         }
         return std::string(buffer, bytes_read);
     }
@@ -287,12 +287,12 @@ namespace mx {
             ssize_t bytes_read = ::read(m_read_fd, data + total_read, size - total_read);
             if (bytes_read == -1) {
                 if (errno == EINTR) {
-                    continue; 
+                    continue;
                 }
                 throw mx::Exception::error("Failed to read from pipe");
             }
             if (bytes_read == 0) {
-                break; 
+                break;
             }
             total_read += bytes_read;
         }
@@ -307,26 +307,26 @@ namespace mx {
         if (flags == -1) {
             throw mx::Exception::error("Failed to get file flags");
         }
-        
+
         if (fcntl(m_read_fd, F_SETFL, flags | O_NONBLOCK) == -1) {
             throw mx::Exception::error("Failed to set non-blocking mode");
         }
-        
+
         size_t total_read = 0;
         while (total_read < size) {
             ssize_t bytes_read = ::read(m_read_fd, data + total_read, size - total_read);
             if (bytes_read == -1) {
                 if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                    break; 
+                    break;
                 }
                 throw mx::Exception::error("Failed to read from pipe");
             }
             if (bytes_read == 0) {
-                break; 
+                break;
             }
             total_read += bytes_read;
         }
-        
+
         fcntl(m_read_fd, F_SETFL, flags);
         return total_read;
     }
@@ -335,33 +335,33 @@ namespace mx {
         if (m_read_fd == -1) {
             throw mx::Exception("Pipe is closed for reading");
         }
-        
+
         int flags = fcntl(m_read_fd, F_GETFL);
         if (flags == -1) {
             throw mx::Exception::error("Failed to get file flags");
         }
-        
+
         if (fcntl(m_read_fd, F_SETFL, flags | O_NONBLOCK) == -1) {
             throw mx::Exception::error("Failed to set non-blocking mode");
         }
-        
+
         std::vector<std::byte> buffer(size);
         ssize_t bytes_read = ::read(m_read_fd, buffer.data(), size);
-        
+
         fcntl(m_read_fd, F_SETFL, flags);
-        
+
         if (bytes_read == -1) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                return {}; 
+                return {};
             }
             throw mx::Exception::error("Failed to read from pipe");
         }
-        
+
         if (bytes_read == 0) {
-            return {}; 
+            return {};
         }
 
         buffer.resize(bytes_read);
-        return buffer;  
-    } 
-}           
+        return buffer;
+    }
+} // namespace mx

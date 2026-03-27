@@ -1,36 +1,35 @@
-/* 
-    MXDBG - Debugger with AI 
+/*
+    MXDBG - Debugger with AI
     coded by Jared Bruni (jaredbruni@protonmail.com)
     https://lostsidedead.biz
 */
-#ifndef _PIPE_H__ 
+#ifndef _PIPE_H__
 #define _PIPE_H__
 
-#include<cstdint>
-#include<string>
-#include<vector>
-#include<memory>                                   
-#include<fcntl.h>
-#include<unistd.h>
-#include<sys/types.h>
-#include<cstddef>
-
+#include <cstddef>
+#include <cstdint>
+#include <fcntl.h>
+#include <memory>
+#include <string>
+#include <sys/types.h>
+#include <unistd.h>
+#include <vector>
 
 namespace mx {
 
-    class Pipe {    
-    public:
+    class Pipe {
+      public:
         Pipe(bool on_close = true);
         ~Pipe();
-        Pipe(const Pipe&) = delete;
-        Pipe& operator=(const Pipe&) = delete;
+        Pipe(const Pipe &) = delete;
+        Pipe &operator=(const Pipe &) = delete;
         Pipe(Pipe &&proc);
         Pipe &operator=(Pipe &&proc);
 
-        std::size_t write(const std::string& data);
+        std::size_t write(const std::string &data);
         std::size_t write(const std::byte *data, std::size_t size);
         std::size_t write(const std::vector<std::byte> &data);
-        std::size_t write_nonblocking(const std::string& data);
+        std::size_t write_nonblocking(const std::string &data);
         std::size_t write_nonblocking(const std::byte *data, std::size_t size);
         std::size_t write_nonblocking(const std::vector<std::byte> &data);
         std::string read();
@@ -40,7 +39,7 @@ namespace mx {
         std::vector<std::byte> read_vec_nonblocking(std::size_t size);
         std::string read_nonblocking();
         std::vector<std::byte> read_bytes_nonblocking();
-        
+
         bool is_open() const;
         bool is_readable() const;
         bool is_writable() const;
@@ -49,12 +48,12 @@ namespace mx {
         void close_read();
         void close_write();
         void close();
-    private:
+
+      private:
         int m_read_fd;
         int m_write_fd;
     };
 
-}
-
+} // namespace mx
 
 #endif

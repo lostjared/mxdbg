@@ -1,29 +1,29 @@
-/* 
-    MXDBG - Debugger with AI 
+/*
+    MXDBG - Debugger with AI
     coded by Jared Bruni (jaredbruni@protonmail.com)
     https://lostsidedead.biz
 */
 #ifndef MXDBG_PROCESS_HPP
 #define MXDBG_PROCESS_HPP
 
-#include<sys/types.h>
-#include<string>
-#include<vector>
-#include<span>
-#include<map>
-#include<memory>
-#include<filesystem>
-#include<sys/user.h>
-#include<sys/uio.h>
-#include<linux/elf.h>
-#include<unistd.h>
+#include <filesystem>
+#include <linux/elf.h>
+#include <map>
+#include <memory>
+#include <span>
+#include <string>
+#include <sys/types.h>
+#include <sys/uio.h>
+#include <sys/user.h>
+#include <unistd.h>
+#include <vector>
 
 namespace mx {
 
     enum class WatchType {
         READ = 1,
         WRITE = 2,
-        ACCESS = 3  
+        ACCESS = 3
     };
 
     struct Watchpoint {
@@ -31,8 +31,8 @@ namespace mx {
         size_t size{};
         WatchType type{};
         std::string description;
-        std::vector<uint8_t> instruction_bytes;  
-        std::string disassembly;  
+        std::vector<uint8_t> instruction_bytes;
+        std::string disassembly;
     };
 
     struct ConditionalBreakpoint {
@@ -40,19 +40,19 @@ namespace mx {
         uint8_t original_byte{};
         std::string condition;
         bool is_conditional{false};
-        
+
         ConditionalBreakpoint() = default;
-        ConditionalBreakpoint(uint64_t addr, uint8_t orig, const std::string& cond = "") 
+        ConditionalBreakpoint(uint64_t addr, uint8_t orig, const std::string &cond = "")
             : address(addr), original_byte(orig), condition(cond), is_conditional(!cond.empty()) {}
     };
-    
+
     class Process {
-    public:
-        Process(const Process&) = delete;
-        ~Process() = default; 
-        Process& operator=(const Process&) = delete;
-        Process(Process&&);
-        Process& operator=(Process&&);
+      public:
+        Process(const Process &) = delete;
+        ~Process() = default;
+        Process &operator=(const Process &) = delete;
+        Process(Process &&);
+        Process &operator=(Process &&);
         [[nodiscard]] static std::unique_ptr<Process> launch(const std::filesystem::path &exe, const std::vector<std::string> &args = {});
         [[nodiscard]] static std::unique_ptr<Process> attach(pid_t pid);
         void continue_execution();
@@ -94,7 +94,7 @@ namespace mx {
         bool remove_watchpoint(uint64_t address);
         [[nodiscard]] std::vector<Watchpoint> get_watchpoints() const;
         [[nodiscard]] bool has_watchpoint_at(uint64_t address) const;
-        [[nodiscard]] std::string disassemble_instruction(uint64_t address, const std::vector<uint8_t>& bytes);
+        [[nodiscard]] std::string disassemble_instruction(uint64_t address, const std::vector<uint8_t> &bytes);
         void switch_to_thread(pid_t id);
         [[nodiscard]] pid_t get_current_thread() const;
         [[nodiscard]] std::vector<pid_t> get_thread_ids() const;
@@ -108,26 +108,27 @@ namespace mx {
         [[nodiscard]] double get_fpu_register(const std::string &text);
         [[nodiscard]] std::string print_fpu_registers();
         [[nodiscard]] std::string hex_dump(uint64_t address, uint64_t size);
-        void set_pc(uint64_t address);    
-    private:
-        explicit Process(pid_t pid) : m_pid(pid), current_thread_id(pid) {}    
+        void set_pc(uint64_t address);
+
+      private:
+        explicit Process(pid_t pid) : m_pid(pid), current_thread_id(pid) {}
         pid_t m_pid, current_thread_id;
         bool is_single_stepping = false;
         std::map<uint64_t, uint8_t> breakpoints;
-        std::vector<uint64_t> breakpoint_index;   
+        std::vector<uint64_t> breakpoint_index;
         std::map<uint64_t, ConditionalBreakpoint> conditional_breakpoints;
         void handle_breakpoint_step(uint64_t address);
         void handle_conditional_breakpoint_continue(uint64_t address, bool continue_after_step = true);
-        
-        void set_fpu_registers(const user_fpregs_struct& fpregs);
+
+        void set_fpu_registers(const user_fpregs_struct &fpregs);
         [[nodiscard]] user_fpregs_struct get_fpu_registers() const;
 
-        size_t index_{};    
+        size_t index_{};
         std::vector<Watchpoint> watchpoints_;
         bool exited_ = false;
         mutable uint64_t skip_next_breakpoint = 0;
-    };  
+    };
 
-} 
+} // namespace mx
 
 #endif

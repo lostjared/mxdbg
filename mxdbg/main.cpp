@@ -1,15 +1,15 @@
-#include"mxdbg/version_info.hpp"
-#include"mxdbg/process.hpp"
-#include"mxdbg/debugger.hpp"
-#include"argz.hpp"
-#include<filesystem>
-#include<readline/readline.h>
-#include<readline/history.h>
-#include<thread>
-#include<chrono>
-#include<signal.h>
-#include<sys/types.h>
-#include<unistd.h>
+#include "argz.hpp"
+#include "mxdbg/debugger.hpp"
+#include "mxdbg/process.hpp"
+#include "mxdbg/version_info.hpp"
+#include <chrono>
+#include <filesystem>
+#include <readline/history.h>
+#include <readline/readline.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <thread>
+#include <unistd.h>
 
 struct Arguments {
     pid_t p_id = -1;
@@ -32,45 +32,44 @@ Arguments parse_args(int argc, char **argv) {
             .addOptionSingleValue('e', "Dump Assembly of the executable")
             .addOptionDoubleValue('D', "dump", "Dump Assembly of the executable")
             .addOptionDouble('O', "disable-ai", "Disable AI")
-            .addOptionSingle('d', "Disable AI")
-            ;
+            .addOptionSingle('d', "Disable AI");
 
         int value = 0;
         mx::Argument<std::string> arg;
-        while((value = parser.proc(arg)) != -1) {
-            switch(value) {
-                case 'O':
-                case 'd':
-                    args.enable_ollama = false;
-                    break;
-                case 'e':
-                case 'D':
-                    args.dump_asm = true;
-                    args.path = std::filesystem::path(arg.arg_value);
-                    if(!args.path.empty() && !std::filesystem::exists(args.path)) {
-                        std::cerr << "Error: Path does not exist: " << args.path << std::endl;
-                        exit(EXIT_FAILURE);
-                    }
+        while ((value = parser.proc(arg)) != -1) {
+            switch (value) {
+            case 'O':
+            case 'd':
+                args.enable_ollama = false;
                 break;
-                case 'p':
-                case 'P':
-                    args.p_id = std::stoi(arg.arg_value);
-                    break;
-                case 'R':
-                case 'r':
-                    args.path = std::filesystem::path(arg.arg_value);
-                    break;
-                case 'a':
-                case 'A':
-                    args.args_str = arg.arg_value;
-                    break;
-                case '-':
-                default:
-                    args.path = std::filesystem::path(arg.arg_value);
-                    break;
+            case 'e':
+            case 'D':
+                args.dump_asm = true;
+                args.path = std::filesystem::path(arg.arg_value);
+                if (!args.path.empty() && !std::filesystem::exists(args.path)) {
+                    std::cerr << "Error: Path does not exist: " << args.path << std::endl;
+                    exit(EXIT_FAILURE);
                 }
-        }    
-        if(args.p_id <= 0 && args.path.empty()) {
+                break;
+            case 'p':
+            case 'P':
+                args.p_id = std::stoi(arg.arg_value);
+                break;
+            case 'R':
+            case 'r':
+                args.path = std::filesystem::path(arg.arg_value);
+                break;
+            case 'a':
+            case 'A':
+                args.args_str = arg.arg_value;
+                break;
+            case '-':
+            default:
+                args.path = std::filesystem::path(arg.arg_value);
+                break;
+            }
+        }
+        if (args.p_id <= 0 && args.path.empty()) {
             std::cerr << "Error: No process ID or path provided." << std::endl;
             parser.help(std::cout);
             exit(EXIT_FAILURE);
@@ -93,37 +92,37 @@ int main(int argc, char **argv) {
     mx::Debugger debugger(args.enable_ollama);
     std::string history_filename;
     try {
-        if(args.enable_ollama) {
+        if (args.enable_ollama) {
             const char *mxdbg_host = getenv("MXDBG_HOST");
             const char *mxdbg_model = getenv("MXDBG_MODEL");
-            if(mxdbg_host != nullptr && mxdbg_model != nullptr) {
+            if (mxdbg_host != nullptr && mxdbg_model != nullptr) {
                 std::cout << "Starting up connection to Ollama.. Please be patient.\n";
             }
         }
         const char *home_folder = getenv("HOME");
-        if(home_folder) {
+        if (home_folder) {
             history_filename = std::string(home_folder) + "/.mxdbg_history";
         } else {
             history_filename = "./mxdbg_history";
         }
         read_history(history_filename.c_str());
-        if(args.dump_asm) {
-            if(args.path.empty()) {
+        if (args.dump_asm) {
+            if (args.path.empty()) {
                 std::cerr << "Error: No path provided for dumping assembly." << std::endl;
                 return 1;
             }
             debugger.dump_file(args.path);
             return 0;
         }
-        if(args.p_id > 0) {
-            if(!debugger.attach(args.p_id)) {
+        if (args.p_id > 0) {
+            if (!debugger.attach(args.p_id)) {
                 return 1;
             }
             std::cout << "Attached to process with PID: " << debugger.get_pid() << std::endl;
-        } else if(!args.path.string().empty()) {
-            if(!debugger.launch(args.path, args.args_str)) {
+        } else if (!args.path.string().empty()) {
+            if (!debugger.launch(args.path, args.args_str)) {
                 return 1;
-            } 
+            }
             std::cout << "Process launched with PID: " << debugger.get_pid() << std::endl;
         }
         std::cout << "Process stopped. PID: " << debugger.get_pid() << std::endl;
@@ -132,26 +131,27 @@ int main(int argc, char **argv) {
             if (strlen(line) > 0) {
                 add_history(line);
                 std::string command(line);
-                free(line);    
-                if(!debugger.command(command)) {
+                free(line);
+                if (!debugger.command(command)) {
                     break;
-                } else continue;
+                } else
+                    continue;
             } else {
                 free(line);
             }
         }
-        while(debugger.is_running()) {
+        while (debugger.is_running()) {
             kill(debugger.get_pid(), SIGTERM);
             debugger.detach();
             debugger.wait_for_stop();
-            if(debugger.get_pid() == -1) {
-                //std::cout << "No process running." << std::endl;
+            if (debugger.get_pid() == -1) {
+                // std::cout << "No process running." << std::endl;
             } else {
                 std::cout << "Process with PID: " << std::dec << debugger.get_pid() << " has stopped." << std::endl;
             }
         }
-        if(debugger.get_pid() == -1) {
-            //std::cout << "No process running." << std::endl;
+        if (debugger.get_pid() == -1) {
+            // std::cout << "No process running." << std::endl;
         } else {
             std::cout << "Process with PID: " << std::dec << debugger.get_pid() << " has exited." << std::endl;
         }

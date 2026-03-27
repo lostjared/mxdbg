@@ -1,5 +1,5 @@
-#include<mxdbg/process.hpp>
-#include<iostream>
+#include <iostream>
+#include <mxdbg/process.hpp>
 
 int main(int argc, char **argv) {
     try {
@@ -16,7 +16,7 @@ int main(int argc, char **argv) {
         } else {
             std::cout << "Process has stopped." << std::endl;
         }
-        std::cout << "Process PID: " << p->get_pid() << std::endl;          
+        std::cout << "Process PID: " << p->get_pid() << std::endl;
     } catch (const std::exception &e) {
         std::cerr << "Error: " << e.what() << std::endl;
         return 1;

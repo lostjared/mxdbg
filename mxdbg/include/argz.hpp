@@ -25,7 +25,11 @@ namespace mx {
         { type = T{} } -> std::same_as<T &>;
     };
 
-    enum class ArgType { ARG_SINGLE, ARG_SINGLE_VALUE, ARG_DOUBLE, ARG_DOUBLE_VALUE, ARG_NONE };
+    enum class ArgType { ARG_SINGLE,
+                         ARG_SINGLE_VALUE,
+                         ARG_DOUBLE,
+                         ARG_DOUBLE_VALUE,
+                         ARG_NONE };
 
     template <StringType String>
     struct Argument {
@@ -54,7 +58,7 @@ namespace mx {
         ArgumentData() = default;
         ArgumentData(const ArgumentData<String> &a) : args{a.args}, argc{a.argc} {}
         ArgumentData &operator=(const ArgumentData<String> &a) {
-            if(!args.empty()) {
+            if (!args.empty()) {
                 args.erase(args.begin(), args.end());
             }
             std::copy(a.args.begin(), a.args.end(), std::back_inserter(args));
@@ -71,28 +75,28 @@ namespace mx {
 
     template <StringType String>
     class ArgException {
-    public:
+      public:
         ArgException() = default;
         ArgException(const String &s) : value{s} {}
         String text() const { return value; }
 
-    private:
+      private:
         String value;
     };
 
     template <StringType String>
     class Argz {
-    public:
+      public:
         Argz() = default;
         Argz(int argc, char **argv) { initArgs(argc, argv); }
         Argz(const Argz<String> &a) : arg_data{a.arg_data}, arg_info{a.arg_info}, index{a.index}, cindex{a.cindex} {}
 
         Argz<String> &operator=(const Argz<String> &a) {
             arg_data = a.arg_data;
-            if(!arg_info.empty()) {
+            if (!arg_info.empty()) {
                 arg_info.erase(arg_info.begin(), arg_info.end());
             }
-            for(const auto &i : a.arg_info) {
+            for (const auto &i : a.arg_info) {
                 arg_info[i.first] = i.second;
             }
             index = a.index;
@@ -112,19 +116,19 @@ namespace mx {
 
         Argz<String> &initArgs(int argc, char **argv) {
             arg_data.argc = argc;
-            if constexpr(std::is_same<typename String::value_type, char>::value) {
-                for(int i = 1; i < argc; ++i) {
+            if constexpr (std::is_same<typename String::value_type, char>::value) {
+                for (int i = 1; i < argc; ++i) {
                     const char *a = argv[i];
                     arg_data.args.push_back(a);
                 }
                 reset();
                 return *this;
             }
-            if constexpr(std::is_same<typename String::value_type, wchar_t>::value) {
-                for(int i = 1; i < argc; ++i) {
+            if constexpr (std::is_same<typename String::value_type, wchar_t>::value) {
+                for (int i = 1; i < argc; ++i) {
                     const char *a = argv[i];
                     String data;
-                    for(size_t z = 0; a[z] != 0; ++z) {
+                    for (size_t z = 0; a[z] != 0; ++z) {
                         data += static_cast<typename String::value_type>(a[z]);
                     }
                     arg_data.args.push_back(data);
@@ -180,8 +184,8 @@ namespace mx {
         }
 
         int lookUpCode(const String &value) {
-            for(const auto &i : arg_info) {
-                if(i.second.arg_name == value) {
+            for (const auto &i : arg_info) {
+                if (i.second.arg_name == value) {
                     return i.second.arg_letter;
                 }
             }
@@ -189,17 +193,17 @@ namespace mx {
         }
 
         int proc(Argument<String> &a) {
-            if(index < static_cast<int>(arg_data.args.size())) {
+            if (index < static_cast<int>(arg_data.args.size())) {
                 const String &type{arg_data.args[index]};
-                if(type.length() > 3 && type[0] == '-' && type[1] == '-') {
+                if (type.length() > 3 && type[0] == '-' && type[1] == '-') {
                     String name{};
-                    for(size_t z = 2; z < type.length(); ++z)
+                    for (size_t z = 2; z < type.length(); ++z)
                         name += type[z];
                     int code = lookUpCode(name);
-                    if(code != -1) {
+                    if (code != -1) {
                         auto pos = arg_info.find(code);
-                        if(pos != arg_info.end()) {
-                            if(pos->second.arg_type == ArgType::ARG_DOUBLE) {
+                        if (pos != arg_info.end()) {
+                            if (pos->second.arg_type == ArgType::ARG_DOUBLE) {
                                 a = pos->second;
                                 a.arg_name = name;
                                 index++;
@@ -207,56 +211,56 @@ namespace mx {
                             } else {
                                 a = pos->second;
                                 a.arg_name = name;
-                                if(++index < static_cast<int>(arg_data.args.size()) /*&& arg_data.args[index][0] != '-'*/) {
+                                if (++index < static_cast<int>(arg_data.args.size()) /*&& arg_data.args[index][0] != '-'*/) {
                                     a.arg_name = name;
                                     a.arg_value = arg_data.args[index];
                                     index++;
                                     return code;
                                 } else {
-                                    if constexpr(std::is_same<typename String::value_type, char>::value) {
+                                    if constexpr (std::is_same<typename String::value_type, char>::value) {
                                         throw ArgException<String>("Expected Value");
                                     }
                                 }
                             }
                         }
                     } else {
-                        if constexpr(std::is_same<typename String::value_type, char>::value) {
+                        if constexpr (std::is_same<typename String::value_type, char>::value) {
                             String value = "Error argument: ";
                             value += name;
                             value += " switch not found";
                             throw ArgException<String>(value);
                         }
-                        if constexpr(std::is_same<typename String::value_type, wchar_t>::value) {
+                        if constexpr (std::is_same<typename String::value_type, wchar_t>::value) {
                             String value = L"Error argument: ";
                             value += name;
                             value += L" switch not found";
                             throw ArgException<String>(value);
                         }
                     }
-                } else if(type.length() == 1 && type[0] == '-') {
-                    if constexpr(std::is_same<typename String::value_type, char>::value) {
+                } else if (type.length() == 1 && type[0] == '-') {
+                    if constexpr (std::is_same<typename String::value_type, char>::value) {
                         throw ArgException<String>("Expected Value found -");
                     }
-                    if constexpr(std::is_same<typename String::value_type, wchar_t>::value) {
+                    if constexpr (std::is_same<typename String::value_type, wchar_t>::value) {
                         throw ArgException<String>(L"Expected Value found -");
                     }
-                } else if(type.length() > 1 && (type[0] == '-')) {
+                } else if (type.length() > 1 && (type[0] == '-')) {
                     const int c{type[cindex]};
                     const auto pos{arg_info.find(c)};
                     cindex++;
-                    if(cindex >= static_cast<int>(type.length())) {
+                    if (cindex >= static_cast<int>(type.length())) {
                         cindex = 1;
                         index++;
                     }
                     String name_val{};
                     name_val += static_cast<typename String::value_type>(c);
-                    if(pos != arg_info.end()) {
-                        if(pos->second.arg_type == ArgType::ARG_SINGLE) {
+                    if (pos != arg_info.end()) {
+                        if (pos->second.arg_type == ArgType::ARG_SINGLE) {
                             a = pos->second;
                             a.arg_name = name_val;
                             return c;
-                        } else if(pos->second.arg_type == ArgType::ARG_SINGLE_VALUE) {
-                            if(index < static_cast<int>(arg_data.args.size())) {
+                        } else if (pos->second.arg_type == ArgType::ARG_SINGLE_VALUE) {
+                            if (index < static_cast<int>(arg_data.args.size())) {
                                 const String &s{arg_data.args[index]};
                                 bool is_known_option = false;
                                 if (s.length() > 1 && s[0] == '-') {
@@ -268,14 +272,14 @@ namespace mx {
                                         is_known_option = (arg_info.find(option_char) != arg_info.end());
                                     }
                                 } else if (s.length() == 1 && s[0] == '-') {
-                                    if constexpr(std::is_same<typename String::value_type, char>::value) {
+                                    if constexpr (std::is_same<typename String::value_type, char>::value) {
                                         throw ArgException<String>("Expected Value found -");
                                     }
-                                    if constexpr(std::is_same<typename String::value_type, wchar_t>::value) {
+                                    if constexpr (std::is_same<typename String::value_type, wchar_t>::value) {
                                         throw ArgException<String>(L"Expected Value found -");
                                     }
                                 }
-                                
+
                                 if (!is_known_option && s.length() > 0) {
                                     a = pos->second;
                                     a.arg_value = s;
@@ -283,38 +287,38 @@ namespace mx {
                                     index++;
                                     return c;
                                 } else {
-                                    if constexpr(std::is_same<typename String::value_type, char>::value) {
+                                    if constexpr (std::is_same<typename String::value_type, char>::value) {
                                         throw ArgException<String>("Expected Value");
                                     }
-                                    if constexpr(std::is_same<typename String::value_type, wchar_t>::value) {
+                                    if constexpr (std::is_same<typename String::value_type, wchar_t>::value) {
                                         throw ArgException<String>(L"Expected Value");
                                     }
                                 }
                             } else {
-                                if constexpr(std::is_same<typename String::value_type, char>::value) {
+                                if constexpr (std::is_same<typename String::value_type, char>::value) {
                                     throw ArgException<String>("Expected Value");
                                 }
-                                if constexpr(std::is_same<typename String::value_type, wchar_t>::value) {
+                                if constexpr (std::is_same<typename String::value_type, wchar_t>::value) {
                                     throw ArgException<String>(L"Expected Value");
                                 }
                             }
                         } else {
-                            if constexpr(std::is_same<typename String::value_type, char>::value) {
+                            if constexpr (std::is_same<typename String::value_type, char>::value) {
                                 throw ArgException<String>("Invalid switch not found!");
                             }
-                            if constexpr(std::is_same<typename String::value_type, wchar_t>::value) {
+                            if constexpr (std::is_same<typename String::value_type, wchar_t>::value) {
                                 throw ArgException<String>(L"Invalid switch not found!");
                             }
                         }
                     } else {
-                        if constexpr(std::is_same<typename String::value_type, char>::value) {
+                        if constexpr (std::is_same<typename String::value_type, char>::value) {
                             String value;
                             value = "Error argument ";
                             value += static_cast<typename String::value_type>(c);
                             value += " switch not found.";
                             throw ArgException<String>(value);
                         }
-                        if constexpr(std::is_same<typename String::value_type, wchar_t>::value) {
+                        if constexpr (std::is_same<typename String::value_type, wchar_t>::value) {
                             String value;
                             value = L"Error argument ";
                             value += static_cast<typename String::value_type>(c);
@@ -339,10 +343,10 @@ namespace mx {
             using char_type = typename std::decay<decltype(*std::declval<T>().rdbuf())>::type::char_type;
             std::vector<Argument<String>> v;
             std::vector<Argument<String>> v2;
-            for(const auto &i : arg_info) {
-                if(i.second.arg_type == ArgType::ARG_SINGLE || i.second.arg_type == ArgType::ARG_SINGLE_VALUE)
+            for (const auto &i : arg_info) {
+                if (i.second.arg_type == ArgType::ARG_SINGLE || i.second.arg_type == ArgType::ARG_SINGLE_VALUE)
                     v.push_back(i.second);
-                else if(i.second.arg_type == ArgType::ARG_DOUBLE || i.second.arg_type == ArgType::ARG_DOUBLE_VALUE)
+                else if (i.second.arg_type == ArgType::ARG_DOUBLE || i.second.arg_type == ArgType::ARG_DOUBLE_VALUE)
                     v2.push_back(i.second);
             }
             std::sort(v.begin(), v.end());
@@ -351,15 +355,15 @@ namespace mx {
             farg.reserve(v.size() + v2.size());
             std::copy(v.begin(), v.end(), std::back_inserter(farg));
             std::copy(v2.begin(), v2.end(), std::back_inserter(farg));
-            for(auto a = farg.begin(); a != farg.end(); ++a) {
-                if(a->arg_type == ArgType::ARG_SINGLE || a->arg_type == ArgType::ARG_SINGLE_VALUE) {
-                    if constexpr(std::is_same<char_type, char>::value) {
+            for (auto a = farg.begin(); a != farg.end(); ++a) {
+                if (a->arg_type == ArgType::ARG_SINGLE || a->arg_type == ArgType::ARG_SINGLE_VALUE) {
+                    if constexpr (std::is_same<char_type, char>::value) {
                         String item;
                         item += static_cast<char_type>(a->arg_letter);
                         cout << "-" << std::setfill(' ') << std::setw(9) << std::left << item << "\t";
                         cout << std::setfill(' ') << std::left << std::setw(10) << a->desc;
                         cout << '\n';
-                    } else if constexpr(std::is_same<char_type, wchar_t>::value) {
+                    } else if constexpr (std::is_same<char_type, wchar_t>::value) {
                         String item;
                         item += static_cast<char_type>(a->arg_letter);
                         cout << L"-" << std::setfill(L' ') << std::setw(9) << std::left << item << L"\t";
@@ -367,13 +371,13 @@ namespace mx {
                         cout << L'\n';
                     }
                 } else {
-                    if constexpr(std::is_same<char_type, char>::value) {
+                    if constexpr (std::is_same<char_type, char>::value) {
                         cout << "--";
                         cout << std::setfill(' ') << std::left << std::setw(10) << a->arg_name;
                         cout << "\t";
                         cout << std::setw(10) << a->desc;
                         cout << '\n';
-                    } else if constexpr(std::is_same<char_type, wchar_t>::value) {
+                    } else if constexpr (std::is_same<char_type, wchar_t>::value) {
                         cout << L"--";
                         cout << std::setfill(L' ') << std::left << std::setw(10) << a->arg_name;
                         cout << L"\t";
@@ -384,11 +388,11 @@ namespace mx {
             }
         }
 
-    protected:
+      protected:
         ArgumentData<String> arg_data;
         std::unordered_map<int, Argument<String>> arg_info;
 
-    private:
+      private:
         int index = 0, cindex = 1;
     };
 
@@ -404,8 +408,8 @@ namespace mx {
         parser.addOptionSingle('h', "Display help message")
             .addOptionSingleValue('p', "assets path")
             .addOptionDoubleValue('P', "path", "assets path")
-            .addOptionSingleValue('r',"Resolution WidthxHeight")
-            .addOptionDoubleValue('R',"resolution", "Resolution WidthxHeight")
+            .addOptionSingleValue('r', "Resolution WidthxHeight")
+            .addOptionDoubleValue('R', "resolution", "Resolution WidthxHeight")
             .addOptionSingle('f', "fullscreen")
             .addOptionDouble('F', "fullscreen", "fullscreen");
         Argument<std::string> arg;
@@ -414,39 +418,38 @@ namespace mx {
         int tw = 1280, th = 720;
         bool fullscreen = false;
         try {
-            while((value = parser.proc(arg)) != -1) {
-                switch(value) {
-                    case 'h':
-                    case 'v':
-                        parser.help(std::cout);
-                        exit(EXIT_SUCCESS);
-                        break;
-                    case 'p':
-                    case 'P':
-                        path = arg.arg_value;
-                        break;
-                    case 'r':
-                    case 'R': {
-                        auto pos = arg.arg_value.find("x");
-                        if(pos == std::string::npos)  {
-                            std::cerr << "Error invalid resolution use WidthxHeight\n";
-                            std::cerr.flush();
-                            exit(EXIT_FAILURE);
-                        }
-                        std::string left, right;
-                        left = arg.arg_value.substr(0, pos);
-                        right = arg.arg_value.substr(pos+1);
-                        tw = atoi(left.c_str());
-                        th = atoi(right.c_str());
+            while ((value = parser.proc(arg)) != -1) {
+                switch (value) {
+                case 'h':
+                case 'v':
+                    parser.help(std::cout);
+                    exit(EXIT_SUCCESS);
+                    break;
+                case 'p':
+                case 'P':
+                    path = arg.arg_value;
+                    break;
+                case 'r':
+                case 'R': {
+                    auto pos = arg.arg_value.find("x");
+                    if (pos == std::string::npos) {
+                        std::cerr << "Error invalid resolution use WidthxHeight\n";
+                        std::cerr.flush();
+                        exit(EXIT_FAILURE);
                     }
-                        break;
-                    case 'f':
-                    case 'F':
-                        fullscreen = true;
-                        break;
+                    std::string left, right;
+                    left = arg.arg_value.substr(0, pos);
+                    right = arg.arg_value.substr(pos + 1);
+                    tw = atoi(left.c_str());
+                    th = atoi(right.c_str());
+                } break;
+                case 'f':
+                case 'F':
+                    fullscreen = true;
+                    break;
                 }
             }
-        } catch (const ArgException<std::string>& e) {
+        } catch (const ArgException<std::string> &e) {
             std::cerr << "mx: Argument Exception" << e.text() << std::endl;
             // defaults
             args.width = 1280;
@@ -455,15 +458,15 @@ namespace mx {
             args.fullscreen = false;
             return args;
         }
-        if(path.empty()) {
+        if (path.empty()) {
             std::cerr << "mx: No path provided trying default current directory.\n";
             path = ".";
         }
         args.width = tw;
-        args.height = th;	
+        args.height = th;
         args.path = path;
         args.fullscreen = fullscreen;
         return args;
     }
-}
+} // namespace mx
 #endif
