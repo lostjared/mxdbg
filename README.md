@@ -173,6 +173,12 @@ sudo make uninstall
 ### Basic Usage
 
 ```bash
+# Show command-line help, including AI provider setup
+./mxdbg -h
+
+# Show version information
+./mxdbg -v
+
 # Launch a program for debugging
 ./mxdbg /path/to/program
 
@@ -185,14 +191,13 @@ sudo make uninstall
 
 ### Command Line Options
 
-- `-p <PID>`: Attach to process with given PID
-- `-P <PID>`: Same as `-p` (long form)
-- `-R <path>`: Launch executable at path
-- `-r <path>`: Same as `-R` (short form)
-- `-A <args>`: Additional arguments for the launched process
-- `-a <args>`: Same as `-A` (short form)
-- `-d`: Dump assembly of executable
-- `-D`: Same as `-d` (long form)
+- `-h`, `--help`: Show usage and local/remote AI provider setup
+- `-v`, `--version`: Show version information
+- `-p <PID>`, `--pid <PID>`: Attach to a process
+- `-r <path>`, `--path <path>`: Launch an executable
+- `-a <args>`, `--args <args>`: Pass arguments to the launched process
+- `-d <path>`, `--dump <path>`: Dump executable assembly
+- `--disable-ai`: Run without AI integration
 
 ### Interactive Commands
 

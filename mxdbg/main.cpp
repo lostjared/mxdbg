@@ -16,6 +16,50 @@
 #include <unistd.h>
 
 namespace {
+void print_help(std::ostream &output) {
+    output << version_info << R"(
+
+Usage:
+  mxdbg [options] <program>
+  mxdbg -r <program> [-a "arguments"]
+  mxdbg -p <pid>
+  mxdbg -d <program>
+
+Options:
+  -h, --help              Show this help and exit
+  -v, --version           Show version information and exit
+  -p, --pid <pid>         Attach to a running process
+  -r, --path <program>    Launch a program under the debugger
+  -a, --args <arguments>  Arguments passed to the launched program
+  -d, --dump <program>    Dump program assembly and exit
+      --disable-ai        Disable AI integration
+
+AI provider configuration (environment variables only):
+  Local Ollama:
+    export MXDBG_PROVIDER=ollama
+    export MXDBG_MODEL=llama2
+    export MXDBG_HOST=localhost       # optional; host or host:port
+
+  OpenAI:
+    export MXDBG_PROVIDER=openai
+    export MXDBG_MODEL=<model-name>
+    export OPENAI_API_KEY=<api-key>
+
+  Anthropic:
+    export MXDBG_PROVIDER=anthropic
+    export MXDBG_MODEL=<model-name>
+    export ANTHROPIC_API_KEY=<api-key>
+
+  MXDBG_BASE_URL may optionally select a proxy or compatible remote endpoint
+  for OpenAI or Anthropic. API keys are never accepted as command-line options.
+
+Examples:
+  mxdbg --disable-ai ./program
+  mxdbg ./program
+  mxdbg -p 1234
+)";
+}
+
 size_t discard_response(char *contents, size_t size, size_t count, void *) {
     (void)contents;
     return size * count;
@@ -111,6 +155,8 @@ struct Arguments {
     std::string args_str;
     bool dump_asm = false;
     bool enable_ai = true;
+    bool show_help = false;
+    bool show_version = false;
 };
 
 Arguments parse_args(int argc, char **argv) {
@@ -126,12 +172,24 @@ Arguments parse_args(int argc, char **argv) {
             .addOptionSingleValue('e', "Dump Assembly of the executable")
             .addOptionSingleValue('d', "Dump Assembly of the executable")
             .addOptionDoubleValue('D', "dump", "Dump Assembly of the executable")
-            .addOptionDouble('O', "disable-ai", "Disable AI");
+            .addOptionDouble('O', "disable-ai", "Disable AI")
+            .addOptionSingle('h', "Show help and exit")
+            .addOptionDouble('H', "help", "Show help and exit")
+            .addOptionSingle('v', "Show version and exit")
+            .addOptionDouble('V', "version", "Show version and exit");
 
         int value = 0;
         mx::Argument<std::string> arg;
         while ((value = parser.proc(arg)) != -1) {
             switch (value) {
+            case 'h':
+            case 'H':
+                args.show_help = true;
+                break;
+            case 'v':
+            case 'V':
+                args.show_version = true;
+                break;
             case 'O':
                 args.enable_ai = false;
                 break;
@@ -163,26 +221,35 @@ Arguments parse_args(int argc, char **argv) {
                 break;
             }
         }
-        if (args.p_id <= 0 && args.path.empty()) {
+        if (!args.show_help && !args.show_version && args.p_id <= 0 && args.path.empty()) {
             std::cerr << "Error: No process ID or path provided." << std::endl;
-            parser.help(std::cout);
+            print_help(std::cerr);
             exit(EXIT_FAILURE);
         }
     } catch (const mx::ArgException<std::string> &e) {
         std::cerr << "Argument parsing error: " << e.text() << std::endl;
-        parser.help(std::cout);
+        print_help(std::cerr);
         exit(EXIT_FAILURE);
     } catch (const std::exception &e) {
         std::cerr << "Error: " << e.what() << std::endl;
-        parser.help(std::cout);
+        print_help(std::cerr);
         exit(EXIT_FAILURE);
     }
     return args;
 }
 
 int main(int argc, char **argv) {
-    std::cout << version_info << std::endl;
     Arguments args = parse_args(argc, argv);
+    if (args.show_help) {
+        print_help(std::cout);
+        return 0;
+    }
+    if (args.show_version) {
+        std::cout << version_info << std::endl;
+        return 0;
+    }
+
+    std::cout << version_info << std::endl;
     if (args.enable_ai) {
         std::string configuration_error;
         const auto configuration = mx::load_ai_configuration(configuration_error);

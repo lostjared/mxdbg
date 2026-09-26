@@ -119,6 +119,14 @@ add_test(NAME exception_test_  COMMAND exception_test)
 add_test(NAME register_test COMMAND register_test)
 add_test(NAME debug_context COMMAND debug_context_test)
 add_test(NAME ai_config COMMAND ai_config_test)
+add_test(NAME cli_help COMMAND $<TARGET_FILE:mxdbg> --help)
+add_test(NAME cli_version COMMAND $<TARGET_FILE:mxdbg> --version)
+set_tests_properties(cli_help PROPERTIES
+    PASS_REGULAR_EXPRESSION "AI provider configuration.*Local Ollama"
+)
+set_tests_properties(cli_version PROPERTIES
+    PASS_REGULAR_EXPRESSION "MXDBG v"
+)
 set_tests_properties(process_attach PROPERTIES
     TIMEOUT 5
     PASS_REGULAR_EXPRESSION "Test passed"
