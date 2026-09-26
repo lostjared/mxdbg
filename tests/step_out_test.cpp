@@ -8,6 +8,14 @@
 #include <string_view>
 
 namespace {
+    std::string breakpoint_list(mx::Debugger& debugger) {
+        std::ostringstream captured;
+        std::streambuf *original = std::cout.rdbuf(captured.rdbuf());
+        assert(debugger.command("list_break"));
+        std::cout.rdbuf(original);
+        return captured.str();
+    }
+
     mx::StepOutResult run_step_out(const std::filesystem::path& fixture,
                                    std::string_view arguments) {
         mx::Debugger debugger(false);
@@ -15,8 +23,12 @@ namespace {
         assert(debugger.command("run"));
         assert(debugger.command("function step_out_target"));
         assert(debugger.command("continue"));
+        const std::string breakpoints_before = breakpoint_list(debugger);
         const mx::StepOutResult result = debugger.step_out();
         if (result == mx::StepOutResult::Signal) {
+            assert(breakpoint_list(debugger) == breakpoints_before);
+            assert(debugger.step_out() == mx::StepOutResult::Signal);
+            assert(breakpoint_list(debugger) == breakpoints_before);
             std::ostringstream captured;
             std::streambuf *original = std::cout.rdbuf(captured.rdbuf());
             assert(debugger.command("backtrace"));

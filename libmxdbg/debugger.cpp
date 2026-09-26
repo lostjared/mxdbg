@@ -2989,6 +2989,13 @@ namespace mx {
 
         uint64_t return_address = 0;
         bool temporary_breakpoint_set = false;
+        auto remove_temporary_breakpoint = [&]() {
+            if (!temporary_breakpoint_set || !process || !process->is_running()) {
+                return;
+            }
+            process->remove_breakpoint(return_address);
+            temporary_breakpoint_set = false;
+        };
         try {
             uint64_t rip = process->get_register("rip");
             uint64_t rbp = process->get_register("rbp");
@@ -3031,21 +3038,22 @@ namespace mx {
                 }
             }
 
-            process->set_breakpoint(return_address);
-            temporary_breakpoint_set = true;
+            if (!process->has_breakpoint(return_address)) {
+                process->set_breakpoint(return_address);
+                temporary_breakpoint_set = true;
+            }
             if (color_)
                 std::cout << Color::BRIGHT_YELLOW;
-            std::cout << "Step out: Setting breakpoint at return address "
+            std::cout << (temporary_breakpoint_set
+                              ? "Step out: Setting temporary breakpoint at return address "
+                              : "Step out: Using existing breakpoint at return address ")
                       << format_hex64(return_address) << std::endl;
             if (color_)
                 std::cout << Color::RESET;
             process->continue_execution();
             process->wait_for_stop();
             const StopInfo stop = process->get_last_stop();
-            if (process->is_running()) {
-                process->remove_breakpoint(return_address);
-            }
-            temporary_breakpoint_set = false;
+            remove_temporary_breakpoint();
             capture_crash_context();
 
             if (stop.kind == StopKind::SignalStop || stop.kind == StopKind::TerminatedBySignal) {
@@ -3066,11 +3074,9 @@ namespace mx {
             return StepOutResult::Error;
 
         } catch (const std::exception &e) {
-            if (temporary_breakpoint_set && process && process->is_running()) {
-                try {
-                    process->remove_breakpoint(return_address);
-                } catch (...) {
-                }
+            try {
+                remove_temporary_breakpoint();
+            } catch (...) {
             }
             std::cerr << "Error during step out: " << e.what() << std::endl;
             return StepOutResult::Error;
