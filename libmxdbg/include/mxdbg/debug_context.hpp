@@ -16,8 +16,10 @@ namespace mx {
         void add_instruction(std::uint64_t address, const std::string& instruction);
         void add_insight(const std::string& title, const std::string& insight);
         void add_crash(const std::string& crash_report);
+        void clear_crash();
 
         [[nodiscard]] std::string render() const;
+        [[nodiscard]] bool has_active_crash() const { return !crash_report_.empty(); }
         [[nodiscard]] std::size_t size() const;
         [[nodiscard]] std::size_t limit() const { return limit_; }
         [[nodiscard]] std::size_t omitted_instructions() const { return omitted_instructions_; }

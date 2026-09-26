@@ -42,6 +42,10 @@ namespace mx {
         trim();
     }
 
+    void DebugContext::clear_crash() {
+        crash_report_.clear();
+    }
+
     std::size_t DebugContext::size() const {
         std::size_t total = crash_report_.size();
         for (const auto& value : events_) total += value.size();

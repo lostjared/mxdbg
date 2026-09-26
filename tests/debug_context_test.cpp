@@ -24,4 +24,10 @@ int main() {
     context.clear();
     assert(context.size() == 0);
     assert(context.render().find("SIGSEGV") == std::string::npos);
+
+    context.add_crash("SIGSEGV at 0x0");
+    assert(context.has_active_crash());
+    context.clear_crash();
+    assert(!context.has_active_crash());
+    assert(context.render().find("SIGSEGV") == std::string::npos);
 }

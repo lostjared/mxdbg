@@ -4,6 +4,7 @@
     https://lostsidedead.biz
 */
 #include "mxdbg/debugger.hpp"
+#include "mxdbg/ai_instructions.hpp"
 #include "mxdbg/exception.hpp"
 #include "mxdbg/expr.hpp"
 #include <algorithm>
@@ -28,65 +29,6 @@
 #include <vector>
 
 namespace {
-    constexpr std::string_view ai_analysis_instructions = R"(You are the analysis component of MXDBG, an x86-64 debugger.
-
-GENERAL RULES
-
-- Never invent runtime behavior.
-- Never assume that an instruction was executed merely because it appears in disassembly.
-- Conditional branches represent possible control flow unless current runtime state proves which path was taken.
-- A call instruction appearing in a function does not mean the call occurred.
-- Current debugger state is authoritative over older context.
-- Previous crash information must not be treated as current unless the current debugger state explicitly contains an active crash snapshot.
-
-REQUEST MODES
-
-1. FUNCTION EXPLANATION
-
-When the user requests "explain <function>":
-
-- Perform STATIC analysis of the supplied function disassembly.
-- Explain what the function appears to do.
-- Describe arguments, local variables, function calls, branches, loops, and return behavior when they can be inferred from the disassembly.
-- Treat branches as possible paths, not observed execution.
-- Do not claim that a crash occurred.
-- Do not claim that a stack canary failed.
-- Do not claim that a particular branch was taken.
-- Do not use register values, previous crashes, or execution history unless they are explicitly supplied as part of the current request.
-- Do not include a CRASH SNAPSHOT section unless the user explicitly asks for crash analysis.
-- Clearly distinguish compiler-generated code such as stack-canary checks from application logic.
-
-2. RUNTIME / CRASH ANALYSIS
-
-When the user asks about the current crash, signal, register state, or current execution:
-
-Use the CURRENT DEBUGGER STATE as authoritative evidence.
-
-Structure crash answers as:
-
-OBSERVED:
-Facts directly supplied by MXDBG.
-
-IMMEDIATE CAUSE:
-What directly caused the fault, only when supported by supplied evidence.
-
-UPSTREAM CAUSE:
-Why the program reached that state, only when supported by evidence.
-Otherwise say Unknown.
-
-NEXT STEP:
-Recommend the minimum debugger action needed to obtain missing evidence.
-
-Never describe a register as uninitialized, corrupted, incorrectly set, or invalid unless the supplied debugger state proves it.
-
-STATIC VS RUNTIME EVIDENCE
-
-Static disassembly tells you what CAN happen.
-Runtime debugger state tells you what DID happen.
-
-Never convert static possibilities into runtime facts.
-)";
-
     std::size_t context_limit_from_environment() {
         constexpr std::size_t default_limit = 32768;
         const char *value = std::getenv("MXDBG_CONTEXT_SIZE");
@@ -490,8 +432,12 @@ namespace mx {
     void Debugger::capture_crash_context() {
         if (!process) return;
         const StopInfo& stop = process->get_last_stop();
-        if (stop.sequence == captured_stop_sequence || !is_crash_signal(stop.signal)) return;
+        if (stop.sequence == captured_stop_sequence) return;
         captured_stop_sequence = stop.sequence;
+        if (!is_crash_signal(stop.signal)) {
+            context.clear_crash();
+            return;
+        }
 
         std::ostringstream report;
         report << "Signal: " << format_signal(stop.signal) << "\n"
@@ -611,6 +557,83 @@ namespace mx {
         context.add_crash(report.str());
         context.add_event("Crash context captured for " + format_signal(stop.signal));
         std::cout << "Crash context captured. Use 'context' to inspect it or 'ask' for analysis.\n";
+    }
+
+    std::string Debugger::render_current_debugger_state() const {
+        std::ostringstream state;
+        if (!process) {
+            state << "No process is attached or launched.\n";
+            return state.str();
+        }
+
+        state << "Process PID: " << process->get_pid() << "\n";
+        if (!process->is_running()) {
+            const int exit_status = process->get_exit_status();
+            if (exit_status >= 0) {
+                state << "Process state: Exit (code " << exit_status << ")\n";
+            } else if (exit_status < -1) {
+                state << "Process state: Exit (signal "
+                      << format_signal(-exit_status) << ")\n";
+            } else {
+                state << "Process state: Exit (code unknown)\n";
+            }
+            return state.str();
+        }
+
+        state << "Process state: Stopped\n"
+              << "Current thread: " << process->get_current_thread() << "\n";
+
+        const StopInfo& stop = process->get_last_stop();
+        state << "Stop sequence: " << stop.sequence << "\n";
+        if (stop.signal != 0) {
+            state << "Stop signal: " << format_signal(stop.signal) << "\n";
+        }
+
+        try {
+            const uint64_t rip = process->get_register("rip");
+            state << "RIP: " << format_hex64(rip)
+                  << " (" << resolve_symbol(rip) << ")\n";
+            state << "Current instruction: "
+                  << process->disassemble_instruction(rip, process->read_memory(rip, 15))
+                  << "\n";
+        } catch (const std::exception& error) {
+            state << "Current instruction unavailable: " << error.what() << "\n";
+        }
+
+        try {
+            state << "\nCurrent registers:\n" << process->reg_info();
+        } catch (const std::exception& error) {
+            state << "Register state unavailable: " << error.what() << "\n";
+        }
+
+        try {
+            state << "\nThreads:";
+            for (const pid_t thread : process->get_thread_ids()) {
+                state << " " << thread;
+            }
+            state << "\n";
+        } catch (const std::exception& error) {
+            state << "Thread list unavailable: " << error.what() << "\n";
+        }
+
+        const auto breakpoints = process->get_breakpoints();
+        state << "Active breakpoints:";
+        if (breakpoints.empty()) state << " none";
+        for (const auto& breakpoint : breakpoints) {
+            state << " " << format_hex64(breakpoint.first);
+        }
+        state << "\n";
+
+        const auto watchpoints = process->get_watchpoints();
+        state << "Active watchpoints:";
+        if (watchpoints.empty()) state << " none";
+        for (const auto& watchpoint : watchpoints) {
+            state << " " << format_hex64(watchpoint.address)
+                  << "/" << watchpoint.size;
+        }
+        state << "\n";
+
+        return state.str();
     }
 
     pid_t Debugger::get_pid() const {
@@ -1249,10 +1272,10 @@ namespace mx {
                 std::cout << "Requesting explanation from model..." << std::endl;
                 std::cout << "This may take a while, please wait..." << std::endl;
                 std::string prompt = std::string(ai_analysis_instructions) +
-                                     "\nExplain this x86-64 assembly function '" + function_name +
-                                     "' step by step in plain English. Relate it to any crash snapshot in the debugging context. "
-                                     "Be concise but thorough for the user at their level of: " + user_mode + ":\n\n" +
-                                     context.render() + "\nFUNCTION DISASSEMBLY\n" + function_code + "\n";
+                                     "\n\nREQUEST TYPE: STATIC FUNCTION EXPLANATION\n"
+                                     "USER DIFFICULTY LEVEL: " + user_mode +
+                                     "\nFUNCTION: " + function_name +
+                                     "\n\nCURRENT FUNCTION DISASSEMBLY\n" + function_code + "\n";
                 request->setPrompt(prompt);
                 try {
                     if (color_)
@@ -1375,11 +1398,15 @@ namespace mx {
             if (color_)
                 std::cout << Color::RESET;
 
+            const std::string request_type = context.has_active_crash()
+                ? "CRASH ANALYSIS"
+                : "RUNTIME ANALYSIS";
             std::string prompt = std::string(ai_analysis_instructions) +
-                "\nYou are a debugging assistant analyzing an x86-64 program. Use the structured "
-                "session context below. Distinguish observed facts from hypotheses, focus on the "
-                "most recent execution, and answer concisely for a " + user_mode + ".\n\n" +
-                context.render() + "\nQUESTION\n" + question;
+                "\n\nREQUEST TYPE: " + request_type +
+                "\nUSER DIFFICULTY LEVEL: " + user_mode +
+                "\n\nCURRENT DEBUGGER STATE\n" + render_current_debugger_state() +
+                "\nCURRENT CRASH AND SESSION CONTEXT\n" + context.render() +
+                "\nUSER QUESTION\n" + question;
             request->setPrompt(prompt);
             try {
                 if (color_)
@@ -1807,10 +1834,16 @@ namespace mx {
             if (color_)
                 std::cout << Color::RESET;
             if (request) {
+                const std::string request_type = context.has_active_crash()
+                    ? "CRASH ANALYSIS"
+                    : "RUNTIME ANALYSIS";
                 request->setPrompt(
                     std::string(ai_analysis_instructions) +
-                    "\nExplain this elf64-x86-64 instruction in one or two sentences for the user at the level of " +
-                    user_mode + ". Use the crash snapshot when relevant.\n\n" + context.render() +
+                    "\n\nREQUEST TYPE: " + request_type +
+                    "\nUSER DIFFICULTY LEVEL: " + user_mode +
+                    "\nExplain the current instruction in one or two sentences using only the supplied evidence.\n\n"
+                    "CURRENT DEBUGGER STATE\n" + render_current_debugger_state() +
+                    "\nCURRENT CRASH AND SESSION CONTEXT\n" + context.render() +
                     "\nCURRENT INSTRUCTION\n" + output.str());
             }
             std::filesystem::remove(fullname);

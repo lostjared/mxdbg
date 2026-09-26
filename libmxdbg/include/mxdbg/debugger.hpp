@@ -100,6 +100,7 @@ namespace mx {
         void wait_for_process_stop();
         void wait_for_single_step();
         void capture_crash_context();
+        [[nodiscard]] std::string render_current_debugger_state() const;
         [[nodiscard]] std::vector<uint64_t> get_stack_frames() const;
         struct CallerFrame {
             enum class Source { StackPointer, FramePointer, StackScan } source;
