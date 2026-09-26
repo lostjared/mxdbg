@@ -7,6 +7,7 @@
 #include "mxdbg/ai_instructions.hpp"
 #include "mxdbg/exception.hpp"
 #include "mxdbg/expr.hpp"
+#include "mxdbg/static_analysis.hpp"
 #include <algorithm>
 #include <cctype>
 #include <climits>
@@ -1280,9 +1281,14 @@ namespace mx {
             if (request) {
                 std::cout << "Requesting explanation from model..." << std::endl;
                 std::cout << "This may take a while, please wait..." << std::endl;
+                const std::string derived_facts = derive_static_facts(function_name, function_code);
                 std::string prompt = "REQUEST TYPE: STATIC FUNCTION EXPLANATION\n"
                                      "USER DIFFICULTY LEVEL: " + user_mode +
                                      "\nFUNCTION: " + function_name +
+                                     (derived_facts.empty() ? "" :
+                                         "\n\n" + derived_facts +
+                                         "\nThe DERIVED STATIC FACTS are authoritative debugger output.\n"
+                                         "Do not contradict them.\n") +
                                      "\n\nCURRENT FUNCTION DISASSEMBLY\n" + function_code + "\n";
                 request->setPrompt(prompt);
                 try {

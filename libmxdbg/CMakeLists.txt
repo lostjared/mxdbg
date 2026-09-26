@@ -4,6 +4,7 @@ add_library(libmxdbg SHARED
     pipe.cpp
     debugger.cpp
     debug_context.cpp
+    static_analysis.cpp
     scanner.cpp
     string_buffer.cpp
     types.cpp

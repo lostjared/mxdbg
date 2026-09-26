@@ -133,6 +133,15 @@ add_test(NAME pipe_write COMMAND pipe_write_test)
 add_test(NAME exception_test_  COMMAND exception_test)
 add_test(NAME register_test COMMAND register_test)
 add_test(NAME debug_context COMMAND debug_context_test)
+add_executable(static_analysis_test
+    static_analysis_test.cpp
+    ../libmxdbg/static_analysis.cpp
+)
+target_include_directories(static_analysis_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libmxdbg/include
+)
+target_compile_features(static_analysis_test PRIVATE cxx_std_20)
+add_test(NAME static_analysis COMMAND static_analysis_test)
 add_test(NAME ai_config COMMAND ai_config_test)
 add_test(NAME step_out COMMAND step_out_test $<TARGET_FILE:step_out_fixture>)
 add_test(NAME cli_help COMMAND $<TARGET_FILE:mxdbg> --help)
