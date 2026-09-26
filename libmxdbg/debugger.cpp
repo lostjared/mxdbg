@@ -1263,7 +1263,19 @@ namespace mx {
                 }
 
                 std::cout << "Process PID: " << process->get_pid() << std::endl;
-                std::cout << "Process is running: " << (process->is_running() ? "Yes" : "No") << std::endl;
+                if (process->is_running()) {
+                    std::cout << "Process state: Running" << std::endl;
+                } else {
+                    const int exit_status = process->get_exit_status();
+                    if (exit_status >= 0) {
+                        std::cout << "Process state: Exit (code " << exit_status << ")" << std::endl;
+                    } else if (exit_status < -1) {
+                        std::cout << "Process state: Exit (signal "
+                                  << format_signal(-exit_status) << ")" << std::endl;
+                    } else {
+                        std::cout << "Process state: Exit (code unknown)" << std::endl;
+                    }
+                }
             } else {
                 std::cout << "No process attached or launched." << std::endl;
             }

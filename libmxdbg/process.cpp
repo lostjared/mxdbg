@@ -32,6 +32,7 @@ namespace mx {
 
     Process::Process(Process &&proc)
         : m_pid(proc.m_pid), current_thread_id(proc.current_thread_id), index_(proc.index_),
+          exited_(proc.exited_), exit_status_(proc.exit_status_),
           last_stop_(proc.last_stop_), stop_sequence_(proc.stop_sequence_) {
         proc.m_pid = -1;
         proc.current_thread_id = -1;
@@ -43,6 +44,8 @@ namespace mx {
             m_pid = other.m_pid;
             current_thread_id = other.current_thread_id;
             index_ = other.index_;
+            exited_ = other.exited_;
+            exit_status_ = other.exit_status_;
             last_stop_ = other.last_stop_;
             stop_sequence_ = other.stop_sequence_;
             other.m_pid = -1;
@@ -319,6 +322,7 @@ namespace mx {
 
                 if (waited_pid == m_pid) {
                     exited_ = true;
+                    exit_status_ = WEXITSTATUS(status);
                     return;
                 }
 
@@ -334,6 +338,7 @@ namespace mx {
 
                 if (waited_pid == m_pid) {
                     exited_ = true;
+                    exit_status_ = -WTERMSIG(status);
                     return;
                 }
 
@@ -669,6 +674,7 @@ namespace mx {
         waitpid(current_thread_id, &status, 0);
         if (WIFEXITED(status)) {
             exited_ = true;
+            exit_status_ = WEXITSTATUS(status);
             std::cout << "Process exited with code: " << WEXITSTATUS(status) << std::endl;
             return;
         }
@@ -696,6 +702,7 @@ namespace mx {
             last_stop_.kind = StopKind::Exited;
             last_stop_.exit_code = WEXITSTATUS(status);
             exited_ = true;
+            exit_status_ = WEXITSTATUS(status);
             is_single_stepping = false;
             stepped_breakpoint_.reset();
             return;
@@ -704,6 +711,7 @@ namespace mx {
             last_stop_.kind = StopKind::TerminatedBySignal;
             last_stop_.signal = WTERMSIG(status);
             exited_ = true;
+            exit_status_ = -WTERMSIG(status);
             is_single_stepping = false;
             stepped_breakpoint_.reset();
             return;
@@ -749,17 +757,8 @@ namespace mx {
         }
     }
 
-    int Process::get_exit_status() {
-        int status;
-        pid_t result = waitpid(m_pid, &status, WNOHANG);
-        if (result == m_pid) {
-            if (WIFEXITED(status)) {
-                return WEXITSTATUS(status);
-            } else if (WIFSIGNALED(status)) {
-                return -WTERMSIG(status);
-            }
-        }
-        return -1;
+    int Process::get_exit_status() const {
+        return exit_status_;
     }
 
     std::string Process::proc_info() const {

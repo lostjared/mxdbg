@@ -30,6 +30,19 @@ namespace {
         return captured.str();
     }
 
+    void verify_exit_status(const std::filesystem::path& fixture) {
+        mx::Debugger debugger(false);
+        assert(debugger.launch(fixture, "exit7"));
+        assert(debugger.command("run"));
+        assert(debugger.command("continue"));
+
+        std::ostringstream captured;
+        std::streambuf *original = std::cout.rdbuf(captured.rdbuf());
+        assert(debugger.command("status"));
+        std::cout.rdbuf(original);
+        assert(captured.str().find("Process state: Exit (code 7)") != std::string::npos);
+    }
+
     mx::StepOutResult run_step_out(const std::filesystem::path& fixture,
                                    std::string_view arguments) {
         mx::Debugger debugger(false);
@@ -61,6 +74,7 @@ int main(int argc, char **argv) {
     assert(argc == 2);
     const std::filesystem::path fixture(argv[1]);
     verify_breakpoint_restores_instruction(fixture);
+    verify_exit_status(fixture);
     assert(run_step_out(fixture, "") == mx::StepOutResult::Completed);
     assert(run_step_out(fixture, "crash") == mx::StepOutResult::Signal);
 }

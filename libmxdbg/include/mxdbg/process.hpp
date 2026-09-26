@@ -85,7 +85,7 @@ namespace mx {
         [[nodiscard]] pid_t get_pid() const { return m_pid; }
         [[nodiscard]] bool is_running() const;
         void detach();
-        [[nodiscard]] int get_exit_status();
+        [[nodiscard]] int get_exit_status() const;
         [[nodiscard]] std::string proc_info() const;
         [[nodiscard]] std::string reg_info() const;
         void single_step();
@@ -153,6 +153,7 @@ namespace mx {
         size_t index_{};
         std::vector<Watchpoint> watchpoints_;
         bool exited_ = false;
+        int exit_status_ = -1;
         mutable uint64_t skip_next_breakpoint = 0;
         std::optional<std::pair<uint64_t, uint8_t>> stepped_breakpoint_;
         StopInfo last_stop_;
