@@ -61,6 +61,8 @@ When the upstream cause is unknown, do not imply a cause in NEXT STEP.
 Do not say a register was uninitialized, corrupted, incorrectly set, or invalid
 unless the debugger state proves that.
 Recommend only the next observation needed to establish the cause.
+Only recommend debugger operations that are available from the current state.
+Do not suggest examining past register state unless that state exists in the supplied history.
 
 If previous conversation context conflicts with the current debugger state,
 ignore the previous context.
@@ -83,6 +85,69 @@ ignore the previous context.
     bool is_crash_signal(int signal) {
         return signal == SIGSEGV || signal == SIGABRT || signal == SIGBUS ||
                signal == SIGILL || signal == SIGFPE;
+    }
+
+    struct AddressMapping {
+        uint64_t start{};
+        uint64_t end{};
+        uint64_t file_offset{};
+        std::string path;
+    };
+
+    std::optional<AddressMapping> find_address_mapping(pid_t pid, uint64_t address) {
+        std::ifstream maps("/proc/" + std::to_string(pid) + "/maps");
+        std::string line;
+        while (std::getline(maps, line)) {
+            std::istringstream fields(line);
+            std::string range, permissions, offset, device, inode, path;
+            fields >> range >> permissions >> offset >> device >> inode;
+            std::getline(fields, path);
+            const auto first = path.find_first_not_of(" \t");
+            if (first != std::string::npos) path.erase(0, first);
+
+            const auto dash = range.find('-');
+            if (dash == std::string::npos) continue;
+            try {
+                const uint64_t start = std::stoull(range.substr(0, dash), nullptr, 16);
+                const uint64_t end = std::stoull(range.substr(dash + 1), nullptr, 16);
+                if (address < start || address >= end) continue;
+                return AddressMapping{
+                    start,
+                    end,
+                    std::stoull(offset, nullptr, 16),
+                    std::move(path)
+                };
+            } catch (...) {
+            }
+        }
+        return std::nullopt;
+    }
+
+    std::string shell_quote(const std::string& value) {
+        std::string quoted = "'";
+        for (const char character : value) {
+            if (character == '\'') quoted += "'\\''";
+            else quoted += character;
+        }
+        quoted += '\'';
+        return quoted;
+    }
+
+    bool is_dynamic_elf(const std::string& path) {
+        std::ifstream executable(path, std::ios::binary);
+        unsigned char header[18]{};
+        executable.read(reinterpret_cast<char*>(header), sizeof(header));
+        return executable.gcount() == sizeof(header) &&
+               header[0] == 0x7f && header[1] == 'E' &&
+               header[2] == 'L' && header[3] == 'F' &&
+               (static_cast<unsigned>(header[16]) |
+                (static_cast<unsigned>(header[17]) << 8)) == 3;
+    }
+
+    std::string hexadecimal_offset(uint64_t value) {
+        std::ostringstream output;
+        output << "0x" << std::hex << value;
+        return output.str();
     }
 }
 
@@ -491,34 +556,8 @@ namespace mx {
                 const auto frames = get_stack_frames();
                 report << "\nBacktrace:\n";
                 for (std::size_t index = 0; index < frames.size(); ++index) {
-                    std::string frame_mapping;
-                    std::ifstream maps("/proc/" + std::to_string(process->get_pid()) + "/maps");
-                    std::string map_line;
-                    while (std::getline(maps, map_line)) {
-                        std::istringstream fields(map_line);
-                        std::string range;
-                        fields >> range;
-                        const auto separator = range.find('-');
-                        if (separator == std::string::npos) continue;
-                        const auto start = std::stoull(range.substr(0, separator), nullptr, 16);
-                        const auto end = std::stoull(range.substr(separator + 1), nullptr, 16);
-                        if (frames[index] >= start && frames[index] < end) {
-                            frame_mapping = map_line;
-                            break;
-                        }
-                    }
-                    const bool belongs_to_program = !program_name.empty() &&
-                                                    frame_mapping.find(program_name) != std::string::npos;
                     report << "#" << index << " " << format_hex64(frames[index])
-                           << " in ";
-                    if (belongs_to_program) {
-                        report << resolve_symbol(frames[index]);
-                    } else if (!frame_mapping.empty()) {
-                        report << "external mapping: " << frame_mapping;
-                    } else {
-                        report << "<unknown>";
-                    }
-                    report << "\n";
+                           << " in " << resolve_symbol(frames[index]) << "\n";
                 }
             } catch (const std::exception& error) {
                 report << "Backtrace capture error: " << error.what() << "\n";
@@ -2136,78 +2175,87 @@ namespace mx {
 
     std::string Debugger::resolve_symbol(uint64_t address) const {
         try {
-            std::ostringstream addr2line_cmd;
-            addr2line_cmd << "addr2line -f -C -e " << program_name << " 0x" << std::hex << address << " 2>/dev/null";
+            const auto mapping = find_address_mapping(process->get_pid(), address);
+            if (!mapping || mapping->path.empty()) return "<unknown>";
 
-            FILE *pipe = popen(addr2line_cmd.str().c_str(), "r");
-            if (pipe) {
-                char buffer[256];
-                std::string result;
-                if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-                    result = buffer;
-                    if (!result.empty() && result.back() == '\n') {
-                        result.pop_back();
+            std::string module_path = mapping->path;
+            constexpr std::string_view deleted_suffix = " (deleted)";
+            if (module_path.ends_with(deleted_suffix)) {
+                module_path.resize(module_path.size() - deleted_suffix.size());
+            }
+
+            const bool file_backed = !module_path.empty() && module_path.front() != '[';
+            const uint64_t module_address = file_backed && is_dynamic_elf(module_path)
+                ? address - mapping->start + mapping->file_offset
+                : address;
+            const std::string module_name = file_backed
+                ? std::filesystem::path(module_path).filename().string()
+                : module_path;
+
+            auto lookup_symbol = [&](bool dynamic_symbols) -> std::optional<std::string> {
+                if (!file_backed) return std::nullopt;
+                std::string command = "nm -S -n -C --defined-only ";
+                if (dynamic_symbols) command += "-D ";
+                command += shell_quote(module_path) + " 2>/dev/null";
+                FILE *pipe = popen(command.c_str(), "r");
+                if (!pipe) return std::nullopt;
+
+                std::optional<std::string> match;
+                char buffer[2048];
+                while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+                    std::istringstream line(buffer);
+                    std::string address_text, size_text, type;
+                    if (!(line >> address_text >> size_text >> type)) continue;
+                    std::string name;
+                    std::getline(line, name);
+                    const auto first = name.find_first_not_of(" \t");
+                    if (first == std::string::npos) continue;
+                    name.erase(0, first);
+                    try {
+                        const uint64_t symbol_address = std::stoull(address_text, nullptr, 16);
+                        const uint64_t symbol_size = std::stoull(size_text, nullptr, 16);
+                        const bool contains = symbol_size == 0
+                            ? module_address == symbol_address
+                            : module_address >= symbol_address &&
+                              module_address - symbol_address < symbol_size;
+                        if (!contains) continue;
+                        const uint64_t offset = module_address - symbol_address;
+                        match = offset == 0 ? name : name + "+" + hexadecimal_offset(offset);
+                    } catch (...) {
                     }
-                    fgets(buffer, sizeof(buffer), pipe);
                 }
                 pclose(pipe);
+                return match;
+            };
 
-                if (!result.empty() && result != "??" && result.find("??") == std::string::npos) {
-                    return result;
-                }
-            }
+            if (const auto symbol = lookup_symbol(false)) return *symbol;
+            if (const auto symbol = lookup_symbol(true)) return *symbol;
 
-            std::ostringstream nm_cmd;
-            nm_cmd << "nm -C " << program_name << " 2>/dev/null | grep -E '^[0-9a-fA-F]+ [tT]' | sort";
-
-            pipe = popen(nm_cmd.str().c_str(), "r");
-            if (!pipe) {
-                return "<unknown>";
-            }
-
-            std::vector<std::pair<uint64_t, std::string>> symbols;
-            char buffer[512];
-            while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-                std::string line(buffer);
-                if (line.empty())
-                    continue;
-
-                std::istringstream iss(line);
-
-                std::string addr_str, type, symbol_name;
-                if (iss >> addr_str >> type >> symbol_name) {
-                    try {
-                        uint64_t symbol_addr = std::stoull(addr_str, nullptr, 16);
-                        symbols.push_back({symbol_addr, symbol_name});
-                    } catch (...) {
-                        continue;
+            if (file_backed) {
+                std::ostringstream command;
+                command << "addr2line -f -C -e " << shell_quote(module_path)
+                        << " 0x" << std::hex << module_address << " 2>/dev/null";
+                FILE *pipe = popen(command.str().c_str(), "r");
+                if (pipe) {
+                    char buffer[1024];
+                    std::string function;
+                    std::string location;
+                    if (fgets(buffer, sizeof(buffer), pipe) != nullptr) function = buffer;
+                    if (fgets(buffer, sizeof(buffer), pipe) != nullptr) location = buffer;
+                    pclose(pipe);
+                    if (!function.empty() && function.back() == '\n') function.pop_back();
+                    if (!location.empty() && location.back() == '\n') location.pop_back();
+                    if (!function.empty() && function != "??" &&
+                        function.find("??") == std::string::npos &&
+                        !location.empty() && location.find("??") == std::string::npos) {
+                        return function;
                     }
                 }
             }
-            pclose(pipe);
 
-            std::string best_symbol = "<unknown>";
-            uint64_t best_addr = 0;
-
-            for (const auto &sym : symbols) {
-                if (sym.first <= address && sym.first > best_addr) {
-                    best_addr = sym.first;
-
-                    best_symbol = sym.second;
-                }
-            }
-
-            if (best_addr > 0 && best_symbol != "<unknown>") {
-                uint64_t offset = address - best_addr;
-                if (offset > 0) {
-                    return best_symbol + "+" + std::to_string(offset);
-                } else {
-                    return best_symbol;
-                }
-            }
-            return "<unknown>";
-
-        } catch (const std::exception &e) {
+            if (module_name.empty()) return "<unknown>";
+            return module_name + "+" + hexadecimal_offset(module_address);
+        } catch (const std::exception &) {
             return "<unknown>";
         }
     }
@@ -2992,12 +3040,13 @@ namespace mx {
             if (color_)
                 std::cout << Color::RESET;
             process->continue_execution();
-            wait_for_process_stop();
+            process->wait_for_stop();
             const StopInfo stop = process->get_last_stop();
             if (process->is_running()) {
                 process->remove_breakpoint(return_address);
             }
             temporary_breakpoint_set = false;
+            capture_crash_context();
 
             if (stop.kind == StopKind::SignalStop || stop.kind == StopKind::TerminatedBySignal) {
                 std::cout << "Step out interrupted by " << format_signal(stop.signal) << "." << std::endl;
