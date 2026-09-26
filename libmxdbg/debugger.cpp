@@ -27,6 +27,38 @@
 #include <vector>
 
 namespace {
+    constexpr std::string_view ai_analysis_instructions = R"(You are the analysis component of MXDBG.
+
+The CURRENT DEBUGGER STATE is authoritative.
+
+Never invent:
+- register values
+- memory contents
+- function calls
+- source locations
+- causes of register values
+- stack frames
+- execution history
+
+Distinguish all conclusions as:
+
+OBSERVED:
+Facts directly supplied by MXDBG.
+
+IMMEDIATE CAUSE:
+What directly caused the current fault, if proven by the supplied state.
+
+UPSTREAM CAUSE:
+Why the program reached this state. Only state this when supported by evidence.
+Otherwise explicitly say it is unknown.
+
+NEXT STEP:
+What debugger operation would gather the missing evidence.
+
+If previous conversation context conflicts with the current debugger state,
+ignore the previous context.
+)";
+
     std::size_t context_limit_from_environment() {
         constexpr std::size_t default_limit = 32768;
         const char *value = std::getenv("MXDBG_CONTEXT_SIZE");
@@ -1151,7 +1183,8 @@ namespace mx {
             if (request) {
                 std::cout << "Requesting explanation from model..." << std::endl;
                 std::cout << "This may take a while, please wait..." << std::endl;
-                std::string prompt = "Explain this x86-64 assembly function '" + function_name +
+                std::string prompt = std::string(ai_analysis_instructions) +
+                                     "\nExplain this x86-64 assembly function '" + function_name +
                                      "' step by step in plain English. Relate it to any crash snapshot in the debugging context. "
                                      "Be concise but thorough for the user at their level of: " + user_mode + ":\n\n" +
                                      context.render() + "\nFUNCTION DISASSEMBLY\n" + function_code + "\n";
@@ -1265,8 +1298,8 @@ namespace mx {
             if (color_)
                 std::cout << Color::RESET;
 
-            std::string prompt =
-                "You are a debugging assistant analyzing an x86-64 program. Use the structured "
+            std::string prompt = std::string(ai_analysis_instructions) +
+                "\nYou are a debugging assistant analyzing an x86-64 program. Use the structured "
                 "session context below. Distinguish observed facts from hypotheses, focus on the "
                 "most recent execution, and answer concisely for a " + user_mode + ".\n\n" +
                 context.render() + "\nQUESTION\n" + question;
@@ -1698,7 +1731,8 @@ namespace mx {
                 std::cout << Color::RESET;
             if (request) {
                 request->setPrompt(
-                    "Explain this elf64-x86-64 instruction in one or two sentences for the user at the level of " +
+                    std::string(ai_analysis_instructions) +
+                    "\nExplain this elf64-x86-64 instruction in one or two sentences for the user at the level of " +
                     user_mode + ". Use the crash snapshot when relevant.\n\n" + context.render() +
                     "\nCURRENT INSTRUCTION\n" + output.str());
             }
