@@ -18,7 +18,6 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <random>
 #include <span>
 #include <sstream>
 #include <sys/ptrace.h>
@@ -495,9 +494,8 @@ namespace mx {
                 report << "RIP: " << format_hex64(rip) << " (" << resolve_symbol(rip) << ")\n"
                        << "RSP: " << format_hex64(rsp) << "\n";
 
-                const auto bytes = process->read_memory(rip, 15);
                 report << "Faulting instruction: "
-                       << process->disassemble_instruction(rip, bytes) << "\n";
+                       << current_instruction_text(rip) << "\n";
             } catch (const std::exception& error) {
                 report << "Instruction capture error: " << error.what() << "\n";
             }
@@ -594,7 +592,7 @@ namespace mx {
             state << "RIP: " << format_hex64(rip)
                   << " (" << resolve_symbol(rip) << ")\n";
             state << "Current instruction: "
-                  << process->disassemble_instruction(rip, process->read_memory(rip, 15))
+                  << current_instruction_text(rip)
                   << "\n";
         } catch (const std::exception& error) {
             state << "Current instruction unavailable: " << error.what() << "\n";
@@ -1060,9 +1058,20 @@ namespace mx {
             return true;
 
         } else if (tokens.size() == 1 && (tokens[0] == "cur" || tokens[0] == "current")) {
-            print_current_instruction();
-            if (request) {
+            const std::string instruction = print_current_instruction();
+            if (request && !instruction.empty()) {
                 try {
+                    const std::string request_type = context.has_active_crash()
+                        ? "CRASH ANALYSIS"
+                        : "RUNTIME ANALYSIS";
+                    request->setPrompt(
+                        std::string(ai_analysis_instructions) +
+                        "\n\nREQUEST TYPE: " + request_type +
+                        "\nUSER DIFFICULTY LEVEL: " + user_mode +
+                        "\nExplain the current instruction in one or two sentences using only the supplied evidence.\n\n"
+                        "CURRENT DEBUGGER STATE\n" + render_current_debugger_state() +
+                        "\nCURRENT CRASH AND SESSION EVIDENCE\n" + context.render_evidence() +
+                        "\nCURRENT INSTRUCTION\n" + instruction);
                     if (color_)
                         std::cout << Color::CYAN;
                     std::string response = request->generateTextWithCallback([](const std::string &chunk) {
@@ -1405,7 +1414,7 @@ namespace mx {
                 "\n\nREQUEST TYPE: " + request_type +
                 "\nUSER DIFFICULTY LEVEL: " + user_mode +
                 "\n\nCURRENT DEBUGGER STATE\n" + render_current_debugger_state() +
-                "\nCURRENT CRASH AND SESSION CONTEXT\n" + context.render() +
+                "\nCURRENT CRASH AND SESSION EVIDENCE\n" + context.render_evidence() +
                 "\nUSER QUESTION\n" + question;
             request->setPrompt(prompt);
             try {
@@ -1711,12 +1720,26 @@ namespace mx {
         }
 
         try {
-            print_current_instruction();
+            const std::string before_state = render_current_debugger_state();
+            const std::string instruction = print_current_instruction();
             process->single_step();
             wait_for_single_step();
+            const std::string after_state = render_current_debugger_state();
             std::cout << "Step completed." << std::endl;
             if (request) {
                 try {
+                    const std::string request_type = context.has_active_crash()
+                        ? "CRASH ANALYSIS"
+                        : "RUNTIME ANALYSIS";
+                    request->setPrompt(
+                        std::string(ai_analysis_instructions) +
+                        "\n\nREQUEST TYPE: " + request_type +
+                        "\nUSER DIFFICULTY LEVEL: " + user_mode +
+                        "\nExplain the instruction that was just executed using only the supplied evidence.\n"
+                        "\nINSTRUCTION EXECUTED\n" + instruction +
+                        "\nSTATE BEFORE EXECUTION\n" + before_state +
+                        "\nSTATE AFTER EXECUTION\n" + after_state +
+                        "\nCURRENT CRASH AND SESSION EVIDENCE\n" + context.render_evidence());
                     if (color_)
                         std::cout << Color::CYAN;
                     std::string response = request->generateTextWithCallback([](const std::string &chunk) {
@@ -1753,14 +1776,24 @@ namespace mx {
         std::cout << "Steps completed...\n";
     }
 
-    void Debugger::print_current_instruction() {
+    std::string Debugger::current_instruction_text(uint64_t rip) const {
+        std::vector<uint8_t> bytes = process->read_memory(rip, 15);
+        if (process->has_breakpoint(rip) && !bytes.empty()) {
+            bytes[0] = process->get_original_instruction(rip);
+        }
+        return process->disassemble_instruction(rip, bytes);
+    }
+
+    std::string Debugger::print_current_instruction() {
+        if (!process) {
+            std::cerr << "No process attached or launched." << std::endl;
+            return {};
+        }
         try {
-            uint64_t rip = process->get_register("rip");
-            std::vector<uint8_t> instruction_bytes = process->read_memory(rip, 15);
+            const uint64_t rip = process->get_register("rip");
+            const std::string instruction = current_instruction_text(rip);
 
             if (process->has_breakpoint(rip)) {
-                uint8_t original_byte = process->get_original_instruction(rip);
-                instruction_bytes[0] = original_byte;
                 if (color_)
                     std::cout << Color::YELLOW;
                 std::cout << "Current instruction at " << format_hex64(rip) << std::dec << " [BREAKPOINT]: ";
@@ -1770,86 +1803,17 @@ namespace mx {
             } else {
                 std::cout << "Current instruction at: " << format_hex64(rip) << std::dec << ": ";
             }
-
-            std::string random_name;
-            std::random_device rd;
-            std::mt19937 gen(rd());
-            std::uniform_int_distribution<> dis(0, 25);
-            for (size_t i = 0; i < 10; ++i) {
-                random_name += 'a' + dis(gen);
-            }
-            std::string fullname = "/tmp/mxdbg_temp" + random_name + ".bin";
-            class RemoveFileRaii {
-              public:
-                RemoveFileRaii(const std::string &name) : fullname(name) {}
-                ~RemoveFileRaii() {
-                    if (std::filesystem::exists(fullname))
-                        std::filesystem::remove(fullname);
-                }
-
-              private:
-                std::string fullname;
-            };
-
-            std::ofstream temp(fullname, std::ios::binary);
-            temp.write(reinterpret_cast<const char *>(instruction_bytes.data()), instruction_bytes.size());
-            temp.close();
-            RemoveFileRaii remove_file(fullname);
-            std::string cmd = "objdump -D -b binary -m i386:x86-64 " + fullname + " 2>/dev/null";
-            FILE *pipe = popen(cmd.c_str(), "r");
-            if (!pipe) {
-                std::cerr << "Failed to run objdump" << std::endl;
-                return;
-            }
-            char buffer[1024];
-            std::string result;
-            while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-                result += buffer;
-            }
-            pclose(pipe);
-            std::istringstream ss(result);
-            std::string line;
-            std::ostringstream output;
             if (color_)
                 std::cout << Color::RED;
-            while (std::getline(ss, line)) {
-                if (line.find("   0:") != std::string::npos) {
-                    size_t colon_pos = line.find(":");
-                    size_t tab_pos = line.find('\t', colon_pos);
-
-                    if (colon_pos != std::string::npos && tab_pos != std::string::npos) {
-                        std::string hex_part = line.substr(colon_pos + 1, tab_pos - colon_pos - 1);
-                        std::string instr_part = line.substr(tab_pos + 1);
-
-                        std::cout << hex_part << " -> " << instr_part << std::endl;
-                        output << hex_part << " " << instr_part << std::endl;
-                        context.add_instruction(rip, output.str());
-                    } else {
-                        std::cout << line << std::endl;
-                        output << line << std::endl;
-                    }
-                    break;
-                }
-            }
+            std::cout << instruction << std::endl;
             if (color_)
                 std::cout << Color::RESET;
-            if (request) {
-                const std::string request_type = context.has_active_crash()
-                    ? "CRASH ANALYSIS"
-                    : "RUNTIME ANALYSIS";
-                request->setPrompt(
-                    std::string(ai_analysis_instructions) +
-                    "\n\nREQUEST TYPE: " + request_type +
-                    "\nUSER DIFFICULTY LEVEL: " + user_mode +
-                    "\nExplain the current instruction in one or two sentences using only the supplied evidence.\n\n"
-                    "CURRENT DEBUGGER STATE\n" + render_current_debugger_state() +
-                    "\nCURRENT CRASH AND SESSION CONTEXT\n" + context.render() +
-                    "\nCURRENT INSTRUCTION\n" + output.str());
-            }
-            std::filesystem::remove(fullname);
+            context.add_instruction(rip, instruction);
+            return instruction;
 
         } catch (const std::exception &e) {
             std::cerr << "Error reading current instruction: " << e.what() << std::endl;
+            return {};
         }
     }
 

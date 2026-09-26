@@ -1130,7 +1130,13 @@ namespace mx {
 
     uint8_t Process::get_original_instruction(uint64_t address) const {
         auto it = breakpoints.find(address);
-        return (it != breakpoints.end()) ? it->second : 0;
+        if (it != breakpoints.end()) {
+            return it->second;
+        }
+        auto conditional = conditional_breakpoints.find(address);
+        return (conditional != conditional_breakpoints.end())
+            ? conditional->second.original_byte
+            : 0;
     }
 
     void Process::handle_breakpoint_continue(uint64_t address) {

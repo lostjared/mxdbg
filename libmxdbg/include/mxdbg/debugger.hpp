@@ -81,7 +81,8 @@ namespace mx {
         void run_until(uint64_t address);
 
       private:
-        void print_current_instruction();
+        std::string print_current_instruction();
+        [[nodiscard]] std::string current_instruction_text(uint64_t rip) const;
         std::unique_ptr<Process> process;
         std::string_view args;
         pid_t p_id = -1;

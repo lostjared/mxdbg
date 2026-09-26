@@ -67,9 +67,9 @@ namespace mx {
         }
     }
 
-    std::string DebugContext::render() const {
+    std::string DebugContext::render_evidence() const {
         std::ostringstream output;
-        output << "DEBUG SESSION CONTEXT\n";
+        output << "DEBUG SESSION EVIDENCE\n";
         if (!crash_report_.empty()) {
             output << "\nCRASH SNAPSHOT (highest priority)\n"
                    << crash_report_ << "\n";
@@ -85,6 +85,22 @@ namespace mx {
         if (omitted_instructions_ != 0) {
             output << "[" << omitted_instructions_ << " older instruction(s) omitted]\n";
         }
+        std::string rendered = output.str();
+        if (rendered.size() > limit_) {
+            rendered.resize(limit_);
+        }
+        return rendered;
+    }
+
+    std::string DebugContext::render() const {
+        std::string evidence = render_evidence();
+        static constexpr std::string_view evidence_header = "DEBUG SESSION EVIDENCE";
+        static constexpr std::string_view context_header = "DEBUG SESSION CONTEXT";
+        if (evidence.starts_with(evidence_header)) {
+            evidence.replace(0, evidence_header.size(), context_header);
+        }
+        std::ostringstream output;
+        output << evidence;
         if (!insights_.empty()) {
             output << "\nPRIOR AI INSIGHTS\n";
             for (const auto& insight : insights_) output << insight << "\n";

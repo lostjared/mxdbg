@@ -20,6 +20,11 @@ int main() {
 
     context.add_insight("analysis", std::string(2000, 'y'));
     assert(context.render().find("SIGSEGV at 0xDEADBEEF") != std::string::npos);
+    context.add_insight("analysis", "brief model output");
+    assert(context.render().find("PRIOR AI INSIGHTS") != std::string::npos);
+    assert(context.render_evidence().find("SIGSEGV at 0xDEADBEEF") != std::string::npos);
+    assert(context.render_evidence().find("PRIOR AI INSIGHTS") == std::string::npos);
+    assert(context.render_evidence().find("brief model output") == std::string::npos);
 
     context.clear();
     assert(context.size() == 0);
@@ -30,4 +35,5 @@ int main() {
     context.clear_crash();
     assert(!context.has_active_crash());
     assert(context.render().find("SIGSEGV") == std::string::npos);
+    assert(context.render_evidence().find("SIGSEGV") == std::string::npos);
 }

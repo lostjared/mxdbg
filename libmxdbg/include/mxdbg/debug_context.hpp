@@ -19,6 +19,7 @@ namespace mx {
         void clear_crash();
 
         [[nodiscard]] std::string render() const;
+        [[nodiscard]] std::string render_evidence() const;
         [[nodiscard]] bool has_active_crash() const { return !crash_report_.empty(); }
         [[nodiscard]] std::size_t size() const;
         [[nodiscard]] std::size_t limit() const { return limit_; }
