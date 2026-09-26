@@ -30,7 +30,9 @@
 
 namespace mx {
 
-    Process::Process(Process &&proc) : m_pid(proc.m_pid), current_thread_id(proc.current_thread_id), index_(proc.index_) {
+    Process::Process(Process &&proc)
+        : m_pid(proc.m_pid), current_thread_id(proc.current_thread_id), index_(proc.index_),
+          last_stop_(proc.last_stop_), stop_sequence_(proc.stop_sequence_) {
         proc.m_pid = -1;
         proc.current_thread_id = -1;
         proc.index_ = 0;
@@ -41,6 +43,8 @@ namespace mx {
             m_pid = other.m_pid;
             current_thread_id = other.current_thread_id;
             index_ = other.index_;
+            last_stop_ = other.last_stop_;
+            stop_sequence_ = other.stop_sequence_;
             other.m_pid = -1;
             other.current_thread_id = -1;
             other.index_ = 0;
@@ -298,12 +302,18 @@ namespace mx {
         int status;
         pid_t waited_pid;
 
+        last_stop_ = {};
+        last_stop_.sequence = ++stop_sequence_;
+
         while (true) {
             if ((waited_pid = waitpid(-1, &status, __WALL)) == -1) {
                 throw mx::Exception::error("Failed to wait for process");
             }
 
             if (WIFEXITED(status)) {
+                last_stop_.kind = StopKind::Exited;
+                last_stop_.thread_id = waited_pid;
+                last_stop_.exit_code = WEXITSTATUS(status);
                 std::cout << "Process/Thread " << waited_pid << " exited with code: "
                           << WEXITSTATUS(status) << std::endl;
 
@@ -316,6 +326,9 @@ namespace mx {
             }
 
             if (WIFSIGNALED(status)) {
+                last_stop_.kind = StopKind::TerminatedBySignal;
+                last_stop_.thread_id = waited_pid;
+                last_stop_.signal = WTERMSIG(status);
                 std::cout << "Process/Thread " << waited_pid << " killed by signal: "
                           << format_signal(WTERMSIG(status)) << std::endl;
 
@@ -419,6 +432,9 @@ namespace mx {
                                 continue;
                             } else {
                                 handle_conditional_breakpoint_continue(pc, false);
+                                last_stop_.kind = StopKind::Breakpoint;
+                                last_stop_.thread_id = current_thread_id;
+                                last_stop_.signal = SIGTRAP;
                                 std::cout << "=== CONDITIONAL BREAKPOINT HIT ===" << std::endl;
                                 std::cout << "Thread: " << current_thread_id << std::endl;
                                 std::cout << "Address: " << format_hex64(pc) << std::endl;
@@ -429,6 +445,9 @@ namespace mx {
                     }
 
                     if (breakpoints.find(pc) != breakpoints.end()) {
+                        last_stop_.kind = StopKind::Breakpoint;
+                        last_stop_.thread_id = current_thread_id;
+                        last_stop_.signal = SIGTRAP;
                         std::cout << "=== BREAKPOINT HIT ===" << std::endl;
                         std::cout << "Thread: " << current_thread_id << std::endl;
                         std::cout << "Address: " << format_hex64(pc) << std::endl;
@@ -436,6 +455,9 @@ namespace mx {
                     }
 
                     else if (breakpoints.find(pc - 1) != breakpoints.end()) {
+                        last_stop_.kind = StopKind::Breakpoint;
+                        last_stop_.thread_id = current_thread_id;
+                        last_stop_.signal = SIGTRAP;
                         std::cout << "=== BREAKPOINT HIT ===" << std::endl;
                         std::cout << "Thread: " << current_thread_id << std::endl;
                         std::cout << "Address: " << format_hex64(pc - 1) << std::endl;
@@ -447,6 +469,9 @@ namespace mx {
                     if ((dr6 = ptrace(PTRACE_PEEKUSER, current_thread_id,
                                       offsetof(user, u_debugreg[6]), nullptr)) != -1) {
                         if (dr6 & 0xF) {
+                            last_stop_.kind = StopKind::Watchpoint;
+                            last_stop_.thread_id = current_thread_id;
+                            last_stop_.signal = SIGTRAP;
                             std::cout << "=== WATCHPOINT HIT ===" << std::endl;
                             std::cout << "Address: " << format_hex64(get_pc()) << std::endl;
                             ptrace(PTRACE_POKEUSER, current_thread_id,
@@ -457,11 +482,19 @@ namespace mx {
                     }
 
                     std::cout << "SIGTRAP received (not breakpoint/watchpoint)" << std::endl;
+                    last_stop_.kind = StopKind::Trap;
+                    last_stop_.thread_id = current_thread_id;
+                    last_stop_.signal = SIGTRAP;
                     return;
                 }
 
                 else if (signal == SIGINT || signal == SIGTERM || signal == SIGSEGV ||
-                         signal == SIGFPE || signal == SIGILL || signal == SIGABRT) {
+                         signal == SIGFPE || signal == SIGILL || signal == SIGABRT ||
+                         signal == SIGBUS) {
+                    current_thread_id = waited_pid;
+                    last_stop_.kind = StopKind::SignalStop;
+                    last_stop_.thread_id = waited_pid;
+                    last_stop_.signal = signal;
                     std::cout << "=== PROGRAM STOPPED BY SIGNAL ===" << std::endl;
                     std::cout << "Thread: " << current_thread_id << std::endl;
                     std::cout << "Signal: " << format_signal(signal) << std::endl;
@@ -640,11 +673,36 @@ namespace mx {
 
     void Process::wait_for_single_step() {
         int status;
+        last_stop_ = {};
+        last_stop_.sequence = ++stop_sequence_;
         if (waitpid(current_thread_id, &status, 0) == -1) {
             throw mx::Exception::error("Failed to wait for single step");
         }
 
-        if (is_single_stepping) {
+        last_stop_.thread_id = current_thread_id;
+        if (WIFEXITED(status)) {
+            last_stop_.kind = StopKind::Exited;
+            last_stop_.exit_code = WEXITSTATUS(status);
+            exited_ = true;
+            is_single_stepping = false;
+            return;
+        }
+        if (WIFSIGNALED(status)) {
+            last_stop_.kind = StopKind::TerminatedBySignal;
+            last_stop_.signal = WTERMSIG(status);
+            exited_ = true;
+            is_single_stepping = false;
+            return;
+        }
+        if (WIFSTOPPED(status)) {
+            last_stop_.signal = WSTOPSIG(status);
+            last_stop_.kind = last_stop_.signal == SIGTRAP ? StopKind::Trap : StopKind::SignalStop;
+            if (last_stop_.signal != SIGTRAP) {
+                is_single_stepping = false;
+            }
+        }
+
+        if (is_single_stepping && last_stop_.signal == SIGTRAP) {
             uint64_t prev_pc = get_pc() - 1;
             auto it = breakpoints.find(prev_pc);
             if (it != breakpoints.end()) {
@@ -654,6 +712,17 @@ namespace mx {
             }
             is_single_stepping = false;
         }
+    }
+
+    std::optional<SignalInfo> Process::get_signal_info() const {
+        siginfo_t info{};
+        if (ptrace(PTRACE_GETSIGINFO, current_thread_id, nullptr, &info) == -1) {
+            return std::nullopt;
+        }
+        return SignalInfo{
+            .code = info.si_code,
+            .fault_address = static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(info.si_addr))
+        };
     }
 
     void Process::set_pc(uint64_t address) {

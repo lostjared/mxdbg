@@ -7,9 +7,11 @@
 #define MXDBG_PROCESS_HPP
 
 #include <filesystem>
+#include <cstdint>
 #include <linux/elf.h>
 #include <map>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <sys/types.h>
@@ -19,6 +21,29 @@
 #include <vector>
 
 namespace mx {
+
+    enum class StopKind {
+        None,
+        Exited,
+        TerminatedBySignal,
+        SignalStop,
+        Breakpoint,
+        Watchpoint,
+        Trap
+    };
+
+    struct StopInfo {
+        StopKind kind = StopKind::None;
+        pid_t thread_id = -1;
+        int signal = 0;
+        int exit_code = 0;
+        std::uint64_t sequence = 0;
+    };
+
+    struct SignalInfo {
+        int code = 0;
+        std::uint64_t fault_address = 0;
+    };
 
     enum class WatchType {
         READ = 1,
@@ -97,6 +122,8 @@ namespace mx {
         [[nodiscard]] std::string disassemble_instruction(uint64_t address, const std::vector<uint8_t> &bytes);
         void switch_to_thread(pid_t id);
         [[nodiscard]] pid_t get_current_thread() const;
+        [[nodiscard]] const StopInfo& get_last_stop() const { return last_stop_; }
+        [[nodiscard]] std::optional<SignalInfo> get_signal_info() const;
         [[nodiscard]] std::vector<pid_t> get_thread_ids() const;
         [[nodiscard]] bool is_valid_thread(pid_t tid) const;
         void handle_thread_breakpoint_continue(uint64_t address);
@@ -127,6 +154,8 @@ namespace mx {
         std::vector<Watchpoint> watchpoints_;
         bool exited_ = false;
         mutable uint64_t skip_next_breakpoint = 0;
+        StopInfo last_stop_;
+        std::uint64_t stop_sequence_ = 0;
     };
 
 } // namespace mx

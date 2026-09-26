@@ -267,7 +267,7 @@ Once in the debugger shell (`mx $>`), you can use:
 | **AI Features** | | |
 | `explain <function>` | | Explain function disassembly with AI |
 | `ask <question>` | | Ask the AI a question about the program |
-| `context` | | Show the bounded, structured AI debugging context |
+| `context` | | Show bounded debugging context, including the latest crash snapshot |
 | `context clear` | | Clear the AI debugging context |
 | `mode <level>` | `user <level>` | Set AI difficulty (beginner/programmer/expert) |
 | **File Information** | | |
@@ -287,6 +287,9 @@ When `MXDBG_MODEL` and the selected provider's required variables are set, the d
 - Provide AI explanations when stepping through code
 - Analyze disassembly output with the `explain` command
 - Offer context-aware debugging assistance with the ask command
+- Preserve fatal-signal details, registers, the faulting instruction, stack data,
+  backtrace frames, and relevant mappings for subsequent `context`, `ask`, and
+  `explain` commands
 
 Example AI integration:
 ```bash

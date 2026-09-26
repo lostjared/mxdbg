@@ -82,12 +82,16 @@ namespace mx {
         std::string_view args_string;
         std::unique_ptr<mx::ObjectRequest> request;
         std::string ai_configuration_error;
+        std::uint64_t captured_stop_sequence = 0;
         [[nodiscard]] std::string obj_dump();
         std::string user_mode = "programmer";
         DebugContext context;
 
         [[nodiscard]] std::string functionText(const std::string &text);
         void print_backtrace() const;
+        void wait_for_process_stop();
+        void wait_for_single_step();
+        void capture_crash_context();
         [[nodiscard]] std::vector<uint64_t> get_stack_frames() const;
         [[nodiscard]] std::string resolve_symbol(uint64_t address) const;
         [[nodiscard]] bool is_at_function_entry() const;

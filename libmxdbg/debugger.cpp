@@ -8,6 +8,7 @@
 #include "mxdbg/expr.hpp"
 #include <algorithm>
 #include <climits>
+#include <csignal>
 #include <cstdlib>
 #include <fcntl.h>
 #include <filesystem>
@@ -38,6 +39,11 @@ namespace {
             std::cerr << "Ignoring invalid MXDBG_CONTEXT_SIZE='" << value << "'.\n";
             return default_limit;
         }
+    }
+
+    bool is_crash_signal(int signal) {
+        return signal == SIGSEGV || signal == SIGABRT || signal == SIGBUS ||
+               signal == SIGILL || signal == SIGFPE;
     }
 }
 
@@ -91,6 +97,7 @@ namespace mx {
     }
     bool Debugger::attach(pid_t pid) {
         context.clear();
+        captured_stop_sequence = 0;
         try {
             process = Process::attach(pid);
             if (!process) {
@@ -109,6 +116,7 @@ namespace mx {
     bool Debugger::launch(const std::filesystem::path &exe, std::string_view args) {
         args_string = args;
         context.clear();
+        captured_stop_sequence = 0;
         try {
             std::vector<std::string> args_v;
             if (!args.empty()) {
@@ -336,7 +344,7 @@ namespace mx {
     void Debugger::wait_for_stop() {
         if (process) {
             try {
-                process->wait_for_stop();
+                wait_for_process_stop();
                 std::cout << "Process stopped." << std::endl;
             } catch (const std::exception &e) {
                 std::cerr << "Error waiting for process: " << e.what() << std::endl;
@@ -344,6 +352,168 @@ namespace mx {
         } else {
             std::cerr << "No process attached or launched." << std::endl;
         }
+    }
+
+    void Debugger::wait_for_process_stop() {
+        process->wait_for_stop();
+        capture_crash_context();
+    }
+
+    void Debugger::wait_for_single_step() {
+        process->wait_for_single_step();
+        capture_crash_context();
+    }
+
+    void Debugger::capture_crash_context() {
+        if (!process) return;
+        const StopInfo& stop = process->get_last_stop();
+        if (stop.sequence == captured_stop_sequence || !is_crash_signal(stop.signal)) return;
+        captured_stop_sequence = stop.sequence;
+
+        std::ostringstream report;
+        report << "Signal: " << format_signal(stop.signal) << "\n"
+               << "PID: " << process->get_pid() << "\n"
+               << "TID: " << stop.thread_id << "\n";
+        if (!program_name.empty()) report << "Executable: " << program_name << "\n";
+        if (!args_string.empty()) report << "Arguments: " << args_string << "\n";
+
+        if (stop.kind == StopKind::TerminatedBySignal) {
+            report << "The process terminated before registers and memory could be captured.\n";
+        } else {
+            if (const auto signal_info = process->get_signal_info()) {
+                report << "Signal code: " << signal_info->code << "\n";
+                if (stop.signal == SIGSEGV || stop.signal == SIGBUS ||
+                    stop.signal == SIGILL || stop.signal == SIGFPE) {
+                    report << "Fault address: "
+                           << format_hex64(signal_info->fault_address) << "\n";
+                }
+            }
+
+            try {
+                report << "Threads:";
+                for (const pid_t thread : process->get_thread_ids()) {
+                    report << " " << thread;
+                }
+                report << "\n";
+            } catch (const std::exception& error) {
+                report << "Thread capture error: " << error.what() << "\n";
+            }
+
+            const auto breakpoints = process->get_breakpoints();
+            if (!breakpoints.empty()) {
+                report << "Active breakpoints:";
+                for (const auto& breakpoint : breakpoints) {
+                    report << " " << format_hex64(breakpoint.first);
+                }
+                report << "\n";
+            }
+
+            const auto watchpoints = process->get_watchpoints();
+            if (!watchpoints.empty()) {
+                report << "Active watchpoints:";
+                for (const auto& watchpoint : watchpoints) {
+                    report << " " << format_hex64(watchpoint.address)
+                           << "/" << watchpoint.size;
+                }
+                report << "\n";
+            }
+
+            std::uint64_t rip = 0;
+            std::uint64_t rsp = 0;
+            try {
+                rip = process->get_register("rip");
+                rsp = process->get_register("rsp");
+                report << "RIP: " << format_hex64(rip) << " (" << resolve_symbol(rip) << ")\n"
+                       << "RSP: " << format_hex64(rsp) << "\n";
+
+                const auto bytes = process->read_memory(rip, 15);
+                report << "Faulting instruction: "
+                       << process->disassemble_instruction(rip, bytes) << "\n";
+            } catch (const std::exception& error) {
+                report << "Instruction capture error: " << error.what() << "\n";
+            }
+
+            try {
+                report << "\nRegisters:\n" << process->reg_info();
+            } catch (const std::exception& error) {
+                report << "Register capture error: " << error.what() << "\n";
+            }
+
+            if (rsp != 0) {
+                try {
+                    report << "\nStack memory (128 bytes from RSP):\n"
+                           << process->hex_dump(rsp, 128);
+                } catch (const std::exception& error) {
+                    report << "Stack capture error: " << error.what() << "\n";
+                }
+            }
+
+            try {
+                const auto frames = get_stack_frames();
+                report << "\nBacktrace:\n";
+                for (std::size_t index = 0; index < frames.size(); ++index) {
+                    std::string frame_mapping;
+                    std::ifstream maps("/proc/" + std::to_string(process->get_pid()) + "/maps");
+                    std::string map_line;
+                    while (std::getline(maps, map_line)) {
+                        std::istringstream fields(map_line);
+                        std::string range;
+                        fields >> range;
+                        const auto separator = range.find('-');
+                        if (separator == std::string::npos) continue;
+                        const auto start = std::stoull(range.substr(0, separator), nullptr, 16);
+                        const auto end = std::stoull(range.substr(separator + 1), nullptr, 16);
+                        if (frames[index] >= start && frames[index] < end) {
+                            frame_mapping = map_line;
+                            break;
+                        }
+                    }
+                    const bool belongs_to_program = !program_name.empty() &&
+                                                    frame_mapping.find(program_name) != std::string::npos;
+                    report << "#" << index << " " << format_hex64(frames[index])
+                           << " in ";
+                    if (belongs_to_program) {
+                        report << resolve_symbol(frames[index]);
+                    } else if (!frame_mapping.empty()) {
+                        report << "external mapping: " << frame_mapping;
+                    } else {
+                        report << "<unknown>";
+                    }
+                    report << "\n";
+                }
+            } catch (const std::exception& error) {
+                report << "Backtrace capture error: " << error.what() << "\n";
+            }
+
+            try {
+                std::ifstream maps("/proc/" + std::to_string(process->get_pid()) + "/maps");
+                std::string line;
+                report << "\nRelevant memory mappings:\n";
+                while (std::getline(maps, line)) {
+                    std::istringstream fields(line);
+                    std::string range;
+                    fields >> range;
+                    const auto separator = range.find('-');
+                    if (separator == std::string::npos) continue;
+                    const auto start = std::stoull(range.substr(0, separator), nullptr, 16);
+                    const auto end = std::stoull(range.substr(separator + 1), nullptr, 16);
+                    const auto contains = [start, end](std::uint64_t address) {
+                        return address >= start && address < end;
+                    };
+                    const auto signal_info = process->get_signal_info();
+                    if (contains(rip) || contains(rsp) ||
+                        (signal_info && contains(signal_info->fault_address))) {
+                        report << line << "\n";
+                    }
+                }
+            } catch (const std::exception& error) {
+                report << "Memory map capture error: " << error.what() << "\n";
+            }
+        }
+
+        context.add_crash(report.str());
+        context.add_event("Crash context captured for " + format_signal(stop.signal));
+        std::cout << "Crash context captured. Use 'context' to inspect it or 'ask' for analysis.\n";
     }
 
     pid_t Debugger::get_pid() const {
@@ -760,7 +930,7 @@ namespace mx {
                         return true;
                     }
                     process->continue_execution();
-                    process->wait_for_stop();
+                    wait_for_process_stop();
                 } catch (const mx::Exception &e) {
                     std::cerr << "Error running process: " << e.what() << std::endl;
                 }
@@ -828,7 +998,7 @@ namespace mx {
                         ptrace(PTRACE_POKEDATA, process->get_current_thread(), current_pc, data_with_int3);
                     }
                     process->continue_execution();
-                    process->wait_for_stop();
+                    wait_for_process_stop();
                 } catch (const std::exception &e) {
                     std::cerr << "Error during continue: " << e.what() << std::endl;
                 }
@@ -982,7 +1152,9 @@ namespace mx {
                 std::cout << "Requesting explanation from model..." << std::endl;
                 std::cout << "This may take a while, please wait..." << std::endl;
                 std::string prompt = "Explain this x86-64 assembly function '" + function_name +
-                                     "' step by step in plain English What does it do? Be concise but thorough for the user at their level of: " + user_mode + ":\n\n" + function_code + " \n\n";
+                                     "' step by step in plain English. Relate it to any crash snapshot in the debugging context. "
+                                     "Be concise but thorough for the user at their level of: " + user_mode + ":\n\n" +
+                                     context.render() + "\nFUNCTION DISASSEMBLY\n" + function_code + "\n";
                 request->setPrompt(prompt);
                 try {
                     if (color_)
@@ -1404,7 +1576,7 @@ namespace mx {
         try {
             print_current_instruction();
             process->single_step();
-            process->wait_for_single_step();
+            wait_for_single_step();
             std::cout << "Step completed." << std::endl;
             if (request) {
                 try {
@@ -1435,7 +1607,7 @@ namespace mx {
             try {
                 print_current_instruction();
                 process->single_step();
-                process->wait_for_single_step();
+                wait_for_single_step();
             } catch (const std::exception &e) {
                 std::cerr << "Error during step " << (i + 1) << ": " << e.what() << std::endl;
                 break;
@@ -1525,7 +1697,10 @@ namespace mx {
             if (color_)
                 std::cout << Color::RESET;
             if (request) {
-                request->setPrompt("Explain this elf64-x86-64 instruction in one or two sentences for the user at the level of " + user_mode + ": " + output.str());
+                request->setPrompt(
+                    "Explain this elf64-x86-64 instruction in one or two sentences for the user at the level of " +
+                    user_mode + ". Use the crash snapshot when relevant.\n\n" + context.render() +
+                    "\nCURRENT INSTRUCTION\n" + output.str());
             }
             std::filesystem::remove(fullname);
 
@@ -2550,13 +2725,13 @@ namespace mx {
                 if (color_)
                     std::cout << Color::RESET;
                 process->continue_execution();
-                process->wait_for_stop();
+                wait_for_process_stop();
                 process->remove_breakpoint(return_address);
                 std::cout << "Step over completed." << std::endl;
             } else {
                 print_current_instruction();
                 process->single_step();
-                process->wait_for_single_step();
+                wait_for_single_step();
                 std::cout << "Step completed." << std::endl;
             }
 
@@ -2649,7 +2824,7 @@ namespace mx {
             if (color_)
                 std::cout << Color::RESET;
             process->continue_execution();
-            process->wait_for_stop();
+            wait_for_process_stop();
             process->remove_breakpoint(return_address);
             std::cout << "Step out completed." << std::endl;
 
@@ -2687,7 +2862,7 @@ namespace mx {
             if (color_)
                 std::cout << Color::RESET;
             process->continue_execution();
-            process->wait_for_stop();
+            wait_for_process_stop();
             uint64_t final_rip = process->get_register("rip");
             if (final_rip == address) {
                 if (color_)
