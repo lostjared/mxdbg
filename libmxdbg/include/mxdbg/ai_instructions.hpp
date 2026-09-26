@@ -651,6 +651,29 @@ explain the condition and both paths when important.
 
 Do not assume fall-through or branch-taken behavior during static analysis.
 
+When the later data flow establishes a local variable's role, do not list
+multiple speculative roles.
+
+For example:
+
+    movq $0,-0x10(%rbp)
+    ...
+    call fread
+    mov %rax,-0x10(%rbp)
+    cmpq $0,-0x10(%rbp)
+
+establishes that -0x10(%rbp) stores the return value of fread.
+
+Correct:
+
+    "-0x10(%rbp) stores the return value of fread."
+
+Incorrect:
+
+    "-0x10(%rbp) is a loop counter or fread return value."
+
+Do not preserve an earlier guess after later instructions establish the role.
+
 # LOOPS
 
 Explain loop structure when supported by control flow.
@@ -1574,6 +1597,158 @@ Correct:
     "The value is converted from seconds to microseconds."
 
 Always verify scale factors numerically.
+
+
+# MANDATORY RESPONSE SELF-CHECK
+
+Before producing the final response, verify every item below against the
+supplied evidence.
+
+1. ARGUMENT COUNT
+
+Remember that argc includes argv[0].
+
+If:
+
+    argc == 3
+
+then there are:
+
+    3 argv entries total
+    2 user-supplied arguments
+
+Do not say "three user arguments."
+
+Prefer:
+
+    "argc must equal 3, meaning the program expects two user-supplied
+    arguments: argv[1] and argv[2]."
+
+2. LOCAL VARIABLE ROLES
+
+Do not assign a role to a local variable based only on initialization.
+
+Trace its later uses.
+
+If:
+
+    movq $0,-0x10(%rbp)
+    ...
+    call fread
+    mov %rax,-0x10(%rbp)
+    cmpq $0,-0x10(%rbp)
+
+then:
+
+    -0x10(%rbp) stores the return value of fread
+
+It is NOT a loop counter.
+
+If later evidence establishes a variable's role, discard earlier speculative
+interpretations.
+
+3. UNIT CONVERSION
+
+If:
+
+    argv[2] -> atoi -> integer
+    integer * 1000 -> usleep
+
+then describe the flow precisely:
+
+    argv[2] is parsed as an integer
+    the integer represents milliseconds
+    it is multiplied by 1000
+    the resulting microseconds are passed to usleep
+
+Do not say atoi "converts the value to milliseconds."
+
+atoi converts a string to an integer.
+
+4. FREAD TERMINATION
+
+If fread returns zero and the program does not inspect feof/ferror:
+
+    zero may mean EOF or read failure
+
+Do not claim that EOF specifically occurred.
+
+Do not say:
+
+    "after reading all bytes"
+
+Prefer:
+
+    "when fread returns zero."
+
+5. PROCESS SUCCESS VS RETURN VALUE
+
+Do not describe a return value of 0 as proof that every preceding operation
+succeeded.
+
+If a read failure follows the same path as EOF and eventually returns 0,
+say:
+
+    "After fread returns zero, the file is closed and main returns 0."
+
+Do not say:
+
+    "main returns 0 on successful completion"
+
+unless the control flow proves that failures cannot reach that return.
+
+6. STANDARD I/O
+
+Verify output stream semantics:
+
+    printf(...) -> stdout
+    fprintf(stderr, ...) -> stderr
+
+Do not claim printf writes to stderr.
+
+7. STACK CANARY
+
+Describe stack-protector behavior as:
+
+    save canary on entry
+    compare saved canary before return
+    call __stack_chk_fail if comparison fails
+
+Do not say the canary is restored.
+
+8. INTERNAL CONSISTENCY
+
+Before responding, compare the Overview, Arguments, Behavior, Control Flow,
+and Summary sections.
+
+Do not allow them to contradict each other.
+
+For example, do not say:
+
+    "expects exactly three command-line arguments"
+
+in one section and:
+
+    "expects two user-supplied arguments"
+
+in another without explaining that argc includes argv[0].
+
+9. STATIC VS RUNTIME
+
+For a static explanation, all paths remain possible unless runtime evidence
+proves otherwise.
+
+Do not convert possible branches into claims about what actually happened.
+
+10. FINAL EVIDENCE CHECK
+
+For every semantic claim, ask:
+
+    "What supplied instruction, ABI rule, symbol, or library semantic
+    proves this?"
+
+If no evidence supports the claim, weaken it or remove it.
+
 
 # FINAL RULE
 
