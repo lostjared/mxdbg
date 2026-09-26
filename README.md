@@ -42,23 +42,40 @@ A modern C++ debugger built with ptrace that integrates with Ollama, OpenAI, or 
 The project requires the `ollama_gen` library for AI integration. Install it by building from source. https://github.com/lostjared/ollama_gen
 
 
-## Environment Setup
+## Connecting an AI Provider
 
-### Environment Variables
-
-Select the provider with `MXDBG_PROVIDER` and its model with `MXDBG_MODEL`.
+mxdbg reads its AI configuration from environment variables. Set
+`MXDBG_PROVIDER` to `ollama`, `openai`, or `anthropic`, and set
+`MXDBG_MODEL` to a model identifier supported by that provider.
 `MXDBG_PROVIDER` defaults to `ollama` for backward compatibility.
 
-For Ollama:
+Environment variables set with `export` apply to the current shell and programs
+started from it. Add them to your shell profile if you want them available in
+future terminal sessions. Do not commit API keys to this repository.
+
+### Connect to Ollama
+
+Start Ollama and make sure the selected model is installed:
+
+```bash
+ollama serve
+ollama pull llama2
+```
+
+In another terminal, configure mxdbg:
 
 ```bash
 export MXDBG_PROVIDER="ollama"
 export MXDBG_HOST="localhost"     # Optional; defaults to localhost
 export MXDBG_MODEL="llama2"
-export MXDBG_CONTEXT_SIZE="32768" # Optional AI context budget in characters (4 KiB-1 MiB)
 ```
 
-For OpenAI:
+`MXDBG_HOST` may include a port, for example `192.168.1.50:11434`.
+
+### Connect to OpenAI
+
+Create an API key in the OpenAI dashboard, then export it as
+`OPENAI_API_KEY` along with the provider and model:
 
 ```bash
 export MXDBG_PROVIDER="openai"
@@ -66,7 +83,12 @@ export MXDBG_MODEL="your-openai-model"
 export OPENAI_API_KEY="your_openai_api_key"
 ```
 
-For Anthropic:
+mxdbg reads `OPENAI_API_KEY` automatically and does not accept the key as a
+command-line argument.
+
+### Connect to Anthropic
+
+Create an Anthropic API key, then configure mxdbg with:
 
 ```bash
 export MXDBG_PROVIDER="anthropic"
@@ -74,17 +96,56 @@ export MXDBG_MODEL="your-anthropic-model"
 export ANTHROPIC_API_KEY="your_anthropic_api_key"
 ```
 
-For either cloud provider, `MXDBG_BASE_URL` may optionally override the provider's
-default base URL for a proxy or compatible endpoint. mxdbg validates cloud
-configuration at startup but does not contact the provider until an AI feature
-such as `ask` or `explain` actually needs a response.
+mxdbg reads `ANTHROPIC_API_KEY` automatically and does not accept the key as a
+command-line argument.
 
-### Setting up Ollama
+### Optional settings
 
-1. Install Ollama on your system
-2. Start the Ollama service: `ollama serve`
-3. Pull a model: `ollama pull llama2` (or your preferred model)
-4. Set the environment variables as shown above
+The following settings apply when needed:
+
+```bash
+# Override the default OpenAI or Anthropic base URL for a proxy or compatible API.
+export MXDBG_BASE_URL="https://your-proxy.example"
+
+# Set the bounded AI debugging-context budget (4 KiB to 1 MiB).
+export MXDBG_CONTEXT_SIZE="32768"
+```
+
+Leave `MXDBG_BASE_URL` unset to use the provider's standard endpoint. It is not
+used for Ollama; use `MXDBG_HOST` for Ollama instead.
+
+### Start mxdbg and use the provider
+
+Start mxdbg from the same shell where the variables were exported:
+
+```bash
+./build/mxdbg/mxdbg /path/to/program
+```
+
+Then invoke an AI feature from the debugger prompt:
+
+```text
+mx $> ask why did this function crash?
+mx $> explain main
+```
+
+For Ollama, mxdbg checks the configured server during startup. For OpenAI and
+Anthropic, startup only validates the configuration; the first provider request
+is made when an AI feature such as `ask` or `explain` needs a response.
+
+To disable AI integration for a run, use:
+
+```bash
+./build/mxdbg/mxdbg --disable-ai /path/to/program
+```
+
+If mxdbg reports that a variable is missing, verify its presence without
+printing the secret itself:
+
+```bash
+test -n "$OPENAI_API_KEY" && echo "OPENAI_API_KEY is set"
+test -n "$ANTHROPIC_API_KEY" && echo "ANTHROPIC_API_KEY is set"
+```
 
 ## Building
 
