@@ -1,6 +1,16 @@
 if(NOT TARGET ollama_gen)
     find_package(ollama_gen REQUIRED)
 endif()
+add_executable(ai_config_test
+    ai_config_test.cpp
+    ../libmxdbg/ai_config.cpp
+)
+target_include_directories(ai_config_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libmxdbg/include
+)
+target_link_libraries(ai_config_test PRIVATE ollama_gen)
+target_compile_features(ai_config_test PRIVATE cxx_std_20)
+
 add_executable(debug_context_test
     debug_context_test.cpp
     ../libmxdbg/debug_context.cpp
@@ -108,6 +118,7 @@ add_test(NAME pipe_write COMMAND pipe_write_test)
 add_test(NAME exception_test_  COMMAND exception_test)
 add_test(NAME register_test COMMAND register_test)
 add_test(NAME debug_context COMMAND debug_context_test)
+add_test(NAME ai_config COMMAND ai_config_test)
 set_tests_properties(process_attach PROPERTIES
     TIMEOUT 5
     PASS_REGULAR_EXPRESSION "Test passed"

@@ -1,4 +1,5 @@
 #include "argz.hpp"
+#include "mxdbg/ai_config.hpp"
 #include "mxdbg/debugger.hpp"
 #include "mxdbg/process.hpp"
 #include "mxdbg/version_info.hpp"
@@ -109,7 +110,7 @@ struct Arguments {
     std::filesystem::path path;
     std::string args_str;
     bool dump_asm = false;
-    bool enable_ollama = true;
+    bool enable_ai = true;
 };
 
 Arguments parse_args(int argc, char **argv) {
@@ -132,7 +133,7 @@ Arguments parse_args(int argc, char **argv) {
         while ((value = parser.proc(arg)) != -1) {
             switch (value) {
             case 'O':
-                args.enable_ollama = false;
+                args.enable_ai = false;
                 break;
             case 'e':
             case 'd':
@@ -182,14 +183,24 @@ Arguments parse_args(int argc, char **argv) {
 int main(int argc, char **argv) {
     std::cout << version_info << std::endl;
     Arguments args = parse_args(argc, argv);
-    if (args.enable_ollama) {
-        const char *mxdbg_host = getenv("MXDBG_HOST");
-        const char *mxdbg_model = getenv("MXDBG_MODEL");
-        if (mxdbg_host != nullptr && mxdbg_model != nullptr && mxdbg_host[0] != '\0' && mxdbg_model[0] != '\0') {
-            show_ollama_connection_progress(mxdbg_host, mxdbg_model);
+    if (args.enable_ai) {
+        std::string configuration_error;
+        const auto configuration = mx::load_ai_configuration(configuration_error);
+        if (!configuration) {
+            std::cerr << "Warning: AI integration is not configured: "
+                      << configuration_error << std::endl;
+        } else if (configuration->provider == mx::Provider::Ollama) {
+            show_ollama_connection_progress(configuration->host, configuration->model);
+        } else {
+            std::cout << "Configured " << configuration->provider_name
+                      << " AI provider (model: " << configuration->model << ")";
+            if (!configuration->host.empty()) {
+                std::cout << " via " << configuration->host;
+            }
+            std::cout << std::endl;
         }
     }
-    mx::Debugger debugger(args.enable_ollama);
+    mx::Debugger debugger(args.enable_ai);
     std::string history_filename;
     try {
         const char *home_folder = getenv("HOME");

@@ -78,14 +78,9 @@ namespace mx {
 
     Debugger::Debugger(bool ai) : p_id(-1), context(context_limit_from_environment()) {
         if (ai) {
-            char *host = getenv("MXDBG_HOST");
-            char *model = getenv("MXDBG_MODEL");
-            if (host != nullptr && model != nullptr) {
-                std::string host_str(host);
-                std::string model_str(model);
-                if (!host_str.empty() && !model_str.empty()) {
-                    request = std::make_unique<mx::ObjectRequest>(host_str, model_str);
-                }
+            const auto configuration = load_ai_configuration(ai_configuration_error);
+            if (configuration) {
+                request = create_ai_request(*configuration);
             }
         }
     }
@@ -103,11 +98,6 @@ namespace mx {
                 return false;
             }
             p_id = process->get_pid();
-            if (request) {
-                request->setPrompt("do not respond to this message");
-                request->generateText();
-                std::cout << "Connection established...\n";
-            }
             std::cout << "Successfully attached to process " << pid << std::endl;
             return true;
         } catch (const std::exception &e) {
@@ -137,11 +127,6 @@ namespace mx {
             p_id = process->get_pid();
             program_name = exe.string();
 
-            if (request) {
-                request->setPrompt("Do not respond to this message");
-                request->generateText();
-                std::cout << "Connection established...\n";
-            }
             std::cout << "Process launched and stopped at entry point." << std::endl;
             return true;
         } catch (const std::exception &e) {
@@ -1092,7 +1077,13 @@ namespace mx {
                 return true;
             }
             if (!request) {
-                std::cerr << "No AI model configured. Set MXDBG_HOST and MXDBG_MODEL environment variables." << std::endl;
+                std::cerr << "No AI model configured";
+                if (!ai_configuration_error.empty()) {
+                    std::cerr << ": " << ai_configuration_error;
+                } else {
+                    std::cerr << ". Set MXDBG_PROVIDER and MXDBG_MODEL";
+                }
+                std::cerr << std::endl;
                 return true;
             }
             std::cout << "Asking AI: ";

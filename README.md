@@ -2,7 +2,7 @@
 
 coded by Jared Bruni (jaredbruni@protonmail.com)
 
-A modern C++ debugger built with ptrace that integrates with Ollama for AI-powered code analysis and explanation.
+A modern C++ debugger built with ptrace that integrates with Ollama, OpenAI, or Anthropic for AI-powered code analysis and explanation.
 
 ![image](https://github.com/user-attachments/assets/149d94fd-6cdd-48f5-9171-ad83a066f26d)
 ![backtrace0x2](https://github.com/user-attachments/assets/6316ef35-e5d0-49b5-8465-148794326468)
@@ -34,7 +34,7 @@ A modern C++ debugger built with ptrace that integrates with Ollama for AI-power
 - **CMake 3.20+**: Build system
 - **C++20 compatible compiler**: GCC 10+ or Clang 10+
 - **readline**: For interactive command line interface
-- **ollama_gen**: AI integration library for Ollama communication
+- **ollama_gen**: AI integration library for Ollama, OpenAI, and Anthropic communication
 - **Standard Linux tools**: objdump, ptrace support
 
 ### Installing ollama_gen
@@ -44,16 +44,40 @@ The project requires the `ollama_gen` library for AI integration. Install it by 
 
 ## Environment Setup
 
-### Required Environment Variables
+### Environment Variables
 
-To use the AI integration features, you must export these environment variables to use with ollama
+Select the provider with `MXDBG_PROVIDER` and its model with `MXDBG_MODEL`.
+`MXDBG_PROVIDER` defaults to `ollama` for backward compatibility.
+
+For Ollama:
 
 ```bash
-export MXDBG_HOST="localhost"     # Your Ollama server URL can included port
-                                  # example 192.168.1.50:1088 op just the ip 192.168.1.50 
-export MXDBG_MODEL="llama2"       # Your preferred Ollama model ex: codellama:7b
+export MXDBG_PROVIDER="ollama"
+export MXDBG_HOST="localhost"     # Optional; defaults to localhost
+export MXDBG_MODEL="llama2"
 export MXDBG_CONTEXT_SIZE="32768" # Optional AI context budget in characters (4 KiB-1 MiB)
 ```
+
+For OpenAI:
+
+```bash
+export MXDBG_PROVIDER="openai"
+export MXDBG_MODEL="your-openai-model"
+export OPENAI_API_KEY="your_openai_api_key"
+```
+
+For Anthropic:
+
+```bash
+export MXDBG_PROVIDER="anthropic"
+export MXDBG_MODEL="your-anthropic-model"
+export ANTHROPIC_API_KEY="your_anthropic_api_key"
+```
+
+For either cloud provider, `MXDBG_BASE_URL` may optionally override the provider's
+default base URL for a proxy or compatible endpoint. mxdbg validates cloud
+configuration at startup but does not contact the provider until an AI feature
+such as `ask` or `explain` actually needs a response.
 
 ### Setting up Ollama
 
@@ -197,7 +221,7 @@ Once in the debugger shell (`mx $>`), you can use:
 
 ## AI Integration
 
-When `MXDBG_HOST` and `MXDBG_MODEL` are set, the debugger will:
+When `MXDBG_MODEL` and the selected provider's required variables are set, the debugger will:
 
 - Provide AI explanations when stepping through code
 - Analyze disassembly output with the `explain` command

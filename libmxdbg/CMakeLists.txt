@@ -1,4 +1,5 @@
 add_library(libmxdbg SHARED
+    ai_config.cpp
     process.cpp 
     pipe.cpp
     debugger.cpp

@@ -6,7 +6,7 @@
     <title>mxdbg - Debugger with AI Integration for Linux ELF x86_64 </title>
     <link rel="stylesheet" href="style.css">
     <meta property="og:title" content="mxdbg - Debugger with AI Integration for Linux ELF x86_64">
-    <meta property="og:description" content="A debugger built with ptrace that integrates with Ollama for AI-powered code analysis and explanation.">
+    <meta property="og:description" content="A debugger built with ptrace that integrates with Ollama, OpenAI, or Anthropic for AI-powered code analysis and explanation.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://lostsidedead.biz/mxdbg">
     <meta property="og:site_name" content="mxdbg - Debugger with AI Integration">
@@ -30,7 +30,7 @@
         <section id="hero" class="hero">
             <div class="container">
                 <h1>Debugger with AI Integration for Linux ELF x86_64 executables</h1>
-                <p class="hero-subtitle">A debugger built with ptrace that integrates with Ollama for AI-powered code analysis and explanation.</p>
+                <p class="hero-subtitle">A debugger built with ptrace that integrates with Ollama, OpenAI, or Anthropic for AI-powered code analysis and explanation.</p>
                 <div class="color-key">
                     <h3>Color Key:</h3>
                     <div class="color-items">
@@ -45,7 +45,7 @@
         <section id="overview" class="section">
             <div class="container">
                 <h2>Project Overview</h2>
-                <p>mxdbg is a debugger that provides comprehensive debugging capabilities for x86_64 Linux systems. Built using ptrace system calls, it offers traditional debugging features enhanced with AI-powered code analysis through Ollama integration.</p>
+                <p>mxdbg is a debugger that provides comprehensive debugging capabilities for x86_64 Linux systems. Built using ptrace system calls, it offers traditional debugging features enhanced with AI-powered code analysis through Ollama, OpenAI, or Anthropic.</p>
                 
                 <div class="warning">
                     <strong>Note:</strong> This project is currently in development. Some features are still being implemented.
@@ -102,15 +102,27 @@
                     <li><strong>CMake 3.20+:</strong> Build system</li>
                     <li><strong>C++20 compatible compiler:</strong> GCC 10+ or Clang 10+</li>
                     <li><strong>readline:</strong> For interactive command line interface</li>
-                    <li><strong>ollama_gen:</strong> AI integration library for Ollama communication</li>
+                    <li><strong>ollama_gen:</strong> AI integration library for Ollama, OpenAI, and Anthropic communication</li>
                     <li><strong>Standard Linux tools:</strong> objdump, ptrace support</li>
                 </ul>
 
                 <h3>Environment Setup</h3>
                 <p>To use AI integration features, export these environment variables:</p>
                 <div class="code-block">
-                    <pre><code>export MXDBG_HOST="localhost"    # Your Ollama server URL
-export MXDBG_MODEL="llama2"      # Your preferred Ollama model</code></pre>
+                    <pre><code># Ollama (the default provider)
+export MXDBG_PROVIDER="ollama"
+export MXDBG_HOST="localhost"
+export MXDBG_MODEL="llama2"
+
+# OpenAI
+export MXDBG_PROVIDER="openai"
+export MXDBG_MODEL="your-openai-model"
+export OPENAI_API_KEY="your_openai_api_key"
+
+# Anthropic
+export MXDBG_PROVIDER="anthropic"
+export MXDBG_MODEL="your-anthropic-model"
+export ANTHROPIC_API_KEY="your_anthropic_api_key"</code></pre>
                 </div>
 
                 <h3>Building</h3>
@@ -516,7 +528,7 @@ mxdbg -d /path/to/binary</code></pre>
         <section id="ai-integration" class="section">
             <div class="container">
                 <h2>AI Integration</h2>
-                <p>When <code>MXDBG_HOST</code> and <code>MXDBG_MODEL</code> are set, the debugger provides:</p>
+                <p>When <code>MXDBG_MODEL</code> and the selected provider's required environment variables are set, the debugger provides:</p>
                 
                 <div class="ai-features">
                     <div class="ai-feature">

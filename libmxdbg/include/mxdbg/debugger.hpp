@@ -8,6 +8,7 @@
 
 #include "mxdbg/process.hpp"
 #include "mxdbg/debug_context.hpp"
+#include "mxdbg/ai_config.hpp"
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
@@ -80,6 +81,7 @@ namespace mx {
         std::string program_name;
         std::string_view args_string;
         std::unique_ptr<mx::ObjectRequest> request;
+        std::string ai_configuration_error;
         [[nodiscard]] std::string obj_dump();
         std::string user_mode = "programmer";
         DebugContext context;
