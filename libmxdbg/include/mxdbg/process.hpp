@@ -119,7 +119,7 @@ namespace mx {
         bool remove_watchpoint(uint64_t address);
         [[nodiscard]] std::vector<Watchpoint> get_watchpoints() const;
         [[nodiscard]] bool has_watchpoint_at(uint64_t address) const;
-        [[nodiscard]] std::string disassemble_instruction(uint64_t address, const std::vector<uint8_t> &bytes);
+        [[nodiscard]] std::string disassemble_instruction(uint64_t address, const std::vector<uint8_t> &bytes) const;
         void switch_to_thread(pid_t id);
         [[nodiscard]] pid_t get_current_thread() const;
         [[nodiscard]] const StopInfo& get_last_stop() const { return last_stop_; }
@@ -154,6 +154,7 @@ namespace mx {
         std::vector<Watchpoint> watchpoints_;
         bool exited_ = false;
         mutable uint64_t skip_next_breakpoint = 0;
+        std::optional<std::pair<uint64_t, uint8_t>> stepped_breakpoint_;
         StopInfo last_stop_;
         std::uint64_t stop_sequence_ = 0;
     };

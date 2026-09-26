@@ -19,6 +19,21 @@ target_include_directories(debug_context_test PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../libmxdbg/include
 )
 target_compile_features(debug_context_test PRIVATE cxx_std_20)
+
+add_executable(step_out_fixture step_out_fixture.c)
+set_target_properties(step_out_fixture PROPERTIES
+    LINK_FLAGS "-no-pie"
+)
+
+add_executable(step_out_test step_out_test.cpp)
+target_include_directories(step_out_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libmxdbg/include
+)
+target_link_libraries(step_out_test PRIVATE
+    libmxdbg
+    ollama_gen
+)
+target_compile_features(step_out_test PRIVATE cxx_std_20)
 add_executable(process_continue_test
     process_continue.cpp
 )
@@ -119,6 +134,7 @@ add_test(NAME exception_test_  COMMAND exception_test)
 add_test(NAME register_test COMMAND register_test)
 add_test(NAME debug_context COMMAND debug_context_test)
 add_test(NAME ai_config COMMAND ai_config_test)
+add_test(NAME step_out COMMAND step_out_test $<TARGET_FILE:step_out_fixture>)
 add_test(NAME cli_help COMMAND $<TARGET_FILE:mxdbg> --help)
 add_test(NAME cli_version COMMAND $<TARGET_FILE:mxdbg> --version)
 set_tests_properties(cli_help PROPERTIES

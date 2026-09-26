@@ -7,6 +7,7 @@
 #include "mxdbg/exception.hpp"
 #include "mxdbg/expr.hpp"
 #include <algorithm>
+#include <cctype>
 #include <climits>
 #include <csignal>
 #include <cstdlib>
@@ -54,6 +55,8 @@ Otherwise explicitly say it is unknown.
 
 NEXT STEP:
 What debugger operation would gather the missing evidence.
+Do not recommend inspecting information already present in CURRENT DEBUGGER STATE.
+Prefer the minimum debugger action needed to obtain missing evidence.
 
 If previous conversation context conflicts with the current debugger state,
 ignore the previous context.
@@ -191,7 +194,7 @@ namespace mx {
         }
     }
 
-    std::string Debugger::obj_dump() {
+    std::string Debugger::obj_dump() const {
         std::ostringstream stream;
         stream << "objdump -d " << program_name;
         std::string command = stream.str();
@@ -658,7 +661,7 @@ namespace mx {
             return true;
         } else if (tokens.size() == 1 && (tokens[0] == "finish" || tokens[0] == "step_out")) {
             if (process && process->is_running()) {
-                step_out();
+                (void)step_out();
             } else {
                 std::cout << "No process running." << std::endl;
             }
@@ -1784,7 +1787,7 @@ namespace mx {
         std::string maps_path = "/proc/" + std::to_string(process->get_pid()) + "/maps";
         maps.open(maps_path, std::ios::in);
         if (!maps.is_open()) {
-            return address >= 0x400000 && address < 0x8000000000000000ULL;
+            return false;
         }
 
         std::string line;
@@ -1904,74 +1907,226 @@ namespace mx {
         }
     }
 
-    std::vector<uint64_t> Debugger::get_stack_frames() const {
-        std::vector<uint64_t> frames;
-
+    std::optional<std::pair<uint64_t, uint64_t>>
+    Debugger::function_range_containing(uint64_t address) const {
         try {
-            uint64_t rbp = process->get_register("rbp");
-            uint64_t rip = process->get_register("rip");
-            uint64_t rsp = process->get_register("rsp");
-            frames.push_back(rip);
-            if (rbp == 0 || rbp < rsp || rbp > 0x7fffffffffff) {
-                std::cout << "Warning: Invalid or uninitialized frame pointer (RBP="
-                          << format_hex64(rbp) << ")" << std::endl;
-                std::cout << "This usually means the function prologue hasn't executed yet." << std::endl;
-                try {
-                    std::vector<uint8_t> ret_data = process->read_memory(rsp, 8);
-                    uint64_t return_address = 0;
-                    std::memcpy(&return_address, ret_data.data(), 8);
-                    if (return_address >= 0x400000 && return_address <= 0x500000) {
-                        frames.push_back(return_address);
-                        std::cout << "Found potential return address on stack: "
-                                  << format_hex64(return_address) << std::endl;
-                    }
-                } catch (const std::exception &e) {
-                    std::cout << "Could not read return address from stack: " << e.what() << std::endl;
-                }
+            uint64_t load_bias = 0;
+            std::ifstream executable(program_name, std::ios::binary);
+            unsigned char header[18]{};
+            executable.read(reinterpret_cast<char*>(header), sizeof(header));
+            const bool is_pie = executable.gcount() == sizeof(header) &&
+                                header[0] == 0x7f && header[1] == 'E' &&
+                                header[2] == 'L' && header[3] == 'F' &&
+                                (static_cast<unsigned>(header[16]) |
+                                 (static_cast<unsigned>(header[17]) << 8)) == 3;
 
-                return frames;
-            }
-
-            uint64_t current_rbp = rbp;
-            const size_t max_frames = 20;
-
-            for (size_t i = 0; i < max_frames && current_rbp != 0; ++i) {
-                try {
-                    if (current_rbp < rsp || current_rbp > 0x7fffffffffff) {
-                        std::cout << "RBP validation failed: " << format_hex64(current_rbp) << std::endl;
-                        break;
-                    }
-
-                    std::vector<uint8_t> rbp_data = process->read_memory(current_rbp, 8);
-                    uint64_t next_rbp = 0;
-                    std::memcpy(&next_rbp, rbp_data.data(), 8);
-
-                    std::vector<uint8_t> ret_data = process->read_memory(current_rbp + 8, 8);
-                    uint64_t return_address = 0;
-                    std::memcpy(&return_address, ret_data.data(), 8);
-
-                    if (!is_valid_code_address(return_address)) {
-                        std::cout << "Return address not in executable memory: " << format_hex64(return_address) << std::endl;
-                        break;
-                    }
-
-                    if (next_rbp != 0 && (next_rbp <= current_rbp || next_rbp > 0x7fffffffffff)) {
-                        std::cout << "Stack frame chain validation failed" << std::endl;
-                        break;
-                    }
-
-                    frames.push_back(return_address);
-                    current_rbp = next_rbp;
-
-                } catch (const std::exception &e) {
-                    std::cout << "Error reading stack frame " << i << ": " << e.what() << std::endl;
+            if (is_pie) {
+                const std::string executable_name =
+                    std::filesystem::absolute(program_name).filename().string();
+                std::ifstream maps("/proc/" + std::to_string(process->get_pid()) + "/maps");
+                std::string line;
+                while (std::getline(maps, line)) {
+                    std::istringstream fields(line);
+                    std::string range, permissions, offset_text, device, inode, path;
+                    fields >> range >> permissions >> offset_text >> device >> inode;
+                    std::getline(fields, path);
+                    if (path.find(executable_name) == std::string::npos) continue;
+                    const auto dash = range.find('-');
+                    if (dash == std::string::npos) continue;
+                    const uint64_t mapping_start = std::stoull(range.substr(0, dash), nullptr, 16);
+                    const uint64_t file_offset = std::stoull(offset_text, nullptr, 16);
+                    load_bias = mapping_start - file_offset;
                     break;
                 }
+            }
+
+            std::vector<uint64_t> starts;
+            std::istringstream disassembly(obj_dump());
+            std::string line;
+            while (std::getline(disassembly, line)) {
+                const auto symbol = line.find('<');
+                if (symbol == std::string::npos || line.find(">:", symbol) == std::string::npos) continue;
+                const auto first = line.find_first_not_of(" \t");
+                const auto end = line.find_first_of(" \t", first);
+                if (first == std::string::npos || end == std::string::npos || end > symbol) continue;
+                try {
+                    starts.push_back(load_bias + std::stoull(line.substr(first, end - first), nullptr, 16));
+                } catch (...) {
+                }
+            }
+            std::sort(starts.begin(), starts.end());
+            starts.erase(std::unique(starts.begin(), starts.end()), starts.end());
+            const auto upper = std::upper_bound(starts.begin(), starts.end(), address);
+            if (upper == starts.begin()) return std::nullopt;
+            const uint64_t start = *std::prev(upper);
+            uint64_t end = upper == starts.end() ? start + 1 : *upper;
+            if (upper == starts.end()) {
+                std::ifstream maps("/proc/" + std::to_string(process->get_pid()) + "/maps");
+                while (std::getline(maps, line)) {
+                    std::istringstream fields(line);
+                    std::string range;
+                    fields >> range;
+                    const auto dash = range.find('-');
+                    if (dash == std::string::npos) continue;
+                    try {
+                        const uint64_t mapping_start =
+                            std::stoull(range.substr(0, dash), nullptr, 16);
+                        const uint64_t mapping_end =
+                            std::stoull(range.substr(dash + 1), nullptr, 16);
+                        if (address >= mapping_start && address < mapping_end) {
+                            end = mapping_end;
+                            break;
+                        }
+                    } catch (...) {
+                    }
+                }
+            }
+            if (address >= start && address < end) return std::make_pair(start, end);
+        } catch (...) {
+        }
+        return std::nullopt;
+    }
+
+    bool Debugger::instruction_before_is_call(uint64_t address) const {
+        auto is_prefix = [](uint8_t byte) {
+            return byte == 0xF0 || byte == 0xF2 || byte == 0xF3 ||
+                   byte == 0x2E || byte == 0x36 || byte == 0x3E ||
+                   byte == 0x26 || byte == 0x64 || byte == 0x65 ||
+                   byte == 0x66 || byte == 0x67 || (byte >= 0x40 && byte <= 0x4F);
+        };
+        auto call_size = [&](std::span<const uint8_t> bytes) -> std::optional<std::size_t> {
+            std::size_t index = 0;
+            while (index < bytes.size() && is_prefix(bytes[index])) {
+                ++index;
+            }
+            if (index >= bytes.size()) return std::nullopt;
+            if (bytes[index] == 0xE8) return index + 5;
+            if (bytes[index] != 0xFF || index + 1 >= bytes.size()) return std::nullopt;
+            const uint8_t modrm = bytes[index + 1];
+            if ((modrm & 0x38) != 0x10) return std::nullopt;
+            std::size_t size = index + 2;
+            const uint8_t mod = modrm >> 6;
+            const uint8_t rm = modrm & 7;
+            if (mod == 3) return size;
+            if (rm == 4) {
+                if (size >= bytes.size()) return std::nullopt;
+                const uint8_t sib = bytes[size++];
+                if (mod == 0 && (sib & 7) == 5) size += 4;
+            } else if (mod == 0 && rm == 5) {
+                size += 4;
+            }
+            if (mod == 1) size += 1;
+            if (mod == 2) size += 4;
+            return size;
+        };
+
+        for (std::size_t length = 2; length <= 15 && address >= length; ++length) {
+            try {
+                auto bytes = process->read_memory(address - length, length);
+                for (const auto& breakpoint : process->get_breakpoints()) {
+                    if (breakpoint.first >= address - length && breakpoint.first < address) {
+                        bytes[breakpoint.first - (address - length)] =
+                            static_cast<uint8_t>(breakpoint.second);
+                    }
+                }
+                const auto decoded_size = call_size(bytes);
+                if (decoded_size && *decoded_size == length) return true;
+            } catch (...) {
+            }
+        }
+        return false;
+    }
+
+    bool Debugger::is_valid_return_address(
+        uint64_t address, uint64_t current_rip,
+        const std::optional<std::pair<uint64_t, uint64_t>>& current_function) const {
+        if (address == 0 || address == current_rip || process->has_breakpoint(address) ||
+            !is_valid_code_address(address)) {
+            return false;
+        }
+        if (current_function && address >= current_function->first &&
+            address < current_function->second) {
+            return false;
+        }
+        return instruction_before_is_call(address);
+    }
+
+    std::optional<Debugger::CallerFrame> Debugger::find_caller_frame(
+        uint64_t rip, uint64_t rbp, uint64_t rsp) const {
+        const auto current_function = function_range_containing(rip);
+        auto read_word = [&](uint64_t address) {
+            const auto bytes = process->read_memory(address, sizeof(uint64_t));
+            uint64_t value = 0;
+            std::memcpy(&value, bytes.data(), sizeof(value));
+            return value;
+        };
+        auto valid_frame_pointer = [](uint64_t frame, uint64_t stack) {
+            return frame >= stack && frame <= 0x00007FFFFFFFFFFFULL &&
+                   frame - stack <= 0x100000 && (frame & 7) == 0;
+        };
+        auto valid_next_frame = [](uint64_t next, uint64_t current) {
+            return next == 0 || (next > current && next <= 0x00007FFFFFFFFFFFULL &&
+                                 next - current <= 0x1000000 && (next & 7) == 0);
+        };
+
+        // Before a function prologue establishes RBP, the ABI return address is at RSP.
+        if (current_function && rip == current_function->first) {
+            try {
+                const uint64_t candidate = read_word(rsp);
+                if (is_valid_return_address(candidate, rip, current_function)) {
+                    return CallerFrame{CallerFrame::Source::StackPointer, candidate, rbp, 0};
+                }
+            } catch (...) {
+            }
+        }
+
+        if (valid_frame_pointer(rbp, rsp)) {
+            try {
+                const uint64_t next_rbp = read_word(rbp);
+                const uint64_t candidate = read_word(rbp + 8);
+                if (valid_next_frame(next_rbp, rbp) &&
+                    is_valid_return_address(candidate, rip, current_function)) {
+                    return CallerFrame{CallerFrame::Source::FramePointer, candidate, next_rbp,
+                                       static_cast<std::size_t>(rbp + 8 - rsp)};
+                }
+            } catch (...) {
+            }
+        }
+
+        constexpr std::size_t scan_words = 64;
+        for (std::size_t index = 0; index < scan_words; ++index) {
+            try {
+                const uint64_t candidate = read_word(rsp + index * 8);
+                if (is_valid_return_address(candidate, rip, current_function)) {
+                    return CallerFrame{CallerFrame::Source::StackScan, candidate, 0, index * 8};
+                }
+            } catch (...) {
+            }
+        }
+        return std::nullopt;
+    }
+
+    std::vector<uint64_t> Debugger::get_stack_frames() const {
+        std::vector<uint64_t> frames;
+        try {
+            uint64_t rip = process->get_register("rip");
+            uint64_t rbp = process->get_register("rbp");
+            uint64_t rsp = process->get_register("rsp");
+            frames.push_back(rip);
+
+            constexpr std::size_t max_frames = 20;
+            for (std::size_t index = 1; index < max_frames; ++index) {
+                const auto caller = find_caller_frame(rip, rbp, rsp);
+                if (!caller) break;
+                frames.push_back(caller->return_address);
+                if (caller->next_frame_pointer == 0) break;
+                rip = caller->return_address;
+                rbp = caller->next_frame_pointer;
+                rsp = rbp;
             }
         } catch (const std::exception &e) {
             std::cerr << "Error walking stack: " << e.what() << std::endl;
         }
-
         return frames;
     }
 
@@ -2774,83 +2929,58 @@ namespace mx {
         }
     }
 
-    void Debugger::step_out() {
+    StepOutResult Debugger::step_out() {
         if (!process || !process->is_running()) {
             std::cerr << "No process attached or running." << std::endl;
-            return;
+            return StepOutResult::Error;
         }
 
+        uint64_t return_address = 0;
+        bool temporary_breakpoint_set = false;
         try {
             uint64_t rip = process->get_register("rip");
             uint64_t rbp = process->get_register("rbp");
             uint64_t rsp = process->get_register("rsp");
 
+            const auto caller = find_caller_frame(rip, rbp, rsp);
+            if (!caller) {
+                std::cout << "Could not find a validated return address. Try 'next' or 'until' instead." << std::endl;
+                return StepOutResult::Error;
+            }
+            return_address = caller->return_address;
+            switch (caller->source) {
+                case CallerFrame::Source::StackPointer:
+                    std::cout << "Using return address from RSP: ";
+                    break;
+                case CallerFrame::Source::FramePointer:
+                    std::cout << "Using return address from RBP+8: ";
+                    break;
+                case CallerFrame::Source::StackScan:
+                    std::cout << "Using validated return address from RSP+"
+                              << caller->stack_offset << ": ";
+                    break;
+            }
+            std::cout << format_hex64(return_address) << std::endl;
+
             if (process->has_breakpoint(rip)) {
                 std::cout << "Currently at breakpoint. Stepping over it first..." << std::endl;
-                uint8_t original_byte = process->get_original_instruction(rip);
-                long data = ptrace(PTRACE_PEEKDATA, process->get_current_thread(), rip, nullptr);
-                long restored = (data & ~0xFF) | original_byte;
-                ptrace(PTRACE_POKEDATA, process->get_current_thread(), rip, restored);
-                ptrace(PTRACE_SINGLESTEP, process->get_current_thread(), nullptr, nullptr);
-                int status;
-                waitpid(process->get_current_thread(), &status, 0);
-
-                data = ptrace(PTRACE_PEEKDATA, process->get_current_thread(), rip, nullptr);
-                long data_with_int3 = (data & ~0xFF) | 0xCC;
-                ptrace(PTRACE_POKEDATA, process->get_current_thread(), rip, data_with_int3);
-
-                rip = process->get_register("rip");
-            }
-
-            if (rip < 0x400000 || rip > 0x500000) {
-                std::cout << "Cannot step out: Process appears to be at entry point or invalid location." << std::endl;
-                std::cout << "Try running the program first with 'run' or 'continue'." << std::endl;
-                return;
-            }
-            uint64_t return_address = 0;
-            if (rbp > 0 && rbp > rsp && rbp < 0x7fffffffffff && (rbp - rsp) <= 0x10000) {
-                try {
-                    std::vector<uint8_t> return_data = process->read_memory(rbp + 8, 8);
-                    std::memcpy(&return_address, return_data.data(), 8);
-
-                    if (return_address >= 0x400000 && return_address < 0x500000 &&
-                        is_valid_code_address(return_address)) {
-                        std::cout << "Using return address from RBP+8: " << format_hex64(return_address) << std::endl;
-                    }
-                } catch (...) {
-                    return_address = 0;
+                process->single_step();
+                wait_for_single_step();
+                const StopInfo& step_stop = process->get_last_stop();
+                if (step_stop.kind == StopKind::SignalStop ||
+                    step_stop.kind == StopKind::TerminatedBySignal) {
+                    std::cout << "Step out interrupted by " << format_signal(step_stop.signal) << "." << std::endl;
+                    return StepOutResult::Signal;
+                }
+                if (step_stop.kind == StopKind::Exited) {
+                    std::cout << "Step out interrupted: process exited with code "
+                              << step_stop.exit_code << "." << std::endl;
+                    return StepOutResult::ProcessExited;
                 }
             }
 
-            if (return_address == 0 || return_address < 0x400000 || return_address >= 0x500000) {
-                std::cout << "Searching for valid return address on stack..." << std::endl;
-
-                for (int i = 0; i < 8; i++) {
-                    try {
-                        uint64_t stack_addr = rsp + (i * 8);
-                        std::vector<uint8_t> stack_data = process->read_memory(stack_addr, 8);
-                        uint64_t potential_return = 0;
-                        std::memcpy(&potential_return, stack_data.data(), 8);
-
-                        if (potential_return >= 0x400000 && potential_return < 0x500000 &&
-                            potential_return != rip && is_valid_code_address(potential_return)) {
-
-                            return_address = potential_return;
-                            std::cout << "Using return address from RSP+" << (i * 8)
-                                      << ": " << format_hex64(return_address) << std::endl;
-                            break;
-                        }
-                    } catch (...) {
-                        continue;
-                    }
-                }
-            }
-
-            if (return_address == 0 || return_address < 0x400000 || return_address >= 0x500000) {
-                std::cout << "Could not find valid return address. Try 'next' or 'until' instead." << std::endl;
-                return;
-            }
             process->set_breakpoint(return_address);
+            temporary_breakpoint_set = true;
             if (color_)
                 std::cout << Color::BRIGHT_YELLOW;
             std::cout << "Step out: Setting breakpoint at return address "
@@ -2859,11 +2989,38 @@ namespace mx {
                 std::cout << Color::RESET;
             process->continue_execution();
             wait_for_process_stop();
-            process->remove_breakpoint(return_address);
-            std::cout << "Step out completed." << std::endl;
+            const StopInfo stop = process->get_last_stop();
+            if (process->is_running()) {
+                process->remove_breakpoint(return_address);
+            }
+            temporary_breakpoint_set = false;
+
+            if (stop.kind == StopKind::SignalStop || stop.kind == StopKind::TerminatedBySignal) {
+                std::cout << "Step out interrupted by " << format_signal(stop.signal) << "." << std::endl;
+                return StepOutResult::Signal;
+            }
+            if (stop.kind == StopKind::Exited) {
+                std::cout << "Step out interrupted: process exited with code "
+                          << stop.exit_code << "." << std::endl;
+                return StepOutResult::ProcessExited;
+            }
+            if (stop.kind == StopKind::Breakpoint && process->get_register("rip") == return_address) {
+                std::cout << "Step out completed." << std::endl;
+                return StepOutResult::Completed;
+            }
+            std::cout << "Step out stopped before reaching return address "
+                      << format_hex64(return_address) << "." << std::endl;
+            return StepOutResult::Error;
 
         } catch (const std::exception &e) {
+            if (temporary_breakpoint_set && process && process->is_running()) {
+                try {
+                    process->remove_breakpoint(return_address);
+                } catch (...) {
+                }
+            }
             std::cerr << "Error during step out: " << e.what() << std::endl;
+            return StepOutResult::Error;
         }
     }
     void Debugger::run_until(uint64_t address) {

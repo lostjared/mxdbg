@@ -555,7 +555,7 @@ namespace mx {
         }
     }
 
-    std::string Process::disassemble_instruction(uint64_t address, const std::vector<uint8_t> &bytes) {
+    std::string Process::disassemble_instruction(uint64_t address, const std::vector<uint8_t> &bytes) const {
         try {
             std::string random_name;
             std::random_device rd;
@@ -622,8 +622,17 @@ namespace mx {
     void Process::single_step() {
         uint64_t pc = get_pc();
 
-        if (has_breakpoint(pc)) {
+        if (breakpoints.find(pc) != breakpoints.end()) {
             handle_breakpoint_step(pc);
+        } else if (auto it = conditional_breakpoints.find(pc); it != conditional_breakpoints.end()) {
+            long data = ptrace(PTRACE_PEEKDATA, current_thread_id, pc, nullptr);
+            long restored = (data & ~0xFF) | it->second.original_byte;
+            if (ptrace(PTRACE_POKEDATA, current_thread_id, pc, restored) == -1 ||
+                ptrace(PTRACE_SINGLESTEP, current_thread_id, nullptr, nullptr) == -1) {
+                throw mx::Exception::error("Failed to single step conditional breakpoint");
+            }
+            stepped_breakpoint_ = std::make_pair(pc, it->second.original_byte);
+            is_single_stepping = true;
         } else {
             if (ptrace(PTRACE_SINGLESTEP, current_thread_id, nullptr, nullptr) == -1) {
                 throw mx::Exception::error("Failed to single step process");
@@ -638,7 +647,10 @@ namespace mx {
         long restored = (data & ~0xFF) | original_byte;
         ptrace(PTRACE_POKEDATA, current_thread_id, address, restored);
 
-        ptrace(PTRACE_SINGLESTEP, current_thread_id, nullptr, nullptr);
+        if (ptrace(PTRACE_SINGLESTEP, current_thread_id, nullptr, nullptr) == -1) {
+            throw mx::Exception::error("Failed to single step breakpoint");
+        }
+        stepped_breakpoint_ = std::make_pair(address, original_byte);
         is_single_stepping = true;
     }
 
@@ -685,6 +697,7 @@ namespace mx {
             last_stop_.exit_code = WEXITSTATUS(status);
             exited_ = true;
             is_single_stepping = false;
+            stepped_breakpoint_.reset();
             return;
         }
         if (WIFSIGNALED(status)) {
@@ -692,24 +705,24 @@ namespace mx {
             last_stop_.signal = WTERMSIG(status);
             exited_ = true;
             is_single_stepping = false;
+            stepped_breakpoint_.reset();
             return;
         }
         if (WIFSTOPPED(status)) {
             last_stop_.signal = WSTOPSIG(status);
             last_stop_.kind = last_stop_.signal == SIGTRAP ? StopKind::Trap : StopKind::SignalStop;
-            if (last_stop_.signal != SIGTRAP) {
-                is_single_stepping = false;
-            }
         }
 
-        if (is_single_stepping && last_stop_.signal == SIGTRAP) {
-            uint64_t prev_pc = get_pc() - 1;
-            auto it = breakpoints.find(prev_pc);
-            if (it != breakpoints.end()) {
-                long data = ptrace(PTRACE_PEEKDATA, current_thread_id, prev_pc, nullptr);
+        if (is_single_stepping && WIFSTOPPED(status)) {
+            if (stepped_breakpoint_) {
+                const auto address = stepped_breakpoint_->first;
+                long data = ptrace(PTRACE_PEEKDATA, current_thread_id, address, nullptr);
                 long data_with_int3 = (data & ~0xFF) | 0xCC;
-                ptrace(PTRACE_POKEDATA, current_thread_id, prev_pc, data_with_int3);
+                if (ptrace(PTRACE_POKEDATA, current_thread_id, address, data_with_int3) == -1) {
+                    throw mx::Exception::error("Failed to re-insert breakpoint after single step");
+                }
             }
+            stepped_breakpoint_.reset();
             is_single_stepping = false;
         }
     }

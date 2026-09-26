@@ -15,6 +15,7 @@
 #include <map>
 #include <memory>
 #include <mx2-ollama.hpp>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -38,6 +39,13 @@ namespace mx {
         std::string state;
         uint64_t rip{};
         std::string name;
+    };
+
+    enum class StepOutResult {
+        Completed,
+        Signal,
+        ProcessExited,
+        Error
     };
 
     class Debugger {
@@ -69,7 +77,7 @@ namespace mx {
         [[nodiscard]] uint64_t calculate_variable_address(const std::string &r, uint64_t value);
         void break_if(uint64_t location, const std::string &e);
         void step_over();
-        void step_out();
+        [[nodiscard]] StepOutResult step_out();
         void run_until(uint64_t address);
 
       private:
@@ -83,7 +91,7 @@ namespace mx {
         std::unique_ptr<mx::ObjectRequest> request;
         std::string ai_configuration_error;
         std::uint64_t captured_stop_sequence = 0;
-        [[nodiscard]] std::string obj_dump();
+        [[nodiscard]] std::string obj_dump() const;
         std::string user_mode = "programmer";
         DebugContext context;
 
@@ -93,6 +101,20 @@ namespace mx {
         void wait_for_single_step();
         void capture_crash_context();
         [[nodiscard]] std::vector<uint64_t> get_stack_frames() const;
+        struct CallerFrame {
+            enum class Source { StackPointer, FramePointer, StackScan } source;
+            uint64_t return_address{};
+            uint64_t next_frame_pointer{};
+            std::size_t stack_offset{};
+        };
+        [[nodiscard]] std::optional<CallerFrame> find_caller_frame(
+            uint64_t rip, uint64_t rbp, uint64_t rsp) const;
+        [[nodiscard]] bool is_valid_return_address(
+            uint64_t address, uint64_t current_rip,
+            const std::optional<std::pair<uint64_t, uint64_t>>& current_function) const;
+        [[nodiscard]] bool instruction_before_is_call(uint64_t address) const;
+        [[nodiscard]] std::optional<std::pair<uint64_t, uint64_t>>
+            function_range_containing(uint64_t address) const;
         [[nodiscard]] std::string resolve_symbol(uint64_t address) const;
         [[nodiscard]] bool is_at_function_entry() const;
         [[nodiscard]] bool is_valid_code_address(uint64_t address) const;
