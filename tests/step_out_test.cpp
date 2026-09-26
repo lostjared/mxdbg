@@ -8,6 +8,20 @@
 #include <string_view>
 
 namespace {
+    void verify_breakpoint_restores_instruction(const std::filesystem::path& fixture) {
+        auto process = mx::Process::launch(fixture);
+        assert(process);
+        const uint64_t address = process->get_pc();
+        const uint8_t original = process->read_memory(address, 1).front();
+
+        process->set_breakpoint(address);
+        assert(process->read_memory(address, 1).front() == 0xcc);
+        assert(process->remove_breakpoint(address));
+        assert(process->read_memory(address, 1).front() == original);
+
+        process->detach();
+    }
+
     std::string breakpoint_list(mx::Debugger& debugger) {
         std::ostringstream captured;
         std::streambuf *original = std::cout.rdbuf(captured.rdbuf());
@@ -46,6 +60,7 @@ namespace {
 int main(int argc, char **argv) {
     assert(argc == 2);
     const std::filesystem::path fixture(argv[1]);
+    verify_breakpoint_restores_instruction(fixture);
     assert(run_step_out(fixture, "") == mx::StepOutResult::Completed);
     assert(run_step_out(fixture, "crash") == mx::StepOutResult::Signal);
 }

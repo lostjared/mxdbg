@@ -1191,9 +1191,18 @@ namespace mx {
         auto it = breakpoints.find(address);
         if (it == breakpoints.end())
             return false;
+
+        errno = 0;
         long data = ptrace(PTRACE_PEEKDATA, current_thread_id, address, nullptr);
+        if (data == -1 && errno != 0)
+            throw mx::Exception::error("Failed to read memory while removing breakpoint");
+
         long restored = (data & ~0xFF) | it->second;
-        ptrace(PTRACE_POKEDATA, current_thread_id, address, restored);
+        if (ptrace(PTRACE_POKEDATA, current_thread_id, address, restored) == -1)
+            throw mx::Exception::error("Failed to restore instruction while removing breakpoint");
+
+        // Keep the breakpoint tracked until the original instruction has
+        // actually been restored in the tracee.
         breakpoints.erase(it);
         auto index_it = std::find(breakpoint_index.begin(), breakpoint_index.end(), address);
         if (index_it != breakpoint_index.end()) {
