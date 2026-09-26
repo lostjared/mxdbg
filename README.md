@@ -293,8 +293,10 @@ When `MXDBG_MODEL` and the selected provider's required variables are set, the d
 - Analyze disassembly output with the `explain` command
 - Offer context-aware debugging assistance with the ask command
 - Preserve fatal-signal details, registers, the faulting instruction, stack data,
-  backtrace frames, and relevant mappings for subsequent `context` and `ask`
-  commands; `explain` remains an isolated static function analysis
+  backtrace frames, and relevant mappings for the `context` and `ask` commands
+
+The `explain` command performs isolated static function analysis and does not
+inherit runtime crash state.
 
 Example AI integration:
 ```bash

@@ -151,6 +151,7 @@ namespace mx {
             const auto configuration = load_ai_configuration(ai_configuration_error);
             if (configuration) {
                 request = create_ai_request(*configuration);
+                request->setInstructions(std::string(ai_analysis_instructions));
             }
         }
     }
@@ -1065,8 +1066,7 @@ namespace mx {
                         ? "CRASH ANALYSIS"
                         : "RUNTIME ANALYSIS";
                     request->setPrompt(
-                        std::string(ai_analysis_instructions) +
-                        "\n\nREQUEST TYPE: " + request_type +
+                        "REQUEST TYPE: " + request_type +
                         "\nUSER DIFFICULTY LEVEL: " + user_mode +
                         "\nExplain the current instruction in one or two sentences using only the supplied evidence.\n\n"
                         "CURRENT DEBUGGER STATE\n" + render_current_debugger_state() +
@@ -1280,8 +1280,7 @@ namespace mx {
             if (request) {
                 std::cout << "Requesting explanation from model..." << std::endl;
                 std::cout << "This may take a while, please wait..." << std::endl;
-                std::string prompt = std::string(ai_analysis_instructions) +
-                                     "\n\nREQUEST TYPE: STATIC FUNCTION EXPLANATION\n"
+                std::string prompt = "REQUEST TYPE: STATIC FUNCTION EXPLANATION\n"
                                      "USER DIFFICULTY LEVEL: " + user_mode +
                                      "\nFUNCTION: " + function_name +
                                      "\n\nCURRENT FUNCTION DISASSEMBLY\n" + function_code + "\n";
@@ -1410,12 +1409,11 @@ namespace mx {
             const std::string request_type = context.has_active_crash()
                 ? "CRASH ANALYSIS"
                 : "RUNTIME ANALYSIS";
-            std::string prompt = std::string(ai_analysis_instructions) +
-                "\n\nREQUEST TYPE: " + request_type +
+            std::string prompt = "REQUEST TYPE: " + request_type +
                 "\nUSER DIFFICULTY LEVEL: " + user_mode +
+                "\nUSER QUESTION\n" + question +
                 "\n\nCURRENT DEBUGGER STATE\n" + render_current_debugger_state() +
-                "\nCURRENT CRASH AND SESSION EVIDENCE\n" + context.render_evidence() +
-                "\nUSER QUESTION\n" + question;
+                "\nCURRENT CRASH AND SESSION EVIDENCE\n" + context.render_evidence();
             request->setPrompt(prompt);
             try {
                 if (color_)
@@ -1720,8 +1718,10 @@ namespace mx {
         }
 
         try {
+            const uint64_t rip = process->get_register("rip");
+            const std::string instruction = current_instruction_text(rip);
             const std::string before_state = render_current_debugger_state();
-            const std::string instruction = print_current_instruction();
+            print_current_instruction();
             process->single_step();
             wait_for_single_step();
             const std::string after_state = render_current_debugger_state();
@@ -1732,8 +1732,7 @@ namespace mx {
                         ? "CRASH ANALYSIS"
                         : "RUNTIME ANALYSIS";
                     request->setPrompt(
-                        std::string(ai_analysis_instructions) +
-                        "\n\nREQUEST TYPE: " + request_type +
+                        "REQUEST TYPE: " + request_type +
                         "\nUSER DIFFICULTY LEVEL: " + user_mode +
                         "\nExplain the instruction that was just executed using only the supplied evidence.\n"
                         "\nINSTRUCTION EXECUTED\n" + instruction +
