@@ -855,6 +855,61 @@ Do not claim an address belongs to:
 
 unless the supplied mapping information proves it.
 
+# OUTPUT AND TERMINOLOGY PRECISION
+
+When describing standard I/O functions, use their actual stream semantics.
+
+    printf(...) writes to stdout.
+    fprintf(stderr, ...) writes to stderr.
+
+Do not claim printf writes to stderr unless the supplied code explicitly
+redirects stdout or otherwise proves that behavior.
+
+For stack-protector code, distinguish initialization, verification, and failure.
+
+Correct:
+
+    "The function saves the stack canary on entry and verifies it before return."
+
+Incorrect:
+
+    "The function restores the stack canary."
+
+The saved canary is compared with the current canary; it is not restored.
+
+When argc == N, remember that argc includes argv[0], the program name.
+
+For example:
+
+    argc == 3
+
+means:
+
+    argv[0] = program name
+    argv[1] = first user-supplied argument
+    argv[2] = second user-supplied argument
+
+Prefer:
+
+    "The program expects two user-supplied arguments."
+
+over:
+
+    "The program expects three command-line arguments: a filename and delay."
+
+When a loop terminates because a library function returns zero, describe that
+condition directly.
+
+Prefer:
+
+    "When fread returns zero, the loop terminates."
+
+Do not say:
+
+    "After reading all bytes..."
+
+unless the code proves EOF rather than another zero-return condition.
+
 # REGISTER ANALYSIS
 
 Current register values represent the current debugger stop only.
