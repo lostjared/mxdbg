@@ -1,4 +1,14 @@
-find_package(ollama_gen REQUIRED)
+if(NOT TARGET ollama_gen)
+    find_package(ollama_gen REQUIRED)
+endif()
+add_executable(debug_context_test
+    debug_context_test.cpp
+    ../libmxdbg/debug_context.cpp
+)
+target_include_directories(debug_context_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libmxdbg/include
+)
+target_compile_features(debug_context_test PRIVATE cxx_std_20)
 add_executable(process_continue_test
     process_continue.cpp
 )
@@ -97,6 +107,7 @@ add_test(NAME pipe_test_  COMMAND pipe_test)
 add_test(NAME pipe_write COMMAND pipe_write_test)
 add_test(NAME exception_test_  COMMAND exception_test)
 add_test(NAME register_test COMMAND register_test)
+add_test(NAME debug_context COMMAND debug_context_test)
 set_tests_properties(process_attach PROPERTIES
     TIMEOUT 5
     PASS_REGULAR_EXPRESSION "Test passed"

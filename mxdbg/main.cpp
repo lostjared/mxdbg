@@ -2,7 +2,10 @@
 #include "mxdbg/debugger.hpp"
 #include "mxdbg/process.hpp"
 #include "mxdbg/version_info.hpp"
+#include <array>
+#include <atomic>
 #include <chrono>
+#include <curl/curl.h>
 #include <filesystem>
 #include <readline/history.h>
 #include <readline/readline.h>
@@ -10,6 +13,96 @@
 #include <sys/types.h>
 #include <thread>
 #include <unistd.h>
+
+namespace {
+size_t discard_response(char *contents, size_t size, size_t count, void *) {
+    (void)contents;
+    return size * count;
+}
+
+std::string ollama_url(std::string host) {
+    if (host.find(':') == std::string::npos) {
+        host += ":11434";
+    }
+    return "http://" + host + "/api/tags";
+}
+
+bool check_ollama_connection(const std::string &host, std::string &error) {
+    const CURLcode global_result = curl_global_init(CURL_GLOBAL_DEFAULT);
+    if (global_result != CURLE_OK) {
+        error = std::string("failed to initialize libcurl: ") + curl_easy_strerror(global_result);
+        return false;
+    }
+
+    CURL *curl = curl_easy_init();
+    if (curl == nullptr) {
+        error = "failed to initialize libcurl";
+        curl_global_cleanup();
+        return false;
+    }
+
+    const std::string url = ollama_url(host);
+    std::array<char, CURL_ERROR_SIZE> curl_error{};
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, discard_response);
+    curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, curl_error.data());
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 10L);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 15L);
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+    curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+
+    const CURLcode result = curl_easy_perform(curl);
+    long status = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status);
+    curl_easy_cleanup(curl);
+    curl_global_cleanup();
+
+    if (result != CURLE_OK) {
+        error = curl_error[0] != '\0' ? curl_error.data() : curl_easy_strerror(result);
+        return false;
+    }
+    if (status < 200 || status >= 300) {
+        error = "Ollama returned HTTP " + std::to_string(status);
+        return false;
+    }
+    return true;
+}
+
+bool show_ollama_connection_progress(const std::string &host, const std::string &model) {
+    const bool interactive = isatty(STDOUT_FILENO);
+    std::atomic<bool> finished = false;
+    std::thread spinner;
+
+    if (interactive) {
+        spinner = std::thread([&finished, &host]() {
+            constexpr char frames[] = {'|', '/', '-', '\\'};
+            size_t frame = 0;
+            while (!finished.load()) {
+                std::cout << "\rConnecting to Ollama at " << host << " ["
+                          << frames[frame++ % std::size(frames)] << "]" << std::flush;
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+        });
+    } else {
+        std::cout << "Connecting to Ollama at " << host << "..." << std::endl;
+    }
+
+    std::string error;
+    const bool connected = check_ollama_connection(host, error);
+    finished = true;
+    if (spinner.joinable()) {
+        spinner.join();
+        std::cout << "\r\033[2K";
+    }
+
+    if (connected) {
+        std::cout << "Connected to Ollama at " << host << " (model: " << model << ")" << std::endl;
+    } else {
+        std::cerr << "Warning: could not connect to Ollama at " << host << ": " << error << std::endl;
+    }
+    return connected;
+}
+} // namespace
 
 struct Arguments {
     pid_t p_id = -1;
@@ -30,19 +123,19 @@ Arguments parse_args(int argc, char **argv) {
             .addOptionDoubleValue('A', "args", "Additional arguments for the process")
             .addOptionSingleValue('a', "Additional arguments for the process")
             .addOptionSingleValue('e', "Dump Assembly of the executable")
+            .addOptionSingleValue('d', "Dump Assembly of the executable")
             .addOptionDoubleValue('D', "dump", "Dump Assembly of the executable")
-            .addOptionDouble('O', "disable-ai", "Disable AI")
-            .addOptionSingle('d', "Disable AI");
+            .addOptionDouble('O', "disable-ai", "Disable AI");
 
         int value = 0;
         mx::Argument<std::string> arg;
         while ((value = parser.proc(arg)) != -1) {
             switch (value) {
             case 'O':
-            case 'd':
                 args.enable_ollama = false;
                 break;
             case 'e':
+            case 'd':
             case 'D':
                 args.dump_asm = true;
                 args.path = std::filesystem::path(arg.arg_value);
@@ -89,16 +182,16 @@ Arguments parse_args(int argc, char **argv) {
 int main(int argc, char **argv) {
     std::cout << version_info << std::endl;
     Arguments args = parse_args(argc, argv);
+    if (args.enable_ollama) {
+        const char *mxdbg_host = getenv("MXDBG_HOST");
+        const char *mxdbg_model = getenv("MXDBG_MODEL");
+        if (mxdbg_host != nullptr && mxdbg_model != nullptr && mxdbg_host[0] != '\0' && mxdbg_model[0] != '\0') {
+            show_ollama_connection_progress(mxdbg_host, mxdbg_model);
+        }
+    }
     mx::Debugger debugger(args.enable_ollama);
     std::string history_filename;
     try {
-        if (args.enable_ollama) {
-            const char *mxdbg_host = getenv("MXDBG_HOST");
-            const char *mxdbg_model = getenv("MXDBG_MODEL");
-            if (mxdbg_host != nullptr && mxdbg_model != nullptr) {
-                std::cout << "Starting up connection to Ollama.. Please be patient.\n";
-            }
-        }
         const char *home_folder = getenv("HOME");
         if (home_folder) {
             history_filename = std::string(home_folder) + "/.mxdbg_history";

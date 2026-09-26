@@ -6,6 +6,8 @@
 #include "mxdbg/debugger.hpp"
 #include "mxdbg/exception.hpp"
 #include "mxdbg/expr.hpp"
+#include <algorithm>
+#include <climits>
 #include <cstdlib>
 #include <fcntl.h>
 #include <filesystem>
@@ -23,6 +25,22 @@
 #include <unistd.h>
 #include <vector>
 
+namespace {
+    std::size_t context_limit_from_environment() {
+        constexpr std::size_t default_limit = 32768;
+        const char *value = std::getenv("MXDBG_CONTEXT_SIZE");
+        if (value == nullptr || *value == '\0')
+            return default_limit;
+        try {
+            const auto parsed = std::stoull(value);
+            return std::clamp<std::size_t>(parsed, 4096, 1024 * 1024);
+        } catch (const std::exception &) {
+            std::cerr << "Ignoring invalid MXDBG_CONTEXT_SIZE='" << value << "'.\n";
+            return default_limit;
+        }
+    }
+}
+
 namespace mx {
 
     std::vector<std::string> split_command(const std::string &cmd) {
@@ -31,9 +49,11 @@ namespace mx {
             scan::Scanner scanner(cmd);
             uint64_t len = scanner.scan();
             for (size_t i = 0; i < len; ++i) {
-                if (scanner[i].getTokenType() == types::TokenType::TT_SYM && scanner[i].getTokenValue() == "\n" || scanner[i].getTokenType() == types::TokenType::TT_SYM && scanner[i].getTokenValue() == "\r")
+                if (scanner[i].getTokenType() == types::TokenType::TT_SYM &&
+                    (scanner[i].getTokenValue() == "\n" || scanner[i].getTokenValue() == "\r"))
                     break;
-                if (scanner[i].getTokenType() == types::TokenType::TT_ID || scanner[i].getTokenType() == types::TokenType::TT_HEX || scanner[i].getTokenType() == types::TokenType::TT_NUM || scanner[i].getTokenType() == types::TokenType::TT_STR || scanner[i].getTokenType() == types::TokenType::TT_SYM && scanner[i].getTokenValue() != "\n")
+                if (scanner[i].getTokenType() == types::TokenType::TT_ID || scanner[i].getTokenType() == types::TokenType::TT_HEX || scanner[i].getTokenType() == types::TokenType::TT_NUM || scanner[i].getTokenType() == types::TokenType::TT_STR ||
+                    (scanner[i].getTokenType() == types::TokenType::TT_SYM && scanner[i].getTokenValue() != "\n"))
                     tokenz.push_back(scanner[i].getTokenValue());
             }
             return tokenz;
@@ -44,16 +64,19 @@ namespace mx {
 
     std::string join(size_t start, size_t stop, std::vector<std::string> &tokens, const std::string &delimiter) {
         std::ostringstream oss;
-        for (size_t i = 0; i < tokens.size(); ++i) {
+        const size_t end = std::min(stop, tokens.size());
+        if (start >= end)
+            return {};
+        for (size_t i = start; i < end; ++i) {
             oss << tokens[i];
-            if (i < tokens.size() - 1) {
+            if (i + 1 < end) {
                 oss << delimiter;
             }
         }
         return oss.str();
     }
 
-    Debugger::Debugger(bool ai) : p_id(-1) {
+    Debugger::Debugger(bool ai) : p_id(-1), context(context_limit_from_environment()) {
         if (ai) {
             char *host = getenv("MXDBG_HOST");
             char *model = getenv("MXDBG_MODEL");
@@ -69,26 +92,10 @@ namespace mx {
 
     Debugger::~Debugger() {}
 
-    void Debugger::truncate_context() {
-        std::string content = code.str();
-        if (content.size() > MAX_CONTEXT_SIZE) {
-            size_t remove_count = content.size() - MAX_CONTEXT_SIZE;
-            size_t cut_pos = content.find('\n', remove_count);
-            if (cut_pos != std::string::npos && cut_pos < content.size()) {
-                content = content.substr(cut_pos + 1);
-            } else {
-                content = content.substr(remove_count);
-            }
-            code.str(content);
-            code.seekp(0, std::ios_base::end);
-        }
-    }
-
     void Debugger::setup_history() {
     }
     bool Debugger::attach(pid_t pid) {
-        code.clear();
-        code.str("");
+        context.clear();
         try {
             process = Process::attach(pid);
             if (!process) {
@@ -111,8 +118,7 @@ namespace mx {
 
     bool Debugger::launch(const std::filesystem::path &exe, std::string_view args) {
         args_string = args;
-        code.clear();
-        code.str("");
+        context.clear();
         try {
             std::vector<std::string> args_v;
             if (!args.empty()) {
@@ -411,7 +417,7 @@ namespace mx {
             return true;
         } else if (tokens.size() == 2 && tokens[0] == "as_bytes") {
             std::string what = tokens[1];
-            for (int i = 0; i < what.size(); ++i) {
+            for (size_t i = 0; i < what.size(); ++i) {
                 std::cout << format_hex8(what.at(i)) << " ";
             }
             std::cout << "\n";
@@ -848,7 +854,7 @@ namespace mx {
         } else if (tokens.size() == 1 && (tokens[0] == "step" || tokens[0] == "s")) {
             step();
             return true;
-        } else if (tokens.size() == 2 && tokens[0] == "step") {
+        } else if (tokens.size() == 2 && (tokens[0] == "step" || tokens[0] == "s")) {
             try {
                 std::string num_str = tokens[1];
                 int count = std::stoi(num_str);
@@ -863,7 +869,7 @@ namespace mx {
             return true;
         } else if (tokens.size() == 1 && (tokens[0] == "quit" || tokens[0] == "q" || tokens[0] == "exit")) {
             return false;
-        } else if (tokens.size() == 1 && tokens[0] == "registers" || tokens[0] == "regs") {
+        } else if (tokens.size() == 1 && (tokens[0] == "registers" || tokens[0] == "regs")) {
             if (process && process->is_running()) {
                 std::cout << "Registers for PID " << process->get_pid() << ":" << std::endl;
                 std::cout << process->reg_info() << std::endl;
@@ -871,7 +877,7 @@ namespace mx {
                 std::cout << "No process attached or running." << std::endl;
             }
             return true;
-        } else if (tokens.size() == 2 && tokens[0] == "register" || tokens[0] == "reg") {
+        } else if (tokens.size() == 2 && (tokens[0] == "register" || tokens[0] == "reg")) {
             if (process && process->is_running()) {
                 std::string reg_name = tokens[1];
                 try {
@@ -1002,8 +1008,7 @@ namespace mx {
                     if (color_)
                         std::cout << Color::RESET;
                     std::cout << "\n";
-                    code << "Explanation of: " << function_name << response << "\n";
-                    truncate_context();
+                    context.add_insight("Function " + function_name, response);
                 } catch (const mx::ObjectRequestException &e) {
                     std::cerr << "Error: " << e.what() << std::endl;
                 }
@@ -1070,6 +1075,16 @@ namespace mx {
                 std::cerr << "Error writing bytes: " << e.what() << std::endl;
             }
             return true;
+        } else if (tokens.size() == 1 && tokens[0] == "context") {
+            std::cout << context.render();
+            std::cout << "\nContext storage: " << context.size() << "/" << context.limit()
+                      << " characters; " << context.omitted_instructions()
+                      << " instruction(s) compacted.\n";
+            return true;
+        } else if (tokens.size() == 2 && tokens[0] == "context" && tokens[1] == "clear") {
+            context.clear();
+            std::cout << "AI debugging context cleared.\n";
+            return true;
         } else if (tokens.size() >= 2 && tokens[0] == "ask") {
             std::string question = cmd.substr(cmd.find(' ') + 1);
             if (question.empty()) {
@@ -1087,7 +1102,11 @@ namespace mx {
             if (color_)
                 std::cout << Color::RESET;
 
-            std::string prompt = "You are a helpful AI assistant. Answer the following question with this context: " + code.str() + "\n\nthe question: " + question;
+            std::string prompt =
+                "You are a debugging assistant analyzing an x86-64 program. Use the structured "
+                "session context below. Distinguish observed facts from hypotheses, focus on the "
+                "most recent execution, and answer concisely for a " + user_mode + ".\n\n" +
+                context.render() + "\nQUESTION\n" + question;
             request->setPrompt(prompt);
             try {
                 if (color_)
@@ -1098,6 +1117,7 @@ namespace mx {
                 if (color_)
                     std::cout << Color::RESET;
                 std::cout << "\n";
+                context.add_insight("Answer to '" + question + "'", response);
             } catch (const mx::ObjectRequestException &e) {
                 std::cerr << "Error: " << e.what() << std::endl;
             }
@@ -1203,6 +1223,8 @@ namespace mx {
             std::cout << "=== AI Features ===" << std::endl;
             std::cout << "  explain <function>          - Explain function disassembly with AI" << std::endl;
             std::cout << "  ask <question>              - Ask the AI a question about the program" << std::endl;
+            std::cout << "  context                     - Show the bounded AI session context" << std::endl;
+            std::cout << "  context clear               - Clear the AI session context" << std::endl;
             std::cout << "  mode <level>, user <level>  - Set AI difficulty (beginner/programmer/expert)" << std::endl;
 
             std::cout << "=== Utility ===" << std::endl;
@@ -1444,9 +1466,7 @@ namespace mx {
                 std::cout << "Current instruction at " << format_hex64(rip) << std::dec << " [BREAKPOINT]: ";
                 if (color_)
                     std::cout << Color::RESET;
-                code.str("");
-                code << "New breakpoint at :" << format_hex64(rip) << "\n";
-                truncate_context();
+                context.add_event("Breakpoint reached at " + format_hex64(rip));
             } else {
                 std::cout << "Current instruction at: " << format_hex64(rip) << std::dec << ": ";
             }
@@ -1503,8 +1523,7 @@ namespace mx {
 
                         std::cout << hex_part << " -> " << instr_part << std::endl;
                         output << hex_part << " " << instr_part << std::endl;
-                        code << output.str();
-                        truncate_context();
+                        context.add_instruction(rip, output.str());
                     } else {
                         std::cout << line << std::endl;
                         output << line << std::endl;
@@ -1631,7 +1650,8 @@ namespace mx {
                 continue;
             }
             if (in_function) {
-                if (line.find("Disassembly") != std::string::npos || line.find("<") != std::string::npos && line.find(">:") != std::string::npos) {
+                if (line.find("Disassembly") != std::string::npos ||
+                    (line.find("<") != std::string::npos && line.find(">:") != std::string::npos)) {
                     break;
                 }
                 if (!line.empty() && line.find_first_not_of(" \t\n\r") != std::string::npos) {

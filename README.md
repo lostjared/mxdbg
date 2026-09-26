@@ -52,6 +52,7 @@ To use the AI integration features, you must export these environment variables 
 export MXDBG_HOST="localhost"     # Your Ollama server URL can included port
                                   # example 192.168.1.50:1088 op just the ip 192.168.1.50 
 export MXDBG_MODEL="llama2"       # Your preferred Ollama model ex: codellama:7b
+export MXDBG_CONTEXT_SIZE="32768" # Optional AI context budget in characters (4 KiB-1 MiB)
 ```
 
 ### Setting up Ollama
@@ -66,7 +67,7 @@ export MXDBG_MODEL="llama2"       # Your preferred Ollama model ex: codellama:7b
 ```bash
 mkdir build
 cd build
-cmake ..
+cmake .. -DOLLAMA_GEN_SOURCE_DIR=/path/to/ollama_gen
 make
 ```
 
@@ -181,6 +182,8 @@ Once in the debugger shell (`mx $>`), you can use:
 | **AI Features** | | |
 | `explain <function>` | | Explain function disassembly with AI |
 | `ask <question>` | | Ask the AI a question about the program |
+| `context` | | Show the bounded, structured AI debugging context |
+| `context clear` | | Clear the AI debugging context |
 | `mode <level>` | `user <level>` | Set AI difficulty (beginner/programmer/expert) |
 | **File Information** | | |
 | `info files` | | Show open file descriptors |

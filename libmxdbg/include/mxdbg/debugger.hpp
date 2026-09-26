@@ -7,6 +7,7 @@
 #define ___DEBUGGER__H__
 
 #include "mxdbg/process.hpp"
+#include "mxdbg/debug_context.hpp"
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
@@ -81,9 +82,7 @@ namespace mx {
         std::unique_ptr<mx::ObjectRequest> request;
         [[nodiscard]] std::string obj_dump();
         std::string user_mode = "programmer";
-        std::ostringstream code;
-        static constexpr size_t MAX_CONTEXT_SIZE = 32768;
-        void truncate_context();
+        DebugContext context;
 
         [[nodiscard]] std::string functionText(const std::string &text);
         void print_backtrace() const;
