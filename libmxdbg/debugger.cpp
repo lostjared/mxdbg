@@ -57,6 +57,10 @@ NEXT STEP:
 What debugger operation would gather the missing evidence.
 Do not recommend inspecting information already present in CURRENT DEBUGGER STATE.
 Prefer the minimum debugger action needed to obtain missing evidence.
+When the upstream cause is unknown, do not imply a cause in NEXT STEP.
+Do not say a register was uninitialized, corrupted, incorrectly set, or invalid
+unless the debugger state proves that.
+Recommend only the next observation needed to establish the cause.
 
 If previous conversation context conflicts with the current debugger state,
 ignore the previous context.
