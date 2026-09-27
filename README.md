@@ -31,7 +31,7 @@ A modern C++ debugger built with ptrace that integrates with Ollama, OpenAI, or 
 
 ### Required Dependencies
 
-- **CMake 3.20+**: Build system
+- **CMake 3.20+ or Pcons**: Build system
 - **C++20 compatible compiler**: GCC 10+ or Clang 10+
 - **readline**: For interactive command line interface
 - **ollama_gen**: AI integration library for Ollama, OpenAI, and Anthropic communication
@@ -149,23 +149,64 @@ test -n "$ANTHROPIC_API_KEY" && echo "ANTHROPIC_API_KEY is set"
 
 ## Building
 
+The `mxdbg` and `ollama_gen` repositories may be checked out anywhere. Replace
+the example paths below with the locations of the two independent checkouts.
+
+### Pcons
+
+Install [uv](https://docs.astral.sh/uv/), then build `mxdbg` directly against
+an `ollama_gen` source checkout:
+
 ```bash
-mkdir build
-cd build
-cmake .. -DOLLAMA_GEN_SOURCE_DIR=/path/to/ollama_gen
-make
+cd /path/to/mxdbg
+uvx pcons -B build/pcons \
+    OLLAMA_GEN_SOURCE_DIR=/path/to/ollama_gen \
+    --reconfigure
+```
+
+The executable is written to `build/pcons/mxdbg`. Run the tests with:
+
+```bash
+uvx pcons -B build/pcons test
+```
+
+Tests that launch or attach to processes require permission to use `ptrace`.
+
+If `ollama_gen` has already been installed in a standard prefix, omit
+`OLLAMA_GEN_SOURCE_DIR`. For a non-standard installation, pass its prefix:
+
+```bash
+uvx pcons -B build/pcons PREFIX=/path/to/ollama-prefix --reconfigure
+```
+
+To stage an installation under the `mxdbg` repository's `dist` directory:
+
+```bash
+uvx pcons -B build/pcons all install
+```
+
+Use `PCONS_INSTALL_PREFIX=/path/to/prefix` to select another installation
+prefix, `VARIANT=debug` for a debug build, or `TESTS=0` to omit the test
+programs.
+
+### CMake
+
+```bash
+cmake -S . -B build/cmake \
+    -DOLLAMA_GEN_SOURCE_DIR=/path/to/ollama_gen
+cmake --build build/cmake
 ```
 
 ### Installation
 
 ```bash
-sudo make install
+sudo cmake --install build/cmake
 ```
 
 ### Uninstall
 
 ```bash
-sudo make uninstall
+sudo cmake --build build/cmake --target uninstall
 ```
 
 ## Usage
