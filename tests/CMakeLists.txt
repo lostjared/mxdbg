@@ -142,6 +142,15 @@ target_include_directories(static_analysis_test PRIVATE
 )
 target_compile_features(static_analysis_test PRIVATE cxx_std_20)
 add_test(NAME static_analysis COMMAND static_analysis_test)
+add_executable(disassembly_test
+    disassembly_test.cpp
+    ../libmxdbg/disassembly.cpp
+)
+target_include_directories(disassembly_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libmxdbg/include
+)
+target_compile_features(disassembly_test PRIVATE cxx_std_20)
+add_test(NAME disassembly COMMAND disassembly_test)
 add_test(NAME ai_config COMMAND ai_config_test)
 add_test(NAME step_out COMMAND step_out_test $<TARGET_FILE:step_out_fixture>)
 add_test(NAME cli_help COMMAND $<TARGET_FILE:mxdbg> --help)

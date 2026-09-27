@@ -5,6 +5,7 @@
 */
 #include "mxdbg/debugger.hpp"
 #include "mxdbg/ai_instructions.hpp"
+#include "mxdbg/disassembly.hpp"
 #include "mxdbg/exception.hpp"
 #include "mxdbg/expr.hpp"
 #include "mxdbg/static_analysis.hpp"
@@ -1915,30 +1916,7 @@ namespace mx {
     }
 
     std::string Debugger::functionText(const std::string &text) {
-        std::string function_name = text;
-        std::string disassembly = obj_dump();
-        std::ostringstream function_disassembly;
-        bool in_function = false;
-        std::istringstream iss(disassembly);
-        std::string line;
-
-        while (std::getline(iss, line)) {
-            if (line.find("<" + function_name + ">:") != std::string::npos) {
-                in_function = true;
-                function_disassembly << line << "\n";
-                continue;
-            }
-            if (in_function) {
-                if (line.find("Disassembly") != std::string::npos ||
-                    (line.find("<") != std::string::npos && line.find(">:") != std::string::npos)) {
-                    break;
-                }
-                if (!line.empty() && line.find_first_not_of(" \t\n\r") != std::string::npos) {
-                    function_disassembly << line << "\n";
-                }
-            }
-        }
-        return function_disassembly.str();
+        return extract_function_disassembly(obj_dump(), text);
     }
 
     void Debugger::print_backtrace() const {
