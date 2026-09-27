@@ -22,6 +22,7 @@ import platform as host_platform
 from pathlib import Path
 
 from pcons import Project, find_c_toolchain, get_platform, get_var
+from pcons.core.subst import SourcePath, TargetPath
 
 VERSION = "1.2.0"
 
@@ -60,6 +61,11 @@ env.set_variant(get_var("VARIANT", "release"))
 env.cxx.flags.extend(["-Wall", "-Wextra", "-Wpedantic", "-fPIC"])
 # Find libmxdbg beside build-tree executables and in ../lib after installation.
 env.link.flags.append("-Wl,-rpath,$$ORIGIN:$$ORIGIN/../lib")
+# Pcons' default copy2-based install command preserves source mtimes. DrvFS
+# rounds explicitly assigned mtimes down to whole seconds, which leaves each
+# installed output older than its input and prevents Ninja from converging.
+# GNU install creates parent directories and gives the output a fresh mtime.
+env.install.copycmd = ["install", "-D", SourcePath(), TargetPath()]
 
 ollama_source = get_var("OLLAMA_GEN_SOURCE_DIR", "")
 if ollama_source:
@@ -201,8 +207,8 @@ if option("TESTS", default=True):
 public_headers = sorted((project_dir / "libmxdbg" / "include" / "mxdbg").glob("*.hpp"))
 project.Alias(
     "install",
-    project.Install("lib", [libmxdbg]),
+    project.Install("lib", [libmxdbg], mode=0o755),
     # InstallAs avoids ambiguity with the source directory also named mxdbg.
-    project.InstallAs("bin/mxdbg", mxdbg, name="install_mxdbg"),
-    project.Install("include/mxdbg", public_headers),
+    project.InstallAs("bin/mxdbg", mxdbg, name="install_mxdbg", mode=0o755),
+    project.Install("include/mxdbg", public_headers, mode=0o644),
 )
