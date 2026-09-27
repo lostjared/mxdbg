@@ -133,7 +133,13 @@ namespace mx {
 
         while (std::getline(input, line)) {
             if (const auto header = parse_header(line)) {
-                blocks.push_back(Block{header->first, header->second});
+                blocks.push_back(Block{
+                    .address = header->first,
+                    .name = header->second,
+                    .lines = {},
+                    .jump_targets = {},
+                    .falls_through = true,
+                });
                 current = &blocks.back();
                 current->lines.push_back(line);
                 continue;

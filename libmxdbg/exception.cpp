@@ -93,8 +93,10 @@ namespace mx {
             return "SIGSYS (Bad system call)";
 
         default:
-            if (sig >= SIGRTMIN && sig <= SIGRTMAX) {
-                return std::format("SIGRTMIN+{} (Real-time signal)", sig - SIGRTMIN);
+            const auto realtime_min = static_cast<uint32_t>(SIGRTMIN);
+            const auto realtime_max = static_cast<uint32_t>(SIGRTMAX);
+            if (sig >= realtime_min && sig <= realtime_max) {
+                return std::format("SIGRTMIN+{} (Real-time signal)", sig - realtime_min);
             }
             return std::format("Unknown signal ({})", sig);
         }

@@ -248,11 +248,9 @@ void test_multiple_writes_reads() {
         "Second message",
         "Third message with numbers: 12345",
         "Final message!"};
-    size_t expected_length = 0;
     std::string expected;
     for (const auto &msg : test_strings) {
         expected += msg;
-        expected_length += msg.length();
     }
     for (const auto &msg : test_strings) {
         pipe.write(msg);

@@ -127,12 +127,19 @@ mxdbg = project.Program(
 mxdbg.private.include_dirs.append(project_dir / "mxdbg" / "include")
 mxdbg.link(libmxdbg, ollama_gen, readline, curl)
 
+# Assertions are the test suite's checks, so keep them enabled even when the
+# library and executable use the release variant.
+test_env = env.clone()
+for compiler in (test_env.cc, test_env.cxx):
+    if "NDEBUG" in compiler.defines:
+        compiler.defines.remove("NDEBUG")
+
 
 def test_program(name: str, *sources: str, link_library: bool = True):
     """Create one of the CMake test executables."""
     program = project.Program(
         name,
-        env,
+        test_env,
         sources=[project_dir / "tests" / source for source in sources],
     )
     program.private.include_dirs.append(project_dir / "libmxdbg" / "include")

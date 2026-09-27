@@ -8,6 +8,7 @@
 #include "mxdbg/exception.hpp"
 #include "mxdbg/expr.hpp"
 #include "mxdbg/pipe.hpp"
+#include <cerrno>
 #include <sys/ptrace.h>
 #include <sys/wait.h>
 #ifndef __WALL
@@ -470,10 +471,11 @@ namespace mx {
                         return;
                     }
 
-                    unsigned long dr6 = 0;
-                    if ((dr6 = ptrace(PTRACE_PEEKUSER, current_thread_id,
-                                      offsetof(user, u_debugreg[6]), nullptr)) != -1) {
-                        if (dr6 & 0xF) {
+                    errno = 0;
+                    const long dr6 = ptrace(PTRACE_PEEKUSER, current_thread_id,
+                                            offsetof(user, u_debugreg[6]), nullptr);
+                    if (dr6 != -1 || errno == 0) {
+                        if (static_cast<unsigned long>(dr6) & 0xFUL) {
                             last_stop_.kind = StopKind::Watchpoint;
                             last_stop_.thread_id = current_thread_id;
                             last_stop_.signal = SIGTRAP;
@@ -560,7 +562,7 @@ namespace mx {
         }
     }
 
-    std::string Process::disassemble_instruction(uint64_t address, const std::vector<uint8_t> &bytes) const {
+    std::string Process::disassemble_instruction(uint64_t /*address*/, const std::vector<uint8_t> &bytes) const {
         try {
             std::string random_name;
             std::random_device rd;
@@ -1167,7 +1169,7 @@ namespace mx {
             throw mx::Exception("Failed to re-insert breakpoint");
         }
     }
-    std::string Process::disassemble_instruction(uint64_t address) const {
+    std::string Process::disassemble_instruction(uint64_t /*address*/) const {
         return "disassembly not implemented";
     }
 
@@ -1618,11 +1620,13 @@ namespace mx {
                 throw Exception("Failed to set debug address register");
             }
 
-            unsigned long dr7;
-            if ((dr7 = ptrace(PTRACE_PEEKUSER, current_thread_id,
-                              offsetof(user, u_debugreg[7]), nullptr)) == -1) {
+            errno = 0;
+            const long dr7_value = ptrace(PTRACE_PEEKUSER, current_thread_id,
+                                          offsetof(user, u_debugreg[7]), nullptr);
+            if (dr7_value == -1 && errno != 0) {
                 throw Exception("Failed to read DR7 register");
             }
+            auto dr7 = static_cast<unsigned long>(dr7_value);
 
             unsigned long dr7_config = 0;
             dr7_config |= (3UL << (dr_slot * 2));
@@ -1712,11 +1716,13 @@ namespace mx {
                 throw Exception("Failed to clear debug address register");
             }
 
-            unsigned long dr7;
-            if ((dr7 = ptrace(PTRACE_PEEKUSER, current_thread_id,
-                              offsetof(user, u_debugreg[7]), nullptr)) == -1) {
+            errno = 0;
+            const long dr7_value = ptrace(PTRACE_PEEKUSER, current_thread_id,
+                                          offsetof(user, u_debugreg[7]), nullptr);
+            if (dr7_value == -1 && errno != 0) {
                 throw Exception("Failed to read DR7 register");
             }
+            auto dr7 = static_cast<unsigned long>(dr7_value);
 
             dr7 &= ~(3UL << (slot * 2));
 

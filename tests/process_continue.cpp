@@ -1,7 +1,7 @@
 #include <iostream>
 #include <mxdbg/process.hpp>
 
-int main(int argc, char **argv) {
+int main() {
     try {
         auto p = mx::Process::launch("/bin/ls");
         if (!p) {
