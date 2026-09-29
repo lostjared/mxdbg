@@ -13,9 +13,6 @@ A modern C++ debugger built with ptrace that integrates with Ollama, OpenAI, or 
 - Red for machine code/disassembly
 - White for debugger text
 
-
-#  Not complete, some features still need to be implemented. This is a new project.
-
 ## Features
 
 - **Process Control**: Launch or attach to processes with full debugging capabilities
