@@ -6,5 +6,5 @@
 #ifndef ___VERSION__INFO__H_
 #define ___VERSION__INFO__H_
 #include <string_view>
-inline constexpr std::string_view version_info = "MXDBG v1.2.0\n - (c) 2026 LostSideDead Software";
+inline constexpr std::string_view version_info = "MXDBG v1.3.0\n - (c) 2026 LostSideDead Software";
 #endif
