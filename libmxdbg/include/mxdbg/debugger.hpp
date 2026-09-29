@@ -19,6 +19,8 @@
 #include <span>
 #include <string>
 #include <vector>
+#include<unordered_map>
+#include<deque>
 namespace mx {
 
     [[nodiscard]] std::vector<std::string> split_command(const std::string &cmd);
@@ -47,6 +49,32 @@ namespace mx {
         ProcessExited,
         Error
     };
+
+
+    enum class ChangeSource {
+        User,
+        Instruction,
+        Signal,
+        Breakpoint,
+        Watchpoint,
+        Syscall
+    };
+
+    struct RegisterChange {
+        uint64_t before;
+        uint64_t after;
+    };
+
+    using CaptureRegisters  =  std::unordered_map<std::string, uint64_t>;
+    using RegisterChanges = std::unordered_map<std::string, RegisterChange>;
+
+    struct StepChange {
+        ChangeSource source;
+        uint64_t address;
+        std::string instruction;
+        RegisterChanges changes;
+    };
+
 
     class Debugger {
       public:
@@ -81,10 +109,13 @@ namespace mx {
         void run_until(uint64_t address);
 
       private:
+        CaptureRegisters capture_registers();
+        RegisterChanges compare_registers(const CaptureRegisters &before, const CaptureRegisters &after);
         std::string print_current_instruction();
         [[nodiscard]] std::string current_instruction_text(uint64_t rip) const;
         std::unique_ptr<Process> process;
         std::string_view args;
+        std::deque<StepChange> changes;
         pid_t p_id = -1;
         std::string history_filename;
         std::string program_name;

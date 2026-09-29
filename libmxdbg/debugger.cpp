@@ -160,6 +160,34 @@ namespace mx {
 
     Debugger::~Debugger() {}
 
+    std::vector<std::string> tracked_registers {
+        "rax", "rbx", "rcx", "rdx",
+        "rsi", "rdi", "rbp", "rsp",
+        "r8", "r9", "r10", "r11",
+        "r12", "r13", "r14", "r15",
+        "rip", "eflags"
+    };
+
+
+    CaptureRegisters Debugger::capture_registers() {
+        CaptureRegisters snapshot;
+        for (const auto &r : tracked_registers) {
+            snapshot[r] = process->get_register(r);
+        }
+        return snapshot;
+    }
+
+    RegisterChanges Debugger::compare_registers(const CaptureRegisters &before, const CaptureRegisters &after) {
+        RegisterChanges result;
+        for (const auto &reg : tracked_registers) {
+            if (before.at(reg) != after.at(reg)) {
+                result[reg] = {before.at(reg), after.at(reg)};
+            }
+        }
+        return result;
+    }
+
+
     void Debugger::setup_history() {
     }
     bool Debugger::attach(pid_t pid) {
@@ -1713,7 +1741,25 @@ namespace mx {
                 std::cout << "No arguments recorded." << std::endl;
             }
             return true;
+        } else if(tokens.size() == 2 && tokens[0] == "history") {
+            int value = std::stoi(tokens[1]);
+            if(value >= 0 && value < static_cast<int>(changes.size()) ) {
+                value = changes.size() - value - 1;
+                if(changes[value].source == ChangeSource::Instruction) {
+                    std::cout << "Instruction Register Change: \n";
+                    std::cout << format_hex64(changes[value].address)<< "\n";
+                    std::cout << changes[value].instruction << "\n";
+                    for(const auto &change : changes[value].changes) {
+                        std::cout << change.first << " " << format_hex64(change.second.before) << " -> " << format_hex64(change.second.after) << "\n";
+                    }
+                }
+                return true;
+            } else {
+                std::cerr << "Error history value out of range.\n";
+                return true;
+            }
         }
+
         std::cout << "Unknown command: " << cmd << std::endl;
         return true;
     }
@@ -1726,6 +1772,7 @@ namespace mx {
 
         try {
             const uint64_t rip = process->get_register("rip");
+            auto before = capture_registers();
             const std::string instruction = current_instruction_text(rip);
             const std::string before_state = render_current_debugger_state();
             print_current_instruction();
@@ -1758,6 +1805,27 @@ namespace mx {
                     std::cerr << "Error: " << e.what() << std::endl;
                 }
             }
+            auto after = capture_registers();
+            auto reg_compare = compare_registers(before, after);
+            bool reg_changed  = false;
+            for(const auto &reg_change : reg_compare) {
+                if(reg_change.first != "rip") {
+                    reg_changed = true;
+                    std::cout << reg_change.first << " " << format_hex64(reg_change.second.before) << " -> " << format_hex64(reg_change.second.after) << "\n";
+                }
+            }
+            if(!reg_changed) {
+                std::cerr << "No register changes.\n";
+            }
+            StepChange schange;
+            schange.address = rip;
+            schange.instruction = current_instruction_text(rip);
+            schange.source = ChangeSource::Instruction;
+            schange.changes = std::move(reg_compare);
+            changes.push_back(std::move(schange));
+            if(changes.size() > 1000)
+                changes.pop_front();
+
         } catch (const std::exception &e) {
             std::cerr << "Error during single step: " << e.what() << std::endl;
         }

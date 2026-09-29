@@ -850,7 +850,6 @@ namespace mx {
             return regs.r15;
         if (reg_name == "eflags")
             return regs.eflags;
-
         if (reg_name == "eax")
             return regs.rax & 0xFFFFFFFF;
         if (reg_name == "ebx")
@@ -1575,7 +1574,7 @@ namespace mx {
                   << "  R15W: 0x" << std::hex << std::setw(4) << (regs.r15 & 0xFFFF) << std::dec
                   << "  R15B: 0x" << std::hex << std::setw(2) << (regs.r15 & 0xFF) << std::dec << std::endl;
 
-        std::cout << std::setw(8) << "EFLAGS:" << "0x" << std::hex << std::setfill('0') << std::setw(8) << regs.eflags << std::dec << std::endl;
+        std::cout << std::setw(8) << "FLAGS:" << "0x" << std::hex << std::setfill('0') << std::setw(8) << regs.eflags << std::dec << std::endl;
     }
 
     bool Process::set_watchpoint(uint64_t address, size_t size, WatchType type) {
